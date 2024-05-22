@@ -5,10 +5,10 @@
 
     <groupId>net.jojoaddison</groupId>
     <artifactId>hc-admin-service</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>Hc Admin Service</name>
-    <description>Description for Hc Admin Service</description>
+    <description>Health Connect Admin Data Service</description>
 
     <properties>
         <!--
@@ -386,7 +386,7 @@
                             </platforms>
                         </from>
                         <to>
-                            <image>hcadminservice:latest</image>
+                            <image>${project.artifactId}:${project.version}</image>
                         </to>
                         <container>
                             <entrypoint>

@@ -1,0 +1,45 @@
+{
+  "annotations": {
+    "changelogDate": "20240326231206"
+  },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "entityTableName": "hcsubscription",
+  "fields": [
+    {
+      "fieldName": "serviceId",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "patientId",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "isActive",
+      "fieldType": "Boolean"
+    },
+    {
+      "fieldName": "createdDate",
+      "fieldType": "Instant"
+    },
+    {
+      "fieldName": "modifiedDate",
+      "fieldType": "Instant"
+    },
+    {
+      "fieldName": "createdBy",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "modifiedBy",
+      "fieldType": "String"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "HCSubscription",
+  "pagination": "no",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "no"
+}

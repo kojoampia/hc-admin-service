@@ -1,0 +1,29 @@
+{
+  "annotations": {
+    "changelogDate": "20240402040832"
+  },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "entityTableName": "dashboard",
+  "fields": [
+    {
+      "fieldName": "name",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "elements",
+      "fieldType": "String"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "Dashboard",
+  "pagination": "no",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "no"
+}
