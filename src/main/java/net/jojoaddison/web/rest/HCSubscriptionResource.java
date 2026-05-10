@@ -40,7 +40,9 @@ public class HCSubscriptionResource {
      * {@code POST  /hc-subscriptions} : Create a new hCSubscription.
      *
      * @param hCSubscription the hCSubscription to create.
-     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with body the new hCSubscription, or with status {@code 400 (Bad Request)} if the hCSubscription has already an ID.
+     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and with
+     *         body the new hCSubscription, or with status {@code 400 (Bad Request)}
+     *         if the hCSubscription has already an ID.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
@@ -59,11 +61,14 @@ public class HCSubscriptionResource {
     /**
      * {@code PUT  /hc-subscriptions/:id} : Updates an existing hCSubscription.
      *
-     * @param id the id of the hCSubscription to save.
+     * @param id             the id of the hCSubscription to save.
      * @param hCSubscription the hCSubscription to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated hCSubscription,
-     * or with status {@code 400 (Bad Request)} if the hCSubscription is not valid,
-     * or with status {@code 500 (Internal Server Error)} if the hCSubscription couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated hCSubscription,
+     *         or with status {@code 400 (Bad Request)} if the hCSubscription is not
+     *         valid,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         hCSubscription couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
@@ -91,14 +96,19 @@ public class HCSubscriptionResource {
     }
 
     /**
-     * {@code PATCH  /hc-subscriptions/:id} : Partial updates given fields of an existing hCSubscription, field will ignore if it is null
+     * {@code PATCH  /hc-subscriptions/:id} : Partial updates given fields of an
+     * existing hCSubscription, field will ignore if it is null
      *
-     * @param id the id of the hCSubscription to save.
+     * @param id             the id of the hCSubscription to save.
      * @param hCSubscription the hCSubscription to update.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the updated hCSubscription,
-     * or with status {@code 400 (Bad Request)} if the hCSubscription is not valid,
-     * or with status {@code 404 (Not Found)} if the hCSubscription is not found,
-     * or with status {@code 500 (Internal Server Error)} if the hCSubscription couldn't be updated.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the updated hCSubscription,
+     *         or with status {@code 400 (Bad Request)} if the hCSubscription is not
+     *         valid,
+     *         or with status {@code 404 (Not Found)} if the hCSubscription is not
+     *         found,
+     *         or with status {@code 500 (Internal Server Error)} if the
+     *         hCSubscription couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
@@ -124,8 +134,8 @@ public class HCSubscriptionResource {
                 if (hCSubscription.getServiceId() != null) {
                     existingHCSubscription.setServiceId(hCSubscription.getServiceId());
                 }
-                if (hCSubscription.getPatientId() != null) {
-                    existingHCSubscription.setPatientId(hCSubscription.getPatientId());
+                if (hCSubscription.getAdminId() != null) {
+                    existingHCSubscription.setAdminId(hCSubscription.getAdminId());
                 }
                 if (hCSubscription.getIsActive() != null) {
                     existingHCSubscription.setIsActive(hCSubscription.getIsActive());
@@ -156,7 +166,8 @@ public class HCSubscriptionResource {
     /**
      * {@code GET  /hc-subscriptions} : get all the hCSubscriptions.
      *
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of hCSubscriptions in body.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list
+     *         of hCSubscriptions in body.
      */
     @GetMapping("")
     public List<HCSubscription> getAllHCSubscriptions() {
@@ -168,7 +179,8 @@ public class HCSubscriptionResource {
      * {@code GET  /hc-subscriptions/:id} : get the "id" hCSubscription.
      *
      * @param id the id of the hCSubscription to retrieve.
-     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the hCSubscription, or with status {@code 404 (Not Found)}.
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body
+     *         the hCSubscription, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/{id}")
     public ResponseEntity<HCSubscription> getHCSubscription(@PathVariable("id") String id) {

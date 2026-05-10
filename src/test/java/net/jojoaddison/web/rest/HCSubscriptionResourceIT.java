@@ -117,7 +117,7 @@ class HCSubscriptionResourceIT {
         assertThat(hCSubscriptionList).hasSize(databaseSizeBeforeCreate + 1);
         HCSubscription testHCSubscription = hCSubscriptionList.get(hCSubscriptionList.size() - 1);
         assertThat(testHCSubscription.getServiceId()).isEqualTo(DEFAULT_SERVICE_ID);
-        assertThat(testHCSubscription.getPatientId()).isEqualTo(DEFAULT_PATIENT_ID);
+        assertThat(testHCSubscription.getAdminId()).isEqualTo(DEFAULT_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(DEFAULT_IS_ACTIVE);
         assertThat(testHCSubscription.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
         assertThat(testHCSubscription.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
@@ -221,7 +221,7 @@ class HCSubscriptionResourceIT {
         assertThat(hCSubscriptionList).hasSize(databaseSizeBeforeUpdate);
         HCSubscription testHCSubscription = hCSubscriptionList.get(hCSubscriptionList.size() - 1);
         assertThat(testHCSubscription.getServiceId()).isEqualTo(UPDATED_SERVICE_ID);
-        assertThat(testHCSubscription.getPatientId()).isEqualTo(UPDATED_PATIENT_ID);
+        assertThat(testHCSubscription.getAdminId()).isEqualTo(UPDATED_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(UPDATED_IS_ACTIVE);
         assertThat(testHCSubscription.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
         assertThat(testHCSubscription.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
@@ -312,7 +312,7 @@ class HCSubscriptionResourceIT {
         assertThat(hCSubscriptionList).hasSize(databaseSizeBeforeUpdate);
         HCSubscription testHCSubscription = hCSubscriptionList.get(hCSubscriptionList.size() - 1);
         assertThat(testHCSubscription.getServiceId()).isEqualTo(UPDATED_SERVICE_ID);
-        assertThat(testHCSubscription.getPatientId()).isEqualTo(UPDATED_PATIENT_ID);
+        assertThat(testHCSubscription.getAdminId()).isEqualTo(UPDATED_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(DEFAULT_IS_ACTIVE);
         assertThat(testHCSubscription.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
         assertThat(testHCSubscription.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
@@ -353,7 +353,7 @@ class HCSubscriptionResourceIT {
         assertThat(hCSubscriptionList).hasSize(databaseSizeBeforeUpdate);
         HCSubscription testHCSubscription = hCSubscriptionList.get(hCSubscriptionList.size() - 1);
         assertThat(testHCSubscription.getServiceId()).isEqualTo(UPDATED_SERVICE_ID);
-        assertThat(testHCSubscription.getPatientId()).isEqualTo(UPDATED_PATIENT_ID);
+        assertThat(testHCSubscription.getAdminId()).isEqualTo(UPDATED_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(UPDATED_IS_ACTIVE);
         assertThat(testHCSubscription.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
         assertThat(testHCSubscription.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);

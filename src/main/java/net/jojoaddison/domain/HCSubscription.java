@@ -67,16 +67,16 @@ public class HCSubscription implements Serializable {
         this.serviceId = serviceId;
     }
 
-    public String getPatientId() {
+    public String getAdminId() {
         return this.patientId;
     }
 
     public HCSubscription patientId(String patientId) {
-        this.setPatientId(patientId);
+        this.setAdminId(patientId);
         return this;
     }
 
-    public void setPatientId(String patientId) {
+    public void setAdminId(String patientId) {
         this.patientId = patientId;
     }
 
@@ -145,7 +145,8 @@ public class HCSubscription implements Serializable {
         this.modifiedBy = modifiedBy;
     }
 
-    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
+    // jhipster-needle-entity-add-getters-setters - JHipster will add getters and
+    // setters here
 
     @Override
     public boolean equals(Object o) {
@@ -160,7 +161,8 @@ public class HCSubscription implements Serializable {
 
     @Override
     public int hashCode() {
-        // see https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
+        // see
+        // https://vladmihalcea.com/how-to-implement-equals-and-hashcode-using-the-jpa-entity-identifier/
         return getClass().hashCode();
     }
 
@@ -168,14 +170,14 @@ public class HCSubscription implements Serializable {
     @Override
     public String toString() {
         return "HCSubscription{" +
-            "id=" + getId() +
-            ", serviceId='" + getServiceId() + "'" +
-            ", patientId='" + getPatientId() + "'" +
-            ", isActive='" + getIsActive() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
-            ", createdBy='" + getCreatedBy() + "'" +
-            ", modifiedBy='" + getModifiedBy() + "'" +
-            "}";
+                "id=" + getId() +
+                ", serviceId='" + getServiceId() + "'" +
+                ", patientId='" + getAdminId() + "'" +
+                ", isActive='" + getIsActive() + "'" +
+                ", createdDate='" + getCreatedDate() + "'" +
+                ", modifiedDate='" + getModifiedDate() + "'" +
+                ", createdBy='" + getCreatedBy() + "'" +
+                ", modifiedBy='" + getModifiedBy() + "'" +
+                "}";
     }
 }
