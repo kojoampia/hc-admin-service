@@ -26,7 +26,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.util.MimeTypeUtils;
 
 @IntegrationTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 @EmbeddedKafka
 @ImportAutoConfiguration(TestChannelBinderConfiguration.class)
@@ -59,7 +59,7 @@ class HcAdminServiceKafkaResourceIT {
         MessageHeaders headers = new MessageHeaders(map);
         Message<String> testMessage = new GenericMessage<>("value-consume", headers);
         MvcResult mvcResult = restMockMvc
-            .perform(get("/api/hc-admin-service-kafka/register"))
+            .perform(get("/api/hc-admin-service-kafka/register").principal(() -> "test-user"))
             .andExpect(status().isOk())
             .andExpect(request().asyncStarted())
             .andReturn();
@@ -68,7 +68,7 @@ class HcAdminServiceKafkaResourceIT {
             Thread.sleep(100);
             String content = mvcResult.getResponse().getContentAsString();
             if (content.contains("data:value-consume")) {
-                restMockMvc.perform(get("/api/hc-admin-service-kafka/unregister"));
+                restMockMvc.perform(get("/api/hc-admin-service-kafka/unregister").principal(() -> "test-user"));
                 return;
             }
         }

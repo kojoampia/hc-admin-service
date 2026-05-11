@@ -22,7 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * Integration tests for the {@link DashboardResource} REST controller.
  */
 @IntegrationTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 class DashboardResourceIT {
 

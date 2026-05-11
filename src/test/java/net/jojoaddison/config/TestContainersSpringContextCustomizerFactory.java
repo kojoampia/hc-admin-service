@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.test.util.TestPropertyValues;
-import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.test.context.ContextConfigurationAttributes;
 import org.springframework.test.context.ContextCustomizer;
 import org.springframework.test.context.ContextCustomizerFactory;
@@ -20,18 +19,17 @@ public class TestContainersSpringContextCustomizerFactory implements ContextCust
     public ContextCustomizer createContextCustomizer(Class<?> testClass, List<ContextConfigurationAttributes> configAttributes) {
         return (context, mergedConfig) -> {
             ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-            TestPropertyValues testValues = TestPropertyValues.empty();
-            EmbeddedMongo mongoAnnotation = AnnotatedElementUtils.findMergedAnnotation(testClass, EmbeddedMongo.class);
-            if (null != mongoAnnotation) {
-                log.debug("detected the EmbeddedMongo annotation on class {}", testClass.getName());
-                log.info("Warming up the mongo database");
-                if (null == mongoDbBean) {
-                    mongoDbBean = beanFactory.createBean(MongoDbTestContainer.class);
-                    beanFactory.registerSingleton(MongoDbTestContainer.class.getName(), mongoDbBean);
-                    // ((DefaultListableBeanFactory)beanFactory).registerDisposableBean(MongoDbTestContainer.class.getName(), mongoDbBean);
-                }
-                testValues = testValues.and("spring.data.mongodb.uri=" + mongoDbBean.getMongoDBContainer().getReplicaSetUrl());
+            log.info("Warming up the mongo database for test context {}", testClass.getName());
+            if (null == mongoDbBean) {
+                mongoDbBean = beanFactory.createBean(MongoDbTestContainer.class);
+                beanFactory.registerSingleton(MongoDbTestContainer.class.getName(), mongoDbBean);
+                // ((DefaultListableBeanFactory)beanFactory).registerDisposableBean(MongoDbTestContainer.class.getName(), mongoDbBean);
             }
+            String replicaSetUrl = mongoDbBean.getMongoDBContainer().getReplicaSetUrl();
+            TestPropertyValues testValues = TestPropertyValues
+                .empty()
+                .and("spring.data.mongodb.uri=" + replicaSetUrl)
+                .and("spring.mongodb.uri=" + replicaSetUrl);
             testValues.applyTo(context);
         };
     }

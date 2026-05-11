@@ -39,6 +39,8 @@ public class SecurityJwtConfiguration {
                     metersService.trackTokenMalformed();
                 } else if (e.getMessage().contains("Invalid unsecured/JWS/JWE")) {
                     metersService.trackTokenMalformed();
+                } else if (e.getMessage().contains("Malformed token")) {
+                    metersService.trackTokenMalformed();
                 }
                 throw e;
             }

@@ -52,8 +52,7 @@ spring:
           content-type: text/plain
           group: hc-admin-service
   jackson:
-    serialization:
-      write-durations-as-timestamps: false
+    serialization: {}
   mail:
     host: localhost
   main:

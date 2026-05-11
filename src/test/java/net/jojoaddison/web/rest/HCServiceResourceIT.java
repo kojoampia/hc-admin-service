@@ -24,7 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * Integration tests for the {@link HCServiceResource} REST controller.
  */
 @IntegrationTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 class HCServiceResourceIT {
 
