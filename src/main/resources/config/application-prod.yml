@@ -43,9 +43,8 @@ spring:
         prefer-ip-address: true
       host: localhost
       port: 8500
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/hcAdminService
+  mongodb:
+    uri: ${SPRING_MONGODB_URI:${MONGODB_URI:${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/adminService?waitQueueMultiple=1000}}}
   thymeleaf:
     cache: true
 

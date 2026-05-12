@@ -28,6 +28,21 @@ To start your application in the dev profile, run:
 ./mvnw
 ```
 
+If your local MongoDB requires authentication, use the local env + launcher workflow:
+
+```bash
+# One-time setup
+cp .env.local.example .env.local
+# Edit .env.local and set SPRING_MONGODB_URI for your machine
+./run-local.sh
+```
+
+The launcher reads `SPRING_MONGODB_URI` from `.env.local` and exports it before starting Maven. You can also pass Maven arguments through:
+
+```bash
+./run-local.sh -ntp -DskipTests spring-boot:run
+```
+
 For further instructions on how to develop with JHipster, have a look at [Using JHipster in development][].
 
 ## Building for production
@@ -113,15 +128,20 @@ For more information, refer to the [Code quality page][].
 
 You can use Docker to improve your JHipster development experience. A number of docker-compose configuration are available in the [src/main/docker](src/main/docker) folder to launch required third party services.
 
-For example, to start a mongodb database in a docker container, run:
+For example, to start a MongoDB database in a docker container, run:
 
-```
+```bash
+# One-time setup for mongodb.yml
+cp src/main/docker/mongo-env.example src/main/docker/mongo.env
+
 docker compose -f src/main/docker/mongodb.yml up -d
 ```
 
+`mongodb.yml` uses `mongo:8` and loads credentials from `src/main/docker/mongo.env`.
+
 To stop it and remove the container, run:
 
-```
+```bash
 docker compose -f src/main/docker/mongodb.yml down
 ```
 
@@ -147,6 +167,47 @@ docker compose -f src/main/docker/app.yml up -d
 When running Docker Desktop on MacOS Big Sur or later, consider enabling experimental `Use the new Virtualization framework` for better processing performance ([disk access performance is worse](https://github.com/docker/roadmap/issues/7)).
 
 For more information refer to [Using Docker and Docker-Compose][], this page also contains information on the docker-compose sub-generator (`jhipster docker-compose`), which is able to generate docker configurations for one or several JHipster applications.
+
+## Troubleshooting
+
+### MongoDB: `Command listIndexes requires authentication` on startup
+
+Mongock performs index checks at startup and fails immediately if MongoDB authentication is enabled but credentials are missing.
+
+Use `.env.local` + `run-local.sh` so `SPRING_MONGODB_URI` is exported before startup.
+
+### `.env.local` missing
+
+If `run-local.sh` exits with a missing env file error:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Then set `SPRING_MONGODB_URI=...` in `.env.local`.
+
+### `SPRING_MONGODB_URI` not set
+
+Ensure `.env.local` contains a line starting with:
+
+```text
+SPRING_MONGODB_URI=mongodb://user:password@localhost:27017/adminService?authSource=admin
+```
+
+### Consul not reachable
+
+If startup fails with `Connection refused` on `localhost:8500`, start Consul first:
+
+```bash
+docker compose -f src/main/docker/consul.yml up -d
+# or
+npm run docker:consul:up
+```
+
+### MongoDB default database
+
+The project default database is `adminService` across app and Docker configs.
+If you override `SPRING_MONGODB_URI` in `.env.local`, keep the same database name unless you intentionally target another database.
 
 ## Continuous Integration (optional)
 

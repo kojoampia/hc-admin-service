@@ -55,7 +55,7 @@ spring:
       host: localhost
       port: 8500
   mongodb:
-    uri: ${MONGODB_URI:${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/adminService?waitQueueMultiple=1000}}
+    uri: ${SPRING_MONGODB_URI:${MONGODB_URI:${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/adminService?waitQueueMultiple=1000}}}
   messages:
     cache-duration: PT1S # 1 second, see the ISO 8601 standard
   thymeleaf:
