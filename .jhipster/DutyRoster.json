@@ -1,0 +1,53 @@
+{
+  "annotations": {
+    "changelogDate": "20260512162551"
+  },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "date",
+      "fieldType": "LocalDate",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "duty",
+      "fieldType": "DutyRole",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "CARE,VENDOR,DOCTOR,NURSE,MEDIC,TECHNICIAN,ADMINISTRATOR,OTHER"
+    },
+    {
+      "fieldName": "professionalId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "shift",
+      "fieldType": "ShiftType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "MORNING,AFTERNOON,NIGHT"
+    },
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "patientId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "DutyRoster",
+  "pagination": "pagination",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

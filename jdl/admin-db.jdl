@@ -1,0 +1,77 @@
+entity Person {
+  firstName String required,
+  lastName String required,
+  dateOfBirth LocalDate required,
+  gender String required,
+  maritalStatus String required,
+  nationality String required,
+  language String required
+}
+entity Address {
+  street String required,
+  district String required,
+  town String required,
+  city String required,
+  region String required,
+  code String required,
+  country String required
+}
+entity Contact {
+  personId String required,
+  email String required unique,
+  phoneNumber String
+}
+entity Photo {
+  url String required,
+  altText String required,
+  description String required
+  profileId String required
+  photoType String required // PORTRAIT, ID_PHOTO, DOCUMENT_PHOTO, OTHER etc.
+  photoData String required // Base64 encoded photo data for upload and storage
+  photoMetadata String // JSON string containing metadata such as upload timestamp, uploader ID, etc.
+}
+entity DocumentItem {
+  name String required,
+  description String,
+  type String required, // PASSPORT, ID_CARD, DRIVER_LICENSE, CERTIFICATE, BUSINESS_LICENSE, OTHER etc.
+  url String required
+}
+entity Team {
+  name String required,
+  description String,
+  members String,
+  supervisorId String required
+  organizationId String required
+}
+entity Organization {
+  name String required,
+  description String,
+  addressId String required,
+  contactId String required
+}
+entity Profile {
+  personId Person required,
+  photo Photo required,
+  contact Contact required,
+  addressList Address required,
+  roles String required,
+  status boolean required
+  organizationId String required
+  teamId String required
+  documentItems DocumentItem
+}
+
+
+entity Facility {
+  name String required,
+  description String,
+  type String required // HOSPITAL, CLINIC, LAB, PHARMACY, OTHER etc.
+  addressId String required
+  contactId String required
+  photos String
+}
+entity FacilityCatalog {
+  name String required,
+  description String,
+  facilities String
+}

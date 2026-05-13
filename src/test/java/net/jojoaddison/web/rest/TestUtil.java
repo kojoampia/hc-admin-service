@@ -6,7 +6,11 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.beans.IntrospectionException;
+import java.beans.Introspector;
+import java.beans.PropertyDescriptor;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
@@ -24,7 +28,7 @@ public final class TestUtil {
 
     private static final ObjectMapper mapper = createObjectMapper();
 
-    private static ObjectMapper createObjectMapper() {
+    public static ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.configure(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS, false);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
@@ -41,6 +45,10 @@ public final class TestUtil {
      */
     public static byte[] convertObjectToJsonBytes(Object object) throws IOException {
         return mapper.writeValueAsBytes(object);
+    }
+
+    public static <T> T readValue(String content, Class<T> valueType) throws IOException {
+        return mapper.readValue(content, valueType);
     }
 
     /**
@@ -178,6 +186,28 @@ public final class TestUtil {
         registrar.setUseIsoFormat(true);
         registrar.registerFormatters(dfcs);
         return dfcs;
+    }
+
+    public static <T> T createUpdateProxyForBean(T partialUpdate, T original) {
+        try {
+            @SuppressWarnings("unchecked")
+            T merged = (T) original.getClass().getDeclaredConstructor().newInstance();
+            for (PropertyDescriptor propertyDescriptor : Introspector
+                .getBeanInfo(original.getClass(), Object.class)
+                .getPropertyDescriptors()) {
+                if (propertyDescriptor.getReadMethod() == null || propertyDescriptor.getWriteMethod() == null) {
+                    continue;
+                }
+                Object partialValue = propertyDescriptor.getReadMethod().invoke(partialUpdate);
+                Object value = partialValue != null ? partialValue : propertyDescriptor.getReadMethod().invoke(original);
+                propertyDescriptor.getWriteMethod().invoke(merged, value);
+            }
+            return merged;
+        } catch (
+            IntrospectionException | InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e
+        ) {
+            throw new IllegalStateException("Unable to create update proxy for bean " + original.getClass().getName(), e);
+        }
     }
 
     private TestUtil() {}

@@ -1,0 +1,58 @@
+{
+  "annotations": {
+    "changelogDate": "20260512164032"
+  },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "type",
+      "fieldType": "CatalogType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "SERVICE,PRODUCT,INFORMATION,CONTACT,ABOUT,LEGAL"
+    },
+    {
+      "fieldName": "content",
+      "fieldType": "TextBlob",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "createdDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "modifiedDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "createdBy",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "modifiedBy",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "SystemCatalog",
+  "pagination": "infinite-scroll",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

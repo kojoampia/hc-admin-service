@@ -1,44 +1,55 @@
 {
   "annotations": {
-    "changelogDate": "20240402035538"
+    "changelogDate": "20260512224721"
   },
   "clientRootFolder": "hcAdminService",
   "databaseType": "mongodb",
-  "dto": "no",
-  "entityTableName": "organisation",
+  "dto": "mapstruct",
   "fields": [
     {
       "fieldName": "name",
-      "fieldType": "String"
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
     },
     {
       "fieldName": "description",
-      "fieldType": "String"
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
     },
     {
-      "fieldName": "profile",
-      "fieldType": "String"
+      "fieldName": "addressId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
     },
     {
-      "fieldName": "createdDate",
-      "fieldType": "LocalDate"
+      "fieldName": "contactId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
     },
     {
       "fieldName": "createdBy",
-      "fieldType": "String"
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
     },
     {
-      "fieldName": "modifiedDate",
-      "fieldType": "LocalDate"
+      "fieldName": "createdDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
     },
     {
       "fieldName": "modifiedBy",
-      "fieldType": "String"
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "modifiedDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
     }
   ],
   "microserviceName": "hcAdminService",
   "name": "Organisation",
-  "pagination": "no",
+  "pagination": "pagination",
   "readOnly": false,
   "relationships": [],
   "searchEngine": "no",

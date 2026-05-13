@@ -1,0 +1,31 @@
+{
+  "annotations": {
+    "changelogDate": "20260512154801"
+  },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "name",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "type",
+      "fieldType": "FeatureType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "CORE,ADDON,PREMIUM"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "Feature",
+  "pagination": "no",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "serviceClass"
+}

@@ -5,8 +5,8 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
@@ -34,17 +34,20 @@ class OrganisationResourceIT {
     private static final String DEFAULT_DESCRIPTION = "AAAAAAAAAA";
     private static final String UPDATED_DESCRIPTION = "BBBBBBBBBB";
 
-    private static final String DEFAULT_PROFILE = "AAAAAAAAAA";
-    private static final String UPDATED_PROFILE = "BBBBBBBBBB";
+    private static final String DEFAULT_ADDRESS_ID = "AAAAAAAAAA";
+    private static final String UPDATED_ADDRESS_ID = "BBBBBBBBBB";
 
-    private static final LocalDate DEFAULT_CREATED_DATE = LocalDate.ofEpochDay(0L);
-    private static final LocalDate UPDATED_CREATED_DATE = LocalDate.now(ZoneId.systemDefault());
+    private static final String DEFAULT_CONTACT_ID = "AAAAAAAAAA";
+    private static final String UPDATED_CONTACT_ID = "BBBBBBBBBB";
+
+    private static final Instant DEFAULT_CREATED_DATE = Instant.ofEpochMilli(0L);
+    private static final Instant UPDATED_CREATED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
     private static final String DEFAULT_CREATED_BY = "AAAAAAAAAA";
     private static final String UPDATED_CREATED_BY = "BBBBBBBBBB";
 
-    private static final LocalDate DEFAULT_MODIFIED_DATE = LocalDate.ofEpochDay(0L);
-    private static final LocalDate UPDATED_MODIFIED_DATE = LocalDate.now(ZoneId.systemDefault());
+    private static final Instant DEFAULT_MODIFIED_DATE = Instant.ofEpochMilli(0L);
+    private static final Instant UPDATED_MODIFIED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
     private static final String DEFAULT_MODIFIED_BY = "AAAAAAAAAA";
     private static final String UPDATED_MODIFIED_BY = "BBBBBBBBBB";
@@ -70,7 +73,8 @@ class OrganisationResourceIT {
         Organisation organisation = new Organisation()
             .name(DEFAULT_NAME)
             .description(DEFAULT_DESCRIPTION)
-            .profile(DEFAULT_PROFILE)
+            .addressId(DEFAULT_ADDRESS_ID)
+            .contactId(DEFAULT_CONTACT_ID)
             .createdDate(DEFAULT_CREATED_DATE)
             .createdBy(DEFAULT_CREATED_BY)
             .modifiedDate(DEFAULT_MODIFIED_DATE)
@@ -88,7 +92,8 @@ class OrganisationResourceIT {
         Organisation organisation = new Organisation()
             .name(UPDATED_NAME)
             .description(UPDATED_DESCRIPTION)
-            .profile(UPDATED_PROFILE)
+            .addressId(UPDATED_ADDRESS_ID)
+            .contactId(UPDATED_CONTACT_ID)
             .createdDate(UPDATED_CREATED_DATE)
             .createdBy(UPDATED_CREATED_BY)
             .modifiedDate(UPDATED_MODIFIED_DATE)
@@ -116,7 +121,8 @@ class OrganisationResourceIT {
         Organisation testOrganisation = organisationList.get(organisationList.size() - 1);
         assertThat(testOrganisation.getName()).isEqualTo(DEFAULT_NAME);
         assertThat(testOrganisation.getDescription()).isEqualTo(DEFAULT_DESCRIPTION);
-        assertThat(testOrganisation.getProfile()).isEqualTo(DEFAULT_PROFILE);
+        assertThat(testOrganisation.getAddressId()).isEqualTo(DEFAULT_ADDRESS_ID);
+        assertThat(testOrganisation.getContactId()).isEqualTo(DEFAULT_CONTACT_ID);
         assertThat(testOrganisation.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
         assertThat(testOrganisation.getCreatedBy()).isEqualTo(DEFAULT_CREATED_BY);
         assertThat(testOrganisation.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
@@ -153,7 +159,8 @@ class OrganisationResourceIT {
             .andExpect(jsonPath("$.[*].id").value(hasItem(organisation.getId())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
             .andExpect(jsonPath("$.[*].description").value(hasItem(DEFAULT_DESCRIPTION)))
-            .andExpect(jsonPath("$.[*].profile").value(hasItem(DEFAULT_PROFILE)))
+            .andExpect(jsonPath("$.[*].addressId").value(hasItem(DEFAULT_ADDRESS_ID)))
+            .andExpect(jsonPath("$.[*].contactId").value(hasItem(DEFAULT_CONTACT_ID)))
             .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
             .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
             .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
@@ -173,7 +180,8 @@ class OrganisationResourceIT {
             .andExpect(jsonPath("$.id").value(organisation.getId()))
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
             .andExpect(jsonPath("$.description").value(DEFAULT_DESCRIPTION))
-            .andExpect(jsonPath("$.profile").value(DEFAULT_PROFILE))
+            .andExpect(jsonPath("$.addressId").value(DEFAULT_ADDRESS_ID))
+            .andExpect(jsonPath("$.contactId").value(DEFAULT_CONTACT_ID))
             .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
             .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
             .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
@@ -198,7 +206,8 @@ class OrganisationResourceIT {
         updatedOrganisation
             .name(UPDATED_NAME)
             .description(UPDATED_DESCRIPTION)
-            .profile(UPDATED_PROFILE)
+            .addressId(UPDATED_ADDRESS_ID)
+            .contactId(UPDATED_CONTACT_ID)
             .createdDate(UPDATED_CREATED_DATE)
             .createdBy(UPDATED_CREATED_BY)
             .modifiedDate(UPDATED_MODIFIED_DATE)
@@ -218,7 +227,8 @@ class OrganisationResourceIT {
         Organisation testOrganisation = organisationList.get(organisationList.size() - 1);
         assertThat(testOrganisation.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testOrganisation.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
-        assertThat(testOrganisation.getProfile()).isEqualTo(UPDATED_PROFILE);
+        assertThat(testOrganisation.getAddressId()).isEqualTo(UPDATED_ADDRESS_ID);
+        assertThat(testOrganisation.getContactId()).isEqualTo(UPDATED_CONTACT_ID);
         assertThat(testOrganisation.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
         assertThat(testOrganisation.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
         assertThat(testOrganisation.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
@@ -291,7 +301,8 @@ class OrganisationResourceIT {
 
         partialUpdatedOrganisation
             .description(UPDATED_DESCRIPTION)
-            .profile(UPDATED_PROFILE)
+            .addressId(UPDATED_ADDRESS_ID)
+            .contactId(UPDATED_CONTACT_ID)
             .createdDate(UPDATED_CREATED_DATE)
             .createdBy(UPDATED_CREATED_BY)
             .modifiedBy(UPDATED_MODIFIED_BY);
@@ -310,7 +321,8 @@ class OrganisationResourceIT {
         Organisation testOrganisation = organisationList.get(organisationList.size() - 1);
         assertThat(testOrganisation.getName()).isEqualTo(DEFAULT_NAME);
         assertThat(testOrganisation.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
-        assertThat(testOrganisation.getProfile()).isEqualTo(UPDATED_PROFILE);
+        assertThat(testOrganisation.getAddressId()).isEqualTo(UPDATED_ADDRESS_ID);
+        assertThat(testOrganisation.getContactId()).isEqualTo(UPDATED_CONTACT_ID);
         assertThat(testOrganisation.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
         assertThat(testOrganisation.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
         assertThat(testOrganisation.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
@@ -331,7 +343,8 @@ class OrganisationResourceIT {
         partialUpdatedOrganisation
             .name(UPDATED_NAME)
             .description(UPDATED_DESCRIPTION)
-            .profile(UPDATED_PROFILE)
+            .addressId(UPDATED_ADDRESS_ID)
+            .contactId(UPDATED_CONTACT_ID)
             .createdDate(UPDATED_CREATED_DATE)
             .createdBy(UPDATED_CREATED_BY)
             .modifiedDate(UPDATED_MODIFIED_DATE)
@@ -351,7 +364,8 @@ class OrganisationResourceIT {
         Organisation testOrganisation = organisationList.get(organisationList.size() - 1);
         assertThat(testOrganisation.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testOrganisation.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
-        assertThat(testOrganisation.getProfile()).isEqualTo(UPDATED_PROFILE);
+        assertThat(testOrganisation.getAddressId()).isEqualTo(UPDATED_ADDRESS_ID);
+        assertThat(testOrganisation.getContactId()).isEqualTo(UPDATED_CONTACT_ID);
         assertThat(testOrganisation.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
         assertThat(testOrganisation.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
         assertThat(testOrganisation.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);

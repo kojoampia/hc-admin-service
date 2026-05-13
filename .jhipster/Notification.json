@@ -1,0 +1,39 @@
+{
+  "annotations": {
+    "changelogDate": "20260512233544"
+  },
+  "applications": "*",
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "fields": [
+    {
+      "fieldName": "content",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "createdDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "recipientId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "senderId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "messageType",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "Notification",
+  "relationships": [],
+  "searchEngine": "no"
+}

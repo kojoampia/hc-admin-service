@@ -1,0 +1,31 @@
+{
+  "annotations": {
+    "changelogDate": "20260512231222"
+  },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
+  "fields": [
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "facilities",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "FacilityCatalog",
+  "pagination": "no",
+  "readOnly": false,
+  "relationships": [],
+  "searchEngine": "no",
+  "service": "no"
+}

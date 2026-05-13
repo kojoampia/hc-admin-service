@@ -62,8 +62,11 @@ public class OrganisationService {
                 if (organisation.getDescription() != null) {
                     existingOrganisation.setDescription(organisation.getDescription());
                 }
-                if (organisation.getProfile() != null) {
-                    existingOrganisation.setProfile(organisation.getProfile());
+                if (organisation.getAddressId() != null) {
+                    existingOrganisation.setAddressId(organisation.getAddressId());
+                }
+                if (organisation.getContactId() != null) {
+                    existingOrganisation.setContactId(organisation.getContactId());
                 }
                 if (organisation.getCreatedDate() != null) {
                     existingOrganisation.setCreatedDate(organisation.getCreatedDate());

@@ -9,7 +9,8 @@ public class OrganisationTestSamples {
             .id("id1")
             .name("name1")
             .description("description1")
-            .profile("profile1")
+            .addressId("addressId1")
+            .contactId("contactId1")
             .createdBy("createdBy1")
             .modifiedBy("modifiedBy1");
     }
@@ -19,7 +20,8 @@ public class OrganisationTestSamples {
             .id("id2")
             .name("name2")
             .description("description2")
-            .profile("profile2")
+            .addressId("addressId2")
+            .contactId("contactId2")
             .createdBy("createdBy2")
             .modifiedBy("modifiedBy2");
     }
@@ -29,7 +31,8 @@ public class OrganisationTestSamples {
             .id(UUID.randomUUID().toString())
             .name(UUID.randomUUID().toString())
             .description(UUID.randomUUID().toString())
-            .profile(UUID.randomUUID().toString())
+            .addressId(UUID.randomUUID().toString())
+            .contactId(UUID.randomUUID().toString())
             .createdBy(UUID.randomUUID().toString())
             .modifiedBy(UUID.randomUUID().toString());
     }

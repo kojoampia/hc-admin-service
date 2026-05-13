@@ -1,0 +1,16 @@
+src/test/java/net/jojoaddison/web/rest/HCServiceResourceIT.java skip
+src/test/java/net/jojoaddison/web/rest/HCSubscriptionResourceIT.java skip
+src/test/java/net/jojoaddison/web/rest/OrganisationResourceIT.java skip
+src/test/java/net/jojoaddison/web/rest/DashboardResourceIT.java skip
+src/test/java/net/jojoaddison/web/rest/HProfessionalResourceIT.java skip
+src/main/java/net/jojoaddison/web/rest/HCServiceResource.java skip
+src/main/java/net/jojoaddison/web/rest/HCSubscriptionResource.java skip
+src/main/java/net/jojoaddison/web/rest/OrganisationResource.java skip
+src/main/java/net/jojoaddison/service/OrganisationService.java skip
+src/main/java/net/jojoaddison/web/rest/DashboardResource.java skip
+src/main/java/net/jojoaddison/web/rest/HProfessionalResource.java skip
+src/main/java/net/jojoaddison/repository/HCServiceRepository.java skip
+src/main/java/net/jojoaddison/repository/HCSubscriptionRepository.java skip
+src/main/java/net/jojoaddison/repository/OrganisationRepository.java skip
+src/main/java/net/jojoaddison/repository/DashboardRepository.java skip
+src/main/java/net/jojoaddison/repository/HProfessionalRepository.java skip

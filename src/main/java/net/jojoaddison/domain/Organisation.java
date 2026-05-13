@@ -1,7 +1,8 @@
 package net.jojoaddison.domain;
 
+import jakarta.validation.constraints.*;
 import java.io.Serializable;
-import java.time.LocalDate;
+import java.time.Instant;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -18,26 +19,37 @@ public class Organisation implements Serializable {
     @Id
     private String id;
 
+    @NotNull
     @Field("name")
     private String name;
 
+    @NotNull
     @Field("description")
     private String description;
 
-    @Field("profile")
-    private String profile;
+    @NotNull
+    @Field("address_id")
+    private String addressId;
 
-    @Field("created_date")
-    private LocalDate createdDate;
+    @NotNull
+    @Field("contact_id")
+    private String contactId;
 
+    @NotNull
     @Field("created_by")
     private String createdBy;
 
-    @Field("modified_date")
-    private LocalDate modifiedDate;
+    @NotNull
+    @Field("created_date")
+    private Instant createdDate;
 
+    @NotNull
     @Field("modified_by")
     private String modifiedBy;
+
+    @NotNull
+    @Field("modified_date")
+    private Instant modifiedDate;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -80,30 +92,30 @@ public class Organisation implements Serializable {
         this.description = description;
     }
 
-    public String getProfile() {
-        return this.profile;
+    public String getAddressId() {
+        return this.addressId;
     }
 
-    public Organisation profile(String profile) {
-        this.setProfile(profile);
+    public Organisation addressId(String addressId) {
+        this.setAddressId(addressId);
         return this;
     }
 
-    public void setProfile(String profile) {
-        this.profile = profile;
+    public void setAddressId(String addressId) {
+        this.addressId = addressId;
     }
 
-    public LocalDate getCreatedDate() {
-        return this.createdDate;
+    public String getContactId() {
+        return this.contactId;
     }
 
-    public Organisation createdDate(LocalDate createdDate) {
-        this.setCreatedDate(createdDate);
+    public Organisation contactId(String contactId) {
+        this.setContactId(contactId);
         return this;
     }
 
-    public void setCreatedDate(LocalDate createdDate) {
-        this.createdDate = createdDate;
+    public void setContactId(String contactId) {
+        this.contactId = contactId;
     }
 
     public String getCreatedBy() {
@@ -119,17 +131,17 @@ public class Organisation implements Serializable {
         this.createdBy = createdBy;
     }
 
-    public LocalDate getModifiedDate() {
-        return this.modifiedDate;
+    public Instant getCreatedDate() {
+        return this.createdDate;
     }
 
-    public Organisation modifiedDate(LocalDate modifiedDate) {
-        this.setModifiedDate(modifiedDate);
+    public Organisation createdDate(Instant createdDate) {
+        this.setCreatedDate(createdDate);
         return this;
     }
 
-    public void setModifiedDate(LocalDate modifiedDate) {
-        this.modifiedDate = modifiedDate;
+    public void setCreatedDate(Instant createdDate) {
+        this.createdDate = createdDate;
     }
 
     public String getModifiedBy() {
@@ -143,6 +155,19 @@ public class Organisation implements Serializable {
 
     public void setModifiedBy(String modifiedBy) {
         this.modifiedBy = modifiedBy;
+    }
+
+    public Instant getModifiedDate() {
+        return this.modifiedDate;
+    }
+
+    public Organisation modifiedDate(Instant modifiedDate) {
+        this.setModifiedDate(modifiedDate);
+        return this;
+    }
+
+    public void setModifiedDate(Instant modifiedDate) {
+        this.modifiedDate = modifiedDate;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -171,11 +196,12 @@ public class Organisation implements Serializable {
             "id=" + getId() +
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
-            ", profile='" + getProfile() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
+            ", addressId='" + getAddressId() + "'" +
+            ", contactId='" + getContactId() + "'" +
             ", createdBy='" + getCreatedBy() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
+            ", createdDate='" + getCreatedDate() + "'" +
             ", modifiedBy='" + getModifiedBy() + "'" +
+            ", modifiedDate='" + getModifiedDate() + "'" +
             "}";
     }
 }
