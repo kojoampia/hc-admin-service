@@ -62,7 +62,7 @@ entity DutyRoster {
   duty String required // DutyRole: CARE, VENDOR, DOCTOR, NURSE, MEDIC, TECHNICIAN, ADMINISTRATOR, OTHER
 }
 
-entity SystemCatalog {
+entity Catalog {
   name String required,
   description String,
   type String required //CatalogType: SERVICE, PRODUCT, INFORMATION, ABOUT
