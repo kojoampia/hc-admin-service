@@ -1,8 +1,11 @@
 package net.jojoaddison.domain;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import net.jojoaddison.domain.enumeration.RoleType;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -18,6 +21,10 @@ public class Profile implements Serializable {
 
     @Id
     private String id;
+
+    @NotNull
+    @Field("user_id")
+    private String userId;
 
     @NotNull
     @Field("person_id")
@@ -50,6 +57,12 @@ public class Profile implements Serializable {
     @Field("team_id")
     private String teamId;
 
+    @Field("role_type")
+    private RoleType roleType;
+
+    @Field("unavailability_periods")
+    private List<UnavailabilityPeriod> unavailabilityPeriods;
+
     @NotNull
     @Field("document_items")
     private String documentItems;
@@ -72,6 +85,26 @@ public class Profile implements Serializable {
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
+    /**
+     * Determines whether this professional is available on the given date.
+     * Returns false if inactive or if the date falls within any unavailability period.
+     *
+     * @param date the date to check availability for
+     * @return true if available, false otherwise
+     */
+    public boolean isAvailable(LocalDate date) {
+        if (!Boolean.TRUE.equals(status)) return false;
+        if (unavailabilityPeriods == null || unavailabilityPeriods.isEmpty()) return true;
+        for (UnavailabilityPeriod period : unavailabilityPeriods) {
+            if (period.getFromDate() != null && !date.isBefore(period.getFromDate())) {
+                if (period.getToDate() == null || !date.isAfter(period.getToDate())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     public String getId() {
         return this.id;
     }
@@ -83,6 +116,19 @@ public class Profile implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getUserId() {
+        return this.userId;
+    }
+
+    public Profile userId(String userId) {
+        this.setUserId(userId);
+        return this;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getPersonId() {
@@ -252,6 +298,32 @@ public class Profile implements Serializable {
 
     public void setModifiedDate(Instant modifiedDate) {
         this.modifiedDate = modifiedDate;
+    }
+
+    public RoleType getRoleType() {
+        return this.roleType;
+    }
+
+    public Profile roleType(RoleType roleType) {
+        this.setRoleType(roleType);
+        return this;
+    }
+
+    public void setRoleType(RoleType roleType) {
+        this.roleType = roleType;
+    }
+
+    public List<UnavailabilityPeriod> getUnavailabilityPeriods() {
+        return this.unavailabilityPeriods;
+    }
+
+    public Profile unavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
+        this.setUnavailabilityPeriods(unavailabilityPeriods);
+        return this;
+    }
+
+    public void setUnavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
+        this.unavailabilityPeriods = unavailabilityPeriods;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here

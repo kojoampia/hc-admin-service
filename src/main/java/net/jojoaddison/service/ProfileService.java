@@ -1,6 +1,8 @@
 package net.jojoaddison.service;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.repository.ProfileRepository;
 import net.jojoaddison.service.dto.ProfileDTO;
@@ -86,6 +88,128 @@ public class ProfileService {
     }
 
     /**
+     * Get all the profiles by organisation id and team id.
+     *
+     * @param organisationId the organisation id of the entity.
+     * @param teamId the team id of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByOrganisationIdAndTeamId(String organisationId, String teamId) {
+        LOG.debug("Request to get Profiles by organisationId : {} and teamId : {}", organisationId, teamId);
+        return profileRepository
+            .findByOrganisationIdAndTeamId(organisationId, teamId)
+            .stream()
+            .map(profileMapper::toDto)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by organisation id and status.
+     *
+     * @param organisationId the organisation id of the entity.
+     * @param status the status of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByOrganisationIdAndStatus(String organisationId, Boolean status) {
+        LOG.debug("Request to get Profiles by organisationId : {} and status : {}", organisationId, status);
+        return profileRepository
+            .findByOrganisationIdAndStatus(organisationId, status)
+            .stream()
+            .map(profileMapper::toDto)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by team id and status.
+     *
+     * @param teamId the team id of the entity.
+     * @param status the status of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByTeamIdAndStatus(String teamId, Boolean status) {
+        LOG.debug("Request to get Profiles by teamId : {} and status : {}", teamId, status);
+        return profileRepository.findByTeamIdAndStatus(teamId, status).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by roles and status.
+     *
+     * @param roles the roles of the entity.
+     * @param status the status of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByRolesAndStatus(String roles, Boolean status) {
+        LOG.debug("Request to get Profiles by roles : {} and status : {}", roles, status);
+        return profileRepository.findByRolesAndStatus(roles, status).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by roles.
+     *
+     * @param roles the roles of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByRoles(String roles) {
+        LOG.debug("Request to get Profiles by roles : {}", roles);
+        return profileRepository.findByRoles(roles).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by status.
+     *
+     * @param status the status of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByStatus(Boolean status) {
+        LOG.debug("Request to get Profiles by status : {}", status);
+        return profileRepository.findByStatus(status).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by createdBy.
+     *
+     * @param createdBy the createdBy of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByCreatedBy(String createdBy) {
+        LOG.debug("Request to get Profiles by createdBy : {}", createdBy);
+        return profileRepository.findByCreatedBy(createdBy).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by modifiedBy.
+     *
+     * @param modifiedBy the modifiedBy of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByModifiedBy(String modifiedBy) {
+        LOG.debug("Request to get Profiles by modifiedBy : {}", modifiedBy);
+        return profileRepository.findByModifiedBy(modifiedBy).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by createdDate.
+     *
+     * @param createdDate the createdDate of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByCreatedDate(String createdDate) {
+        LOG.debug("Request to get Profiles by createdDate : {}", createdDate);
+        return profileRepository.findByCreatedDate(createdDate).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
+     * Get all the profiles by modifiedDate.
+     *
+     * @param modifiedDate the modifiedDate of the entity.
+     * @return the list of entities.
+     */
+    public List<ProfileDTO> findByModifiedDate(String modifiedDate) {
+        LOG.debug("Request to get Profiles by modifiedDate : {}", modifiedDate);
+        return profileRepository.findByModifiedDate(modifiedDate).stream().map(profileMapper::toDto).collect(Collectors.toList());
+    }
+
+    /**
      * Get one profile by id.
      *
      * @param id the id of the entity.
@@ -94,6 +218,28 @@ public class ProfileService {
     public Optional<ProfileDTO> findOne(String id) {
         LOG.debug("Request to get Profile : {}", id);
         return profileRepository.findById(id).map(profileMapper::toDto);
+    }
+
+    /**
+     * Get one profile by personId.
+     *
+     * @param personId the personId of the entity.
+     * @return the entity.
+     */
+    public Optional<ProfileDTO> findByPersonId(String personId) {
+        LOG.debug("Request to get Profile by personId : {}", personId);
+        return profileRepository.findByPersonId(personId).map(profileMapper::toDto);
+    }
+
+    /**
+     * Get one profile by contactId.
+     *
+     * @param contactId the contactId of the entity.
+     * @return the entity.
+     */
+    public Optional<ProfileDTO> findByContactId(String contactId) {
+        LOG.debug("Request to get Profile by contactId : {}", contactId);
+        return profileRepository.findByContactId(contactId).map(profileMapper::toDto);
     }
 
     /**

@@ -1,10 +1,11 @@
 package net.jojoaddison.service.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.LocalDate;
 import java.util.Objects;
 import net.jojoaddison.domain.enumeration.DutyRole;
+import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.domain.enumeration.ShiftType;
 
 /**
@@ -34,6 +35,10 @@ public class DutyRosterDTO implements Serializable {
 
     @NotNull
     private String patientId;
+
+    private String geographicSpaceId;
+
+    private ShiftStatus status;
 
     public String getId() {
         return id;
@@ -99,6 +104,22 @@ public class DutyRosterDTO implements Serializable {
         this.patientId = patientId;
     }
 
+    public String getGeographicSpaceId() {
+        return geographicSpaceId;
+    }
+
+    public void setGeographicSpaceId(String geographicSpaceId) {
+        this.geographicSpaceId = geographicSpaceId;
+    }
+
+    public ShiftStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ShiftStatus status) {
+        this.status = status;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -132,6 +153,8 @@ public class DutyRosterDTO implements Serializable {
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
             ", patientId='" + getPatientId() + "'" +
+            ", geographicSpaceId='" + getGeographicSpaceId() + "'" +
+            ", status='" + getStatus() + "'" +
             "}";
     }
 }

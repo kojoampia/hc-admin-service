@@ -24,6 +24,7 @@
       "PricingPlan",
       "PatientPlan",
       "Address",
+      "Person",
       "Contact",
       "DocumentItem",
       "Team",

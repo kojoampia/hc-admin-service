@@ -1,9 +1,10 @@
 package net.jojoaddison.domain;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.LocalDate;
 import net.jojoaddison.domain.enumeration.DutyRole;
+import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.domain.enumeration.ShiftType;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -47,6 +48,12 @@ public class DutyRoster implements Serializable {
     @NotNull
     @Field("patient_id")
     private String patientId;
+
+    @Field("geographic_space_id")
+    private String geographicSpaceId;
+
+    @Field("status")
+    private ShiftStatus status;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -154,6 +161,32 @@ public class DutyRoster implements Serializable {
         this.patientId = patientId;
     }
 
+    public String getGeographicSpaceId() {
+        return this.geographicSpaceId;
+    }
+
+    public DutyRoster geographicSpaceId(String geographicSpaceId) {
+        this.setGeographicSpaceId(geographicSpaceId);
+        return this;
+    }
+
+    public void setGeographicSpaceId(String geographicSpaceId) {
+        this.geographicSpaceId = geographicSpaceId;
+    }
+
+    public ShiftStatus getStatus() {
+        return this.status;
+    }
+
+    public DutyRoster status(ShiftStatus status) {
+        this.setStatus(status);
+        return this;
+    }
+
+    public void setStatus(ShiftStatus status) {
+        this.status = status;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -185,6 +218,8 @@ public class DutyRoster implements Serializable {
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
             ", patientId='" + getPatientId() + "'" +
+            ", geographicSpaceId='" + getGeographicSpaceId() + "'" +
+            ", status='" + getStatus() + "'" +
             "}";
     }
 }

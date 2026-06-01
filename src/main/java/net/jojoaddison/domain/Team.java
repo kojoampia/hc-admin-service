@@ -1,8 +1,9 @@
 package net.jojoaddison.domain;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -35,6 +36,9 @@ public class Team implements Serializable {
 
     @Field("organisation_id")
     private String organisationId;
+
+    @Field("geographic_space_ids")
+    private List<String> geographicSpaceIds;
 
     @NotNull
     @Field("created_by")
@@ -182,6 +186,19 @@ public class Team implements Serializable {
 
     public void setModifiedDate(Instant modifiedDate) {
         this.modifiedDate = modifiedDate;
+    }
+
+    public List<String> getGeographicSpaceIds() {
+        return this.geographicSpaceIds;
+    }
+
+    public Team geographicSpaceIds(List<String> geographicSpaceIds) {
+        this.setGeographicSpaceIds(geographicSpaceIds);
+        return this;
+    }
+
+    public void setGeographicSpaceIds(List<String> geographicSpaceIds) {
+        this.geographicSpaceIds = geographicSpaceIds;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
