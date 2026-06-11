@@ -13,9 +13,9 @@ import org.springframework.data.mongodb.core.mapping.Field;
 /**
  * A Profile.
  */
-@Document(collection = "profile")
+@Document(collection = "hc_profile")
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class Profile implements Serializable {
+public class HCProfile implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -109,7 +109,7 @@ public class Profile implements Serializable {
         return this.id;
     }
 
-    public Profile id(String id) {
+    public HCProfile id(String id) {
         this.setId(id);
         return this;
     }
@@ -122,7 +122,7 @@ public class Profile implements Serializable {
         return this.userId;
     }
 
-    public Profile userId(String userId) {
+    public HCProfile userId(String userId) {
         this.setUserId(userId);
         return this;
     }
@@ -135,7 +135,7 @@ public class Profile implements Serializable {
         return this.personId;
     }
 
-    public Profile personId(String personId) {
+    public HCProfile personId(String personId) {
         this.setPersonId(personId);
         return this;
     }
@@ -148,7 +148,7 @@ public class Profile implements Serializable {
         return this.photoId;
     }
 
-    public Profile photoId(String photoId) {
+    public HCProfile photoId(String photoId) {
         this.setPhotoId(photoId);
         return this;
     }
@@ -161,7 +161,7 @@ public class Profile implements Serializable {
         return this.contactId;
     }
 
-    public Profile contactId(String contactId) {
+    public HCProfile contactId(String contactId) {
         this.setContactId(contactId);
         return this;
     }
@@ -174,7 +174,7 @@ public class Profile implements Serializable {
         return this.addressList;
     }
 
-    public Profile addressList(String addressList) {
+    public HCProfile addressList(String addressList) {
         this.setAddressList(addressList);
         return this;
     }
@@ -187,7 +187,7 @@ public class Profile implements Serializable {
         return this.roles;
     }
 
-    public Profile roles(String roles) {
+    public HCProfile roles(String roles) {
         this.setRoles(roles);
         return this;
     }
@@ -200,7 +200,7 @@ public class Profile implements Serializable {
         return this.status;
     }
 
-    public Profile status(Boolean status) {
+    public HCProfile status(Boolean status) {
         this.setStatus(status);
         return this;
     }
@@ -213,7 +213,7 @@ public class Profile implements Serializable {
         return this.organisationId;
     }
 
-    public Profile organisationId(String organisationId) {
+    public HCProfile organisationId(String organisationId) {
         this.setOrganisationId(organisationId);
         return this;
     }
@@ -226,7 +226,7 @@ public class Profile implements Serializable {
         return this.teamId;
     }
 
-    public Profile teamId(String teamId) {
+    public HCProfile teamId(String teamId) {
         this.setTeamId(teamId);
         return this;
     }
@@ -239,7 +239,7 @@ public class Profile implements Serializable {
         return this.documentItems;
     }
 
-    public Profile documentItems(String documentItems) {
+    public HCProfile documentItems(String documentItems) {
         this.setDocumentItems(documentItems);
         return this;
     }
@@ -252,7 +252,7 @@ public class Profile implements Serializable {
         return this.createdBy;
     }
 
-    public Profile createdBy(String createdBy) {
+    public HCProfile createdBy(String createdBy) {
         this.setCreatedBy(createdBy);
         return this;
     }
@@ -265,7 +265,7 @@ public class Profile implements Serializable {
         return this.createdDate;
     }
 
-    public Profile createdDate(Instant createdDate) {
+    public HCProfile createdDate(Instant createdDate) {
         this.setCreatedDate(createdDate);
         return this;
     }
@@ -278,7 +278,7 @@ public class Profile implements Serializable {
         return this.modifiedBy;
     }
 
-    public Profile modifiedBy(String modifiedBy) {
+    public HCProfile modifiedBy(String modifiedBy) {
         this.setModifiedBy(modifiedBy);
         return this;
     }
@@ -291,7 +291,7 @@ public class Profile implements Serializable {
         return this.modifiedDate;
     }
 
-    public Profile modifiedDate(Instant modifiedDate) {
+    public HCProfile modifiedDate(Instant modifiedDate) {
         this.setModifiedDate(modifiedDate);
         return this;
     }
@@ -304,7 +304,7 @@ public class Profile implements Serializable {
         return this.roleType;
     }
 
-    public Profile roleType(RoleType roleType) {
+    public HCProfile roleType(RoleType roleType) {
         this.setRoleType(roleType);
         return this;
     }
@@ -317,7 +317,7 @@ public class Profile implements Serializable {
         return this.unavailabilityPeriods;
     }
 
-    public Profile unavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
+    public HCProfile unavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
         this.setUnavailabilityPeriods(unavailabilityPeriods);
         return this;
     }
@@ -333,10 +333,10 @@ public class Profile implements Serializable {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof Profile)) {
+        if (!(o instanceof HCProfile)) {
             return false;
         }
-        return getId() != null && getId().equals(((Profile) o).getId());
+        return getId() != null && getId().equals(((HCProfile) o).getId());
     }
 
     @Override

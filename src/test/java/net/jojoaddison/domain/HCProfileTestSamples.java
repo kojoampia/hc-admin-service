@@ -2,10 +2,10 @@ package net.jojoaddison.domain;
 
 import java.util.UUID;
 
-public class ProfileTestSamples {
+public class HCProfileTestSamples {
 
-    public static Profile getProfileSample1() {
-        return new Profile()
+    public static HCProfile getProfileSample1() {
+        return new HCProfile()
             .id("id1")
             .personId("personId1")
             .photoId("photoId1")
@@ -19,8 +19,8 @@ public class ProfileTestSamples {
             .modifiedBy("modifiedBy1");
     }
 
-    public static Profile getProfileSample2() {
-        return new Profile()
+    public static HCProfile getProfileSample2() {
+        return new HCProfile()
             .id("id2")
             .personId("personId2")
             .photoId("photoId2")
@@ -34,8 +34,8 @@ public class ProfileTestSamples {
             .modifiedBy("modifiedBy2");
     }
 
-    public static Profile getProfileRandomSampleGenerator() {
-        return new Profile()
+    public static HCProfile getProfileRandomSampleGenerator() {
+        return new HCProfile()
             .id(UUID.randomUUID().toString())
             .personId(UUID.randomUUID().toString())
             .photoId(UUID.randomUUID().toString())

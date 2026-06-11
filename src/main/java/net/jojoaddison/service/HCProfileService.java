@@ -3,10 +3,10 @@ package net.jojoaddison.service;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import net.jojoaddison.domain.Profile;
-import net.jojoaddison.repository.ProfileRepository;
-import net.jojoaddison.service.dto.ProfileDTO;
-import net.jojoaddison.service.mapper.ProfileMapper;
+import net.jojoaddison.domain.HCProfile;
+import net.jojoaddison.repository.HCProfileRepository;
+import net.jojoaddison.service.dto.HCProfileDTO;
+import net.jojoaddison.service.mapper.HCProfileMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -14,18 +14,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
- * Service Implementation for managing {@link net.jojoaddison.domain.Profile}.
+ * Service Implementation for managing {@link net.jojoaddison.domain.HCProfile}.
  */
 @Service
-public class ProfileService {
+public class HCProfileService {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ProfileService.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HCProfileService.class);
 
-    private final ProfileRepository profileRepository;
+    private final HCProfileRepository profileRepository;
 
-    private final ProfileMapper profileMapper;
+    private final HCProfileMapper profileMapper;
 
-    public ProfileService(ProfileRepository profileRepository, ProfileMapper profileMapper) {
+    public HCProfileService(HCProfileRepository profileRepository, HCProfileMapper profileMapper) {
         this.profileRepository = profileRepository;
         this.profileMapper = profileMapper;
     }
@@ -36,9 +36,9 @@ public class ProfileService {
      * @param profileDTO the entity to save.
      * @return the persisted entity.
      */
-    public ProfileDTO save(ProfileDTO profileDTO) {
+    public HCProfileDTO save(HCProfileDTO profileDTO) {
         LOG.debug("Request to save Profile : {}", profileDTO);
-        Profile profile = profileMapper.toEntity(profileDTO);
+        HCProfile profile = profileMapper.toEntity(profileDTO);
         profile = profileRepository.save(profile);
         return profileMapper.toDto(profile);
     }
@@ -49,9 +49,9 @@ public class ProfileService {
      * @param profileDTO the entity to save.
      * @return the persisted entity.
      */
-    public ProfileDTO update(ProfileDTO profileDTO) {
+    public HCProfileDTO update(HCProfileDTO profileDTO) {
         LOG.debug("Request to update Profile : {}", profileDTO);
-        Profile profile = profileMapper.toEntity(profileDTO);
+        HCProfile profile = profileMapper.toEntity(profileDTO);
         profile = profileRepository.save(profile);
         return profileMapper.toDto(profile);
     }
@@ -62,7 +62,7 @@ public class ProfileService {
      * @param profileDTO the entity to update partially.
      * @return the persisted entity.
      */
-    public Optional<ProfileDTO> partialUpdate(ProfileDTO profileDTO) {
+    public Optional<HCProfileDTO> partialUpdate(HCProfileDTO profileDTO) {
         LOG.debug("Request to partially update Profile : {}", profileDTO);
 
         return profileRepository
@@ -82,7 +82,7 @@ public class ProfileService {
      * @param pageable the pagination information.
      * @return the list of entities.
      */
-    public Page<ProfileDTO> findAll(Pageable pageable) {
+    public Page<HCProfileDTO> findAll(Pageable pageable) {
         LOG.debug("Request to get all Profiles");
         return profileRepository.findAll(pageable).map(profileMapper::toDto);
     }
@@ -94,7 +94,7 @@ public class ProfileService {
      * @param teamId the team id of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByOrganisationIdAndTeamId(String organisationId, String teamId) {
+    public List<HCProfileDTO> findByOrganisationIdAndTeamId(String organisationId, String teamId) {
         LOG.debug("Request to get Profiles by organisationId : {} and teamId : {}", organisationId, teamId);
         return profileRepository
             .findByOrganisationIdAndTeamId(organisationId, teamId)
@@ -110,7 +110,7 @@ public class ProfileService {
      * @param status the status of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByOrganisationIdAndStatus(String organisationId, Boolean status) {
+    public List<HCProfileDTO> findByOrganisationIdAndStatus(String organisationId, Boolean status) {
         LOG.debug("Request to get Profiles by organisationId : {} and status : {}", organisationId, status);
         return profileRepository
             .findByOrganisationIdAndStatus(organisationId, status)
@@ -126,7 +126,7 @@ public class ProfileService {
      * @param status the status of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByTeamIdAndStatus(String teamId, Boolean status) {
+    public List<HCProfileDTO> findByTeamIdAndStatus(String teamId, Boolean status) {
         LOG.debug("Request to get Profiles by teamId : {} and status : {}", teamId, status);
         return profileRepository.findByTeamIdAndStatus(teamId, status).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -138,7 +138,7 @@ public class ProfileService {
      * @param status the status of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByRolesAndStatus(String roles, Boolean status) {
+    public List<HCProfileDTO> findByRolesAndStatus(String roles, Boolean status) {
         LOG.debug("Request to get Profiles by roles : {} and status : {}", roles, status);
         return profileRepository.findByRolesAndStatus(roles, status).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -149,7 +149,7 @@ public class ProfileService {
      * @param roles the roles of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByRoles(String roles) {
+    public List<HCProfileDTO> findByRoles(String roles) {
         LOG.debug("Request to get Profiles by roles : {}", roles);
         return profileRepository.findByRoles(roles).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -160,7 +160,7 @@ public class ProfileService {
      * @param status the status of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByStatus(Boolean status) {
+    public List<HCProfileDTO> findByStatus(Boolean status) {
         LOG.debug("Request to get Profiles by status : {}", status);
         return profileRepository.findByStatus(status).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -171,7 +171,7 @@ public class ProfileService {
      * @param createdBy the createdBy of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByCreatedBy(String createdBy) {
+    public List<HCProfileDTO> findByCreatedBy(String createdBy) {
         LOG.debug("Request to get Profiles by createdBy : {}", createdBy);
         return profileRepository.findByCreatedBy(createdBy).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -182,7 +182,7 @@ public class ProfileService {
      * @param modifiedBy the modifiedBy of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByModifiedBy(String modifiedBy) {
+    public List<HCProfileDTO> findByModifiedBy(String modifiedBy) {
         LOG.debug("Request to get Profiles by modifiedBy : {}", modifiedBy);
         return profileRepository.findByModifiedBy(modifiedBy).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -193,7 +193,7 @@ public class ProfileService {
      * @param createdDate the createdDate of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByCreatedDate(String createdDate) {
+    public List<HCProfileDTO> findByCreatedDate(String createdDate) {
         LOG.debug("Request to get Profiles by createdDate : {}", createdDate);
         return profileRepository.findByCreatedDate(createdDate).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -204,7 +204,7 @@ public class ProfileService {
      * @param modifiedDate the modifiedDate of the entity.
      * @return the list of entities.
      */
-    public List<ProfileDTO> findByModifiedDate(String modifiedDate) {
+    public List<HCProfileDTO> findByModifiedDate(String modifiedDate) {
         LOG.debug("Request to get Profiles by modifiedDate : {}", modifiedDate);
         return profileRepository.findByModifiedDate(modifiedDate).stream().map(profileMapper::toDto).collect(Collectors.toList());
     }
@@ -215,7 +215,7 @@ public class ProfileService {
      * @param id the id of the entity.
      * @return the entity.
      */
-    public Optional<ProfileDTO> findOne(String id) {
+    public Optional<HCProfileDTO> findOne(String id) {
         LOG.debug("Request to get Profile : {}", id);
         return profileRepository.findById(id).map(profileMapper::toDto);
     }
@@ -226,7 +226,7 @@ public class ProfileService {
      * @param personId the personId of the entity.
      * @return the entity.
      */
-    public Optional<ProfileDTO> findByPersonId(String personId) {
+    public Optional<HCProfileDTO> findByPersonId(String personId) {
         LOG.debug("Request to get Profile by personId : {}", personId);
         return profileRepository.findByPersonId(personId).map(profileMapper::toDto);
     }
@@ -237,7 +237,7 @@ public class ProfileService {
      * @param contactId the contactId of the entity.
      * @return the entity.
      */
-    public Optional<ProfileDTO> findByContactId(String contactId) {
+    public Optional<HCProfileDTO> findByContactId(String contactId) {
         LOG.debug("Request to get Profile by contactId : {}", contactId);
         return profileRepository.findByContactId(contactId).map(profileMapper::toDto);
     }

@@ -74,8 +74,7 @@ class PersonResourceIT {
     private static final String ENTITY_API_URL = "/api/people";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
-    @Autowired
-    private ObjectMapper om;
+    private final ObjectMapper om = TestUtil.createObjectMapper();
 
     @Autowired
     private PersonRepository personRepository;

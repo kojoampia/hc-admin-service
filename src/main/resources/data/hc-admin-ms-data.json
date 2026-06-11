@@ -1,0 +1,169 @@
+{
+  "dev": {
+    "addresses": [
+      {
+        "id": "addr-001",
+        "street": "123 Main St",
+        "district": "Downtown",
+        "town": "Med City",
+        "city": "Capital",
+        "region": "Central",
+        "code": "12345",
+        "country": "Healthland"
+      }
+    ],
+    "contacts": [
+      {
+        "id": "cont-001",
+        "personId": "person-001",
+        "email": "admin@healthconnect.com",
+        "phoneNumber": "+1234567890"
+      }
+    ],
+    "facilities": [
+      {
+        "id": "f1c4e567-d8b5-4a2a-9c0a-1b9e8d6c7b0a",
+        "name": "Global General Hospital",
+        "description": "Leading global healthcare provider",
+        "type": "HOSPITAL",
+        "addressId": "addr-001",
+        "contactId": "cont-001",
+        "photos": "https://example.com/hospital.jpg",
+        "createdBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "createdDate": "2023-01-15T08:00:00Z",
+        "modifiedBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "modifiedDate": "2023-01-15T08:00:00Z"
+      }
+    ],
+    "audits": [
+      {
+        "id": "a2d4e678-e9c6-4b3b-8d1b-2c0a9e7d8c1c",
+        "actionType": "USER_ROLE_UPDATED",
+        "userId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12",
+        "metadata": "{\"details\": \"User 'operator' granted 'ROLE_DATA_IMPORTER'\"}",
+        "createdBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "createdDate": "2023-05-10T14:30:00Z",
+        "modifiedBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "modifiedDate": "2023-05-10T14:30:00Z"
+      }
+    ],
+    "organisations": [
+      {
+        "id": "org-001",
+        "name": "Health Connect Corp",
+        "description": "Main organization",
+        "addressId": "addr-001",
+        "contactId": "cont-001"
+      }
+    ],
+    "persons": [
+      {
+        "id": "person-001",
+        "firstName": "John",
+        "lastName": "Doe",
+        "dateOfBirth": "1980-01-01",
+        "gender": "MALE",
+        "maritalStatus": "MARRIED",
+        "nationality": "Healthlandian",
+        "language": "EN"
+      }
+    ],
+    "teams": [
+      {
+        "id": "team-001",
+        "name": "Admin Team",
+        "description": "Core administration",
+        "members": "John Doe",
+        "supervisorId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "organizationId": "org-001"
+      }
+    ],
+    "profiles": [],
+    "dutyRosters": [
+      {
+        "id": "dr-001",
+        "date": "2026-06-10",
+        "duty": "DOCTOR",
+        "professionalId": "prof-001",
+        "shift": "MORNING",
+        "name": "Morning Ward Round",
+        "description": "Routine checkups",
+        "patientId": "pat-001",
+        "geographicSpaceId": "room-101",
+        "status": "ASSIGNED"
+      }
+    ],
+    "pricingPlans": [
+      {
+        "id": "plan-basic",
+        "name": "Basic Health Plan",
+        "description": "Essential coverage for individuals",
+        "price": 29.99,
+        "features": "Consultations, Basic Labs",
+        "billingCycle": "MONTHLY",
+        "active": true
+      }
+    ],
+    "systemCatalogs": [
+      {
+        "id": "cat-info-001",
+        "name": "About Health Connect",
+        "description": "General information about the platform",
+        "type": "ABOUT",
+        "content": "Health Connect is a digital health platform.",
+        "createdDate": "2023-01-01T00:00:00Z",
+        "modifiedDate": "2023-01-01T00:00:00Z",
+        "createdBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "modifiedBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"
+      }
+    ]
+  },
+  "test": {
+    "addresses": [],
+    "contacts": [],
+    "facilities": [
+      {
+        "id": "t1c4e567-d8b5-4a2a-9c0a-1b9e8d6c7b0t",
+        "name": "Decommissioned East Wing",
+        "description": "Closed for renovation",
+        "type": "OTHER",
+        "addressId": "addr-999",
+        "contactId": "cont-999",
+        "photos": "",
+        "createdBy": "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b11",
+        "createdDate": "2022-11-30T17:00:00Z",
+        "modifiedBy": "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b11",
+        "modifiedDate": "2022-11-30T17:00:00Z"
+      }
+    ],
+    "audits": [
+      {
+        "id": "a3d4e678-e9c6-4b3b-8d1b-2c0a9e7d8c2c",
+        "actionType": "DATABASE_CONNECTION_FAILURE",
+        "userId": "system",
+        "metadata": "{\"details\": \"Failed to connect to audit log database.\"}",
+        "createdBy": "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b13",
+        "createdDate": "2023-05-11T16:00:00Z",
+        "modifiedBy": "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b13",
+        "modifiedDate": "2023-05-11T16:00:00Z"
+      }
+    ],
+    "organisations": [],
+    "persons": [],
+    "teams": [],
+    "profiles": [],
+    "dutyRosters": [],
+    "pricingPlans": [
+      {
+        "id": "plan-expired",
+        "name": "Legacy Plan",
+        "description": "No longer offered",
+        "price": 0.0,
+        "features": "",
+        "billingCycle": "ANNUALLY",
+        "active": false
+      }
+    ],
+    "systemCatalogs": []
+  }
+}

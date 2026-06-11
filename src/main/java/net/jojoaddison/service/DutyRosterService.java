@@ -8,11 +8,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import net.jojoaddison.broker.RosterEvent;
 import net.jojoaddison.domain.DutyRoster;
-import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.HCProfile;
 import net.jojoaddison.domain.Team;
 import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.repository.DutyRosterRepository;
-import net.jojoaddison.repository.ProfileRepository;
+import net.jojoaddison.repository.HCProfileRepository;
 import net.jojoaddison.repository.TeamRepository;
 import net.jojoaddison.service.dto.DutyRosterDTO;
 import net.jojoaddison.service.mapper.DutyRosterMapper;
@@ -33,14 +33,14 @@ public class DutyRosterService {
 
     private final DutyRosterRepository dutyRosterRepository;
     private final DutyRosterMapper dutyRosterMapper;
-    private final ProfileRepository profileRepository;
+    private final HCProfileRepository profileRepository;
     private final TeamRepository teamRepository;
     private final StreamBridge streamBridge;
 
     public DutyRosterService(
         DutyRosterRepository dutyRosterRepository,
         DutyRosterMapper dutyRosterMapper,
-        ProfileRepository profileRepository,
+        HCProfileRepository profileRepository,
         TeamRepository teamRepository,
         StreamBridge streamBridge
     ) {
@@ -155,7 +155,7 @@ public class DutyRosterService {
             }
 
             // 2. HARD CONSTRAINTS: Role match and team membership
-            List<Profile> availableProfessionals = profileRepository.findByRoleTypeAndTeamIdInAndStatusTrue(
+            List<HCProfile> availableProfessionals = profileRepository.findByRoleTypeAndTeamIdInAndStatusTrue(
                 shift.getDuty().name().equals("DOCTOR")
                     ? net.jojoaddison.domain.enumeration.RoleType.PROFESSIONAL
                     : net.jojoaddison.domain.enumeration.RoleType.PROFESSIONAL,
@@ -163,7 +163,7 @@ public class DutyRosterService {
             );
 
             // 3. HARD CONSTRAINTS: Date-range availability & double-booking prevention
-            List<Profile> eligibleProfessionals = availableProfessionals
+            List<HCProfile> eligibleProfessionals = availableProfessionals
                 .stream()
                 .filter(p -> p.isAvailable(date))
                 .filter(p -> !dutyRosterRepository.existsByProfessionalIdAndDate(p.getId(), date))
@@ -180,7 +180,7 @@ public class DutyRosterService {
             );
 
             // 5. Assign the optimal professional
-            Profile selectedProfessional = eligibleProfessionals.get(0);
+            HCProfile selectedProfessional = eligibleProfessionals.get(0);
             shift.setProfessionalId(selectedProfessional.getId());
             shift.setStatus(ShiftStatus.ASSIGNED);
 

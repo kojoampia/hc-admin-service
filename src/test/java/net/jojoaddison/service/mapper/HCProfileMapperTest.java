@@ -1,18 +1,18 @@
 package net.jojoaddison.service.mapper;
 
-import static net.jojoaddison.domain.ProfileAsserts.*;
-import static net.jojoaddison.domain.ProfileTestSamples.*;
+import static net.jojoaddison.domain.HCProfileAsserts.*;
+import static net.jojoaddison.domain.HCProfileTestSamples.*;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class ProfileMapperTest {
+class HCProfileMapperTest {
 
-    private ProfileMapper profileMapper;
+    private HCProfileMapper profileMapper;
 
     @BeforeEach
     void setUp() {
-        profileMapper = new ProfileMapperImpl();
+        profileMapper = new HCProfileMapperImpl();
     }
 
     @Test

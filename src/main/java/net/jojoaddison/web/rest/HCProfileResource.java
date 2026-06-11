@@ -7,9 +7,9 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import net.jojoaddison.repository.ProfileRepository;
-import net.jojoaddison.service.ProfileService;
-import net.jojoaddison.service.dto.ProfileDTO;
+import net.jojoaddison.repository.HCProfileRepository;
+import net.jojoaddison.service.HCProfileService;
+import net.jojoaddison.service.dto.HCProfileDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,24 +25,24 @@ import tech.jhipster.web.util.PaginationUtil;
 import tech.jhipster.web.util.ResponseUtil;
 
 /**
- * REST controller for managing {@link net.jojoaddison.domain.Profile}.
+ * REST controller for managing {@link net.jojoaddison.domain.HCProfile}.
  */
 @RestController
 @RequestMapping("/api/profiles")
-public class ProfileResource {
+public class HCProfileResource {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ProfileResource.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HCProfileResource.class);
 
     private static final String ENTITY_NAME = "hcAdminServiceProfile";
 
     @Value("${jhipster.clientApp.name}")
     private String applicationName;
 
-    private final ProfileService profileService;
+    private final HCProfileService profileService;
 
-    private final ProfileRepository profileRepository;
+    private final HCProfileRepository profileRepository;
 
-    public ProfileResource(ProfileService profileService, ProfileRepository profileRepository) {
+    public HCProfileResource(HCProfileService profileService, HCProfileRepository profileRepository) {
         this.profileService = profileService;
         this.profileRepository = profileRepository;
     }
@@ -55,7 +55,7 @@ public class ProfileResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<ProfileDTO> createProfile(@Valid @RequestBody ProfileDTO profileDTO) throws URISyntaxException {
+    public ResponseEntity<HCProfileDTO> createProfile(@Valid @RequestBody HCProfileDTO profileDTO) throws URISyntaxException {
         LOG.debug("REST request to save Profile : {}", profileDTO);
         if (profileDTO.getId() != null) {
             throw new BadRequestAlertException("A new profile cannot already have an ID", ENTITY_NAME, "idexists");
@@ -78,9 +78,9 @@ public class ProfileResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ProfileDTO> updateProfile(
+    public ResponseEntity<HCProfileDTO> updateProfile(
         @PathVariable(value = "id", required = false) final String id,
-        @Valid @RequestBody ProfileDTO profileDTO
+        @Valid @RequestBody HCProfileDTO profileDTO
     ) throws URISyntaxException {
         LOG.debug("REST request to update Profile : {}, {}", id, profileDTO);
         if (profileDTO.getId() == null) {
@@ -113,9 +113,9 @@ public class ProfileResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
-    public ResponseEntity<ProfileDTO> partialUpdateProfile(
+    public ResponseEntity<HCProfileDTO> partialUpdateProfile(
         @PathVariable(value = "id", required = false) final String id,
-        @NotNull @RequestBody ProfileDTO profileDTO
+        @NotNull @RequestBody HCProfileDTO profileDTO
     ) throws URISyntaxException {
         LOG.debug("REST request to partial update Profile partially : {}, {}", id, profileDTO);
         if (profileDTO.getId() == null) {
@@ -129,7 +129,7 @@ public class ProfileResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
-        Optional<ProfileDTO> result = profileService.partialUpdate(profileDTO);
+        Optional<HCProfileDTO> result = profileService.partialUpdate(profileDTO);
 
         return ResponseUtil.wrapOrNotFound(
             result,
@@ -144,9 +144,9 @@ public class ProfileResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of profiles in body.
      */
     @GetMapping("")
-    public ResponseEntity<List<ProfileDTO>> getAllProfiles(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
+    public ResponseEntity<List<HCProfileDTO>> getAllProfiles(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
         LOG.debug("REST request to get a page of Profiles");
-        Page<ProfileDTO> page = profileService.findAll(pageable);
+        Page<HCProfileDTO> page = profileService.findAll(pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
@@ -158,9 +158,9 @@ public class ProfileResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the profileDTO, or with status {@code 404 (Not Found)}.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ProfileDTO> getProfile(@PathVariable("id") String id) {
+    public ResponseEntity<HCProfileDTO> getProfile(@PathVariable("id") String id) {
         LOG.debug("REST request to get Profile : {}", id);
-        Optional<ProfileDTO> profileDTO = profileService.findOne(id);
+        Optional<HCProfileDTO> profileDTO = profileService.findOne(id);
         return ResponseUtil.wrapOrNotFound(profileDTO);
     }
 

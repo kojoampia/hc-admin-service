@@ -48,6 +48,9 @@ class TeamResourceIT {
     private static final String DEFAULT_ORGANISATION_ID = "AAAAAAAAAA";
     private static final String UPDATED_ORGANISATION_ID = "BBBBBBBBBB";
 
+    private static final String DEFAULT_GEOGRAPHIC_SPACE_IDS = "AAAAAAAAAA";
+    private static final String UPDATED_GEOGRAPHIC_SPACE_IDS = "BBBBBBBBBB";
+
     private static final String DEFAULT_CREATED_BY = "AAAAAAAAAA";
     private static final String UPDATED_CREATED_BY = "BBBBBBBBBB";
 
@@ -91,6 +94,7 @@ class TeamResourceIT {
             .members(DEFAULT_MEMBERS)
             .supervisorId(DEFAULT_SUPERVISOR_ID)
             .organisationId(DEFAULT_ORGANISATION_ID)
+            .geographicSpaceIds(java.util.List.of(DEFAULT_GEOGRAPHIC_SPACE_IDS))
             .createdBy(DEFAULT_CREATED_BY)
             .createdDate(DEFAULT_CREATED_DATE)
             .modifiedBy(DEFAULT_MODIFIED_BY)
@@ -110,6 +114,7 @@ class TeamResourceIT {
             .members(UPDATED_MEMBERS)
             .supervisorId(UPDATED_SUPERVISOR_ID)
             .organisationId(UPDATED_ORGANISATION_ID)
+            .geographicSpaceIds(java.util.List.of(UPDATED_GEOGRAPHIC_SPACE_IDS))
             .createdBy(UPDATED_CREATED_BY)
             .createdDate(UPDATED_CREATED_DATE)
             .modifiedBy(UPDATED_MODIFIED_BY)
@@ -281,6 +286,7 @@ class TeamResourceIT {
             .andExpect(jsonPath("$.[*].members").value(hasItem(DEFAULT_MEMBERS)))
             .andExpect(jsonPath("$.[*].supervisorId").value(hasItem(DEFAULT_SUPERVISOR_ID)))
             .andExpect(jsonPath("$.[*].organisationId").value(hasItem(DEFAULT_ORGANISATION_ID)))
+            .andExpect(jsonPath("$.[*].geographicSpaceIds").value(hasItem(java.util.List.of(DEFAULT_GEOGRAPHIC_SPACE_IDS))))
             .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
             .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
             .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)))
@@ -303,6 +309,7 @@ class TeamResourceIT {
             .andExpect(jsonPath("$.members").value(DEFAULT_MEMBERS))
             .andExpect(jsonPath("$.supervisorId").value(DEFAULT_SUPERVISOR_ID))
             .andExpect(jsonPath("$.organisationId").value(DEFAULT_ORGANISATION_ID))
+            .andExpect(jsonPath("$.geographicSpaceIds").value(hasItem(DEFAULT_GEOGRAPHIC_SPACE_IDS)))
             .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
             .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
             .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY))

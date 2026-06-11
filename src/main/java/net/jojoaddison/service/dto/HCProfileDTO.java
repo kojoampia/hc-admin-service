@@ -3,15 +3,21 @@ package net.jojoaddison.service.dto;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
+import net.jojoaddison.domain.UnavailabilityPeriod;
+import net.jojoaddison.domain.enumeration.RoleType;
 
 /**
- * A DTO for the {@link net.jojoaddison.domain.Profile} entity.
+ * A DTO for the {@link net.jojoaddison.domain.HCProfile} entity.
  */
 @SuppressWarnings("common-java:DuplicatedBlocks")
-public class ProfileDTO implements Serializable {
+public class HCProfileDTO implements Serializable {
 
     private String id;
+
+    @NotNull
+    private String userId;
 
     @NotNull
     private String personId;
@@ -36,6 +42,10 @@ public class ProfileDTO implements Serializable {
     @NotNull
     private String teamId;
 
+    private RoleType roleType;
+
+    private List<UnavailabilityPeriod> unavailabilityPeriods;
+
     @NotNull
     private String documentItems;
 
@@ -57,6 +67,14 @@ public class ProfileDTO implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getPersonId() {
@@ -123,6 +141,22 @@ public class ProfileDTO implements Serializable {
         this.teamId = teamId;
     }
 
+    public RoleType getRoleType() {
+        return roleType;
+    }
+
+    public void setRoleType(RoleType roleType) {
+        this.roleType = roleType;
+    }
+
+    public List<UnavailabilityPeriod> getUnavailabilityPeriods() {
+        return unavailabilityPeriods;
+    }
+
+    public void setUnavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
+        this.unavailabilityPeriods = unavailabilityPeriods;
+    }
+
     public String getDocumentItems() {
         return documentItems;
     }
@@ -168,11 +202,11 @@ public class ProfileDTO implements Serializable {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof ProfileDTO)) {
+        if (!(o instanceof HCProfileDTO)) {
             return false;
         }
 
-        ProfileDTO profileDTO = (ProfileDTO) o;
+        HCProfileDTO profileDTO = (HCProfileDTO) o;
         if (this.id == null) {
             return false;
         }

@@ -72,7 +72,7 @@
     }
   ],
   "microserviceName": "hcAdminService",
-  "name": "Profile",
+  "name": "HCProfile",
   "pagination": "pagination",
   "readOnly": false,
   "relationships": [],

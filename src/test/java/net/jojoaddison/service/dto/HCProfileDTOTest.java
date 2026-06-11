@@ -5,14 +5,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import net.jojoaddison.web.rest.TestUtil;
 import org.junit.jupiter.api.Test;
 
-class ProfileDTOTest {
+class HCProfileDTOTest {
 
     @Test
     void dtoEqualsVerifier() throws Exception {
-        TestUtil.equalsVerifier(ProfileDTO.class);
-        ProfileDTO profileDTO1 = new ProfileDTO();
+        TestUtil.equalsVerifier(HCProfileDTO.class);
+        HCProfileDTO profileDTO1 = new HCProfileDTO();
         profileDTO1.setId("id1");
-        ProfileDTO profileDTO2 = new ProfileDTO();
+        HCProfileDTO profileDTO2 = new HCProfileDTO();
         assertThat(profileDTO1).isNotEqualTo(profileDTO2);
         profileDTO2.setId(profileDTO1.getId());
         assertThat(profileDTO1).isEqualTo(profileDTO2);

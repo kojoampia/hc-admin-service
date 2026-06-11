@@ -1,6 +1,6 @@
 package net.jojoaddison.web.rest;
 
-import static net.jojoaddison.domain.ProfileAsserts.*;
+import static net.jojoaddison.domain.HCProfileAsserts.*;
 import static net.jojoaddison.web.rest.TestUtil.createUpdateProxyForBean;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
@@ -12,10 +12,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
-import net.jojoaddison.domain.Profile;
-import net.jojoaddison.repository.ProfileRepository;
-import net.jojoaddison.service.dto.ProfileDTO;
-import net.jojoaddison.service.mapper.ProfileMapper;
+import net.jojoaddison.domain.HCProfile;
+import net.jojoaddison.repository.HCProfileRepository;
+import net.jojoaddison.service.dto.HCProfileDTO;
+import net.jojoaddison.service.mapper.HCProfileMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,12 +26,15 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * Integration tests for the {@link ProfileResource} REST controller.
+ * Integration tests for the {@link HCProfileResource} REST controller.
  */
 @IntegrationTest
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
-class ProfileResourceIT {
+class HCProfileResourceIT {
+
+    private static final String DEFAULT_USER_ID = "AAAAAAAAAA";
+    private static final String UPDATED_USER_ID = "BBBBBBBBBB";
 
     private static final String DEFAULT_PERSON_ID = "AAAAAAAAAA";
     private static final String UPDATED_PERSON_ID = "BBBBBBBBBB";
@@ -78,17 +81,17 @@ class ProfileResourceIT {
     private final ObjectMapper om = TestUtil.createObjectMapper();
 
     @Autowired
-    private ProfileRepository profileRepository;
+    private HCProfileRepository profileRepository;
 
     @Autowired
-    private ProfileMapper profileMapper;
+    private HCProfileMapper profileMapper;
 
     @Autowired
     private MockMvc restProfileMockMvc;
 
-    private Profile profile;
+    private HCProfile profile;
 
-    private Profile insertedProfile;
+    private HCProfile insertedProfile;
 
     /**
      * Create an entity for this test.
@@ -96,8 +99,9 @@ class ProfileResourceIT {
      * This is a static method, as tests for other entities might also need it,
      * if they test an entity which requires the current entity.
      */
-    public static Profile createEntity() {
-        return new Profile()
+    public static HCProfile createEntity() {
+        return new HCProfile()
+            .userId(DEFAULT_USER_ID)
             .personId(DEFAULT_PERSON_ID)
             .photoId(DEFAULT_PHOTO_ID)
             .contactId(DEFAULT_CONTACT_ID)
@@ -119,8 +123,9 @@ class ProfileResourceIT {
      * This is a static method, as tests for other entities might also need it,
      * if they test an entity which requires the current entity.
      */
-    public static Profile createUpdatedEntity() {
-        return new Profile()
+    public static HCProfile createUpdatedEntity() {
+        return new HCProfile()
+            .userId(UPDATED_USER_ID)
             .personId(UPDATED_PERSON_ID)
             .photoId(UPDATED_PHOTO_ID)
             .contactId(UPDATED_CONTACT_ID)
@@ -153,7 +158,7 @@ class ProfileResourceIT {
     void createProfile() throws Exception {
         long databaseSizeBeforeCreate = getRepositoryCount();
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
         var returnedProfileDTO = om.readValue(
             restProfileMockMvc
                 .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -161,7 +166,7 @@ class ProfileResourceIT {
                 .andReturn()
                 .getResponse()
                 .getContentAsString(),
-            ProfileDTO.class
+            HCProfileDTO.class
         );
 
         // Validate the Profile in the database
@@ -176,7 +181,7 @@ class ProfileResourceIT {
     void createProfileWithExistingId() throws Exception {
         // Create the Profile with an existing ID
         profile.setId("existing_id");
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         long databaseSizeBeforeCreate = getRepositoryCount();
 
@@ -190,13 +195,29 @@ class ProfileResourceIT {
     }
 
     @Test
+    void checkUserIdIsRequired() throws Exception {
+        long databaseSizeBeforeTest = getRepositoryCount();
+        // set the field null
+        profile.setUserId(null);
+
+        // Create the Profile, which fails.
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
+
+        restProfileMockMvc
+            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
+            .andExpect(status().isBadRequest());
+
+        assertSameRepositoryCount(databaseSizeBeforeTest);
+    }
+
+    @Test
     void checkPersonIdIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
         profile.setPersonId(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -212,7 +233,7 @@ class ProfileResourceIT {
         profile.setPhotoId(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -228,7 +249,7 @@ class ProfileResourceIT {
         profile.setContactId(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -244,7 +265,7 @@ class ProfileResourceIT {
         profile.setAddressList(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -260,7 +281,7 @@ class ProfileResourceIT {
         profile.setStatus(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -276,7 +297,7 @@ class ProfileResourceIT {
         profile.setOrganisationId(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -292,7 +313,7 @@ class ProfileResourceIT {
         profile.setTeamId(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -308,7 +329,7 @@ class ProfileResourceIT {
         profile.setDocumentItems(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -324,7 +345,7 @@ class ProfileResourceIT {
         profile.setCreatedBy(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -340,7 +361,7 @@ class ProfileResourceIT {
         profile.setCreatedDate(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -356,7 +377,7 @@ class ProfileResourceIT {
         profile.setModifiedBy(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -372,7 +393,7 @@ class ProfileResourceIT {
         profile.setModifiedDate(null);
 
         // Create the Profile, which fails.
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         restProfileMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(profileDTO)))
@@ -392,6 +413,7 @@ class ProfileResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(profile.getId())))
+            .andExpect(jsonPath("$.[*].userId").value(hasItem(DEFAULT_USER_ID)))
             .andExpect(jsonPath("$.[*].personId").value(hasItem(DEFAULT_PERSON_ID)))
             .andExpect(jsonPath("$.[*].photoId").value(hasItem(DEFAULT_PHOTO_ID)))
             .andExpect(jsonPath("$.[*].contactId").value(hasItem(DEFAULT_CONTACT_ID)))
@@ -418,6 +440,7 @@ class ProfileResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(profile.getId()))
+            .andExpect(jsonPath("$.userId").value(DEFAULT_USER_ID))
             .andExpect(jsonPath("$.personId").value(DEFAULT_PERSON_ID))
             .andExpect(jsonPath("$.photoId").value(DEFAULT_PHOTO_ID))
             .andExpect(jsonPath("$.contactId").value(DEFAULT_CONTACT_ID))
@@ -447,7 +470,7 @@ class ProfileResourceIT {
         long databaseSizeBeforeUpdate = getRepositoryCount();
 
         // Update the profile
-        Profile updatedProfile = profileRepository.findById(profile.getId()).orElseThrow();
+        HCProfile updatedProfile = profileRepository.findById(profile.getId()).orElseThrow();
         updatedProfile
             .personId(UPDATED_PERSON_ID)
             .photoId(UPDATED_PHOTO_ID)
@@ -462,7 +485,7 @@ class ProfileResourceIT {
             .createdDate(UPDATED_CREATED_DATE)
             .modifiedBy(UPDATED_MODIFIED_BY)
             .modifiedDate(UPDATED_MODIFIED_DATE);
-        ProfileDTO profileDTO = profileMapper.toDto(updatedProfile);
+        HCProfileDTO profileDTO = profileMapper.toDto(updatedProfile);
 
         restProfileMockMvc
             .perform(
@@ -481,7 +504,7 @@ class ProfileResourceIT {
         profile.setId(UUID.randomUUID().toString());
 
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restProfileMockMvc
@@ -500,7 +523,7 @@ class ProfileResourceIT {
         profile.setId(UUID.randomUUID().toString());
 
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProfileMockMvc
@@ -521,7 +544,7 @@ class ProfileResourceIT {
         profile.setId(UUID.randomUUID().toString());
 
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProfileMockMvc
@@ -540,7 +563,7 @@ class ProfileResourceIT {
         long databaseSizeBeforeUpdate = getRepositoryCount();
 
         // Update the profile using partial update
-        Profile partialUpdatedProfile = new Profile();
+        HCProfile partialUpdatedProfile = new HCProfile();
         partialUpdatedProfile.setId(profile.getId());
 
         partialUpdatedProfile
@@ -571,7 +594,7 @@ class ProfileResourceIT {
         long databaseSizeBeforeUpdate = getRepositoryCount();
 
         // Update the profile using partial update
-        Profile partialUpdatedProfile = new Profile();
+        HCProfile partialUpdatedProfile = new HCProfile();
         partialUpdatedProfile.setId(profile.getId());
 
         partialUpdatedProfile
@@ -609,7 +632,7 @@ class ProfileResourceIT {
         profile.setId(UUID.randomUUID().toString());
 
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restProfileMockMvc
@@ -630,7 +653,7 @@ class ProfileResourceIT {
         profile.setId(UUID.randomUUID().toString());
 
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProfileMockMvc
@@ -651,7 +674,7 @@ class ProfileResourceIT {
         profile.setId(UUID.randomUUID().toString());
 
         // Create the Profile
-        ProfileDTO profileDTO = profileMapper.toDto(profile);
+        HCProfileDTO profileDTO = profileMapper.toDto(profile);
 
         // If url ID doesn't match entity ID, it will throw BadRequestAlertException
         restProfileMockMvc
@@ -694,15 +717,15 @@ class ProfileResourceIT {
         assertThat(countBefore).isEqualTo(getRepositoryCount());
     }
 
-    protected Profile getPersistedProfile(Profile profile) {
+    protected HCProfile getPersistedProfile(HCProfile profile) {
         return profileRepository.findById(profile.getId()).orElseThrow();
     }
 
-    protected void assertPersistedProfileToMatchAllProperties(Profile expectedProfile) {
+    protected void assertPersistedProfileToMatchAllProperties(HCProfile expectedProfile) {
         assertProfileAllPropertiesEquals(expectedProfile, getPersistedProfile(expectedProfile));
     }
 
-    protected void assertPersistedProfileToMatchUpdatableProperties(Profile expectedProfile) {
+    protected void assertPersistedProfileToMatchUpdatableProperties(HCProfile expectedProfile) {
         assertProfileAllUpdatablePropertiesEquals(expectedProfile, getPersistedProfile(expectedProfile));
     }
 }

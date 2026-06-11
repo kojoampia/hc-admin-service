@@ -3,6 +3,7 @@ package net.jojoaddison.service.dto;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -24,6 +25,8 @@ public class TeamDTO implements Serializable {
     private String supervisorId;
 
     private String organisationId;
+
+    private List<String> geographicSpaceIds;
 
     @NotNull
     private String createdBy;
@@ -83,6 +86,14 @@ public class TeamDTO implements Serializable {
 
     public void setOrganisationId(String organisationId) {
         this.organisationId = organisationId;
+    }
+
+    public List<String> getGeographicSpaceIds() {
+        return geographicSpaceIds;
+    }
+
+    public void setGeographicSpaceIds(List<String> geographicSpaceIds) {
+        this.geographicSpaceIds = geographicSpaceIds;
     }
 
     public String getCreatedBy() {
@@ -148,6 +159,7 @@ public class TeamDTO implements Serializable {
             ", members='" + getMembers() + "'" +
             ", supervisorId='" + getSupervisorId() + "'" +
             ", organisationId='" + getOrganisationId() + "'" +
+            ", geographicSpaceIds='" + getGeographicSpaceIds() + "'" +
             ", createdBy='" + getCreatedBy() + "'" +
             ", createdDate='" + getCreatedDate() + "'" +
             ", modifiedBy='" + getModifiedBy() + "'" +
