@@ -100,7 +100,7 @@ mongock:
 
 spring:
   application:
-    name: hcAdminService
+    name: HC-Admin-Service
   cloud:
     consul:
       discovery:
