@@ -26,7 +26,7 @@ Originally: _"Act as a Senior Backend Java/Spring Boot Developer specializing in
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `baseName hcAdminMs`        | `hcAdminService` (`.yo-rc.json`); Consul `service-name` is `hcadminservice`                                                                             |
 | `authenticationType oauth2` | `jwt` in `.yo-rc.json` — the app still runs as an OAuth2 resource server via `SecurityJwtConfiguration`, validating tokens minted by `hc-admin-gateway` |
-| Spring Boot 3.x             | Spring Boot 4.0.6 on Java 26                                                                                                                            |
+| Spring Boot 3.x             | Spring Boot 4.0.6 on Java 25                                                                                                                            |
 | `serverPort 5507`           | correct for the dev profile; prod runs on `8080`                                                                                                        |
 
 Unchanged from the brief: microservice application type, `net.jojoaddison` package root, Consul service discovery, MongoDB persistence, Kafka message broker.

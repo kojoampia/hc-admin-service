@@ -14,8 +14,8 @@
         <!--
             Build properties
         -->
-        <maven.version>3.2.5</maven.version>
-        <java.version>26</java.version>
+        <maven.version>3.9.9</maven.version>
+        <java.version>25</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.build.timestamp.format>yyyyMMddHHmmss</maven.build.timestamp.format>
@@ -36,7 +36,7 @@
         <git-commit-id-maven-plugin.version>9.0.2</git-commit-id-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <jib-maven-plugin.architecture>amd64</jib-maven-plugin.architecture>
-        <jib-maven-plugin.image>eclipse-temurin:26-jre-jammy</jib-maven-plugin.image>
+        <jib-maven-plugin.image>eclipse-temurin:25-jre-alpine</jib-maven-plugin.image>
         <jib-maven-plugin.version>3.5.1</jib-maven-plugin.version>
         <lifecycle-mapping.version>1.0.0</lifecycle-mapping.version>
         <jackson.databind.version>2.22.0</jackson.databind.version>
@@ -593,8 +593,8 @@
                                 <version>[${maven.version},)</version>
                             </requireMavenVersion>
                             <requireJavaVersion>
-                                <message>You are running an incompatible version of Java. JHipster supports JDK 17 to 26.</message>
-                                <version>[17,27)</version>
+                                <message>You are running an incompatible version of Java. JHipster supports JDK 17 to 25.</message>
+                                <version>[17,26)</version>
                             </requireJavaVersion>
                         </rules>
                     </configuration>

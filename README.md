@@ -11,7 +11,7 @@ This application is configured for Service Discovery and Configuration with Cons
 
 |                    |                                                                                                      |
 | ------------------ | ---------------------------------------------------------------------------------------------------- |
-| Java / Spring Boot | 26 / 4.0.6 (enforcer accepts JDK `[17,27)`)                                                          |
+| Java / Spring Boot | 25 / 4.0.6 (enforcer accepts JDK `[17,26)`)                                                          |
 | Database           | MongoDB, default db `adminService`; migrations via Mongock                                           |
 | Ports              | **5507** (dev profile), **8080** (prod profile)                                                      |
 | Discovery          | Consul at `localhost:8500` — startup fails without it                                                |
@@ -29,7 +29,7 @@ hc-admin-dashboard (Angular, :4200)
 
 The gateway owns users, authorities, and login; this service trusts the JWT relayed to it.
 
-**Known routing mismatch:** this service registers in Consul as `hcadminservice` (`spring.cloud.consul.discovery.service-name`), the gateway's static dev route matches `/services/admin-service/**`, and the Angular dashboard calls `/services/hc-admin-ms/...`. None of the three agree — expect 404s on entity endpoints through the gateway until they are reconciled.
+**Service naming:** this service registers in Consul as `hcadminservice` (`spring.cloud.consul.discovery.service-name`), so the gateway's discovery locator publishes it at `/services/hcadminservice/**` — which is what the Angular dashboard calls. The gateway's `application-dev.yml` also declares a static `/services/admin-service/**` route to `localhost:5507`; that is a dev convenience, not a second contract.
 
 ## Project Structure
 

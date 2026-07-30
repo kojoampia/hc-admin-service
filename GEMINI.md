@@ -1,11 +1,11 @@
-# hc-admin-ms (Health Connect Admin Microservice)
+# hc-admin-service (Health Connect Admin Microservice)
 
 This microservice is the administrative hub of the Health-Connect ecosystem. it serves as the source of truth for administrative operations, duty rosters, system catalogs (CMS), and pricing plans.
 
 ## 🏗️ Architecture & Technology Stack
 
 - **Framework**: Spring Boot 4.0.6 (JHipster 8.11.0 per `.yo-rc.json`; `package.json` still pins `generator-jhipster` 8.1.0)
-- **Language**: Java 26 (Maven enforcer accepts JDK `[17,27)`)
+- **Language**: Java 25 (Maven enforcer accepts JDK `[17,26)`)
 - **Database**: MongoDB (document-oriented), default db `adminService`, migrations via Mongock
 - **Service Discovery & Config**: HashiCorp Consul at `localhost:8500` — the app refuses to start without it. Registers as `hcadminservice`.
 - **Messaging**: Apache Kafka via Spring Cloud Stream (broadcasting roster changes, syncing profiles)
@@ -45,7 +45,7 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 
 ### Prerequisites
 
-- Java 26
+- Java 25
 - Node.js (>= 18.18.2)
 - Docker & Docker Compose
 

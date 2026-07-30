@@ -14,9 +14,9 @@
 
 ## High-level architecture
 
-- This is a JHipster-generated Spring Boot 4.0.6 / Java 26 microservice backed by **MongoDB** (default db `adminService`), registered in **Consul**, and secured as an **OAuth2 resource server**. The main entry point is `net.jojoaddison.HcAdminServiceApp`.
+- This is a JHipster-generated Spring Boot 4.0.6 / Java 25 microservice backed by **MongoDB** (default db `adminService`), registered in **Consul**, and secured as an **OAuth2 resource server**. The main entry point is `net.jojoaddison.HcAdminServiceApp`.
 - It is one of three repositories in the admin stack: `hc-admin-dashboard` (Angular, :4200) → `hc-admin-gateway` (:5504 dev / :5503 prod) → this service (:5507 dev / :8080 prod). The gateway owns users, authorities, and login (`skipUserManagement: true` here); this service only validates the JWT relayed to it.
-- **Known routing mismatch:** this service registers in Consul as `hcadminservice`, the gateway's static dev route matches `/services/admin-service/**`, and the dashboard calls `/services/hc-admin-ms/...`. None agree — check this before debugging a 404 that arrives through the gateway.
+- **Service naming:** this service registers in Consul as `hcadminservice`; the gateway publishes it at `/services/hcadminservice/**` and the dashboard calls exactly that. If a `/services/...` call 404s, check the Consul catalogue first — an unregistered service is a 404, not an error.
 - The main domain areas in this service are administrative master data and operational admin workflows: profiles, teams, organisations, contacts/addresses, facilities, system catalogs, pricing plans, subscriptions, messages/notifications, and duty rosters.
 - Most business flows follow `web/rest -> service -> repository -> domain`:
   - `web/rest` exposes CRUD endpoints and uses JHipster response helpers.
