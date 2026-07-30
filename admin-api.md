@@ -249,19 +249,25 @@ Records use real domain-model field names (`id`, `street`, `district`, …), not
 
 ### Initializer behaviour
 
-`DevelopmentDataInitializer` is a `@Component` annotated `@Profile({dev, test})` implementing `ApplicationRunner`. It **returns early unless `spring.profiles.active` was passed as a command-line argument** — setting the profile through `application.yml` or an environment variable alone does not trigger it. It then reads the JSON and calls `saveAll` on each of the eleven repositories.
+`DevelopmentDataInitializer` is a `@Component` annotated `@Profile({dev, test})` implementing `ApplicationRunner`. The `@Profile` annotation alone decides whether it runs — the bean only exists under `dev` or `test`, and it resolves which of the two to load from the `Environment` (`test` wins when both are active). It deserialises the JSON into `Map<String, ProfileData>` and calls `saveAll` per collection, logging a count for each. Records carry explicit ids, so repeated startups overwrite the same documents rather than accumulating duplicates.
 
-### ⚠ Seeding does not currently work
+### Seeding was broken — fixed
 
-Two structural mismatches mean the load fails and no data is inserted:
+Seeding silently loaded nothing. Four defects, all now fixed:
 
-1. **Root-key mismatch.** The initializer deserialises into `SeedData`, whose only field is `Map<String, ProfileData> data`, then calls `seedData.getData().get(profile)`. That expects `{"data": {"dev": …, "test": …}}`, but the JSON has `dev` and `test` at the root with no `data` wrapper.
-2. **Non-static inner classes.** `SeedData` and `ProfileData` are declared `private class` inside `DevelopmentDataInitializer` (lines 131 and 140). Jackson cannot instantiate non-static inner classes, so binding fails regardless of the key structure.
+1. **Root-key mismatch.** The initializer deserialised into a `SeedData` type whose only field was `Map<String, ProfileData> data`, expecting `{"data": {"dev": …}}`. The JSON has `dev`/`test` at the root. Now binds directly to `Map<String, ProfileData>` via a `TypeReference`; `SeedData` is gone.
+2. **Non-static inner classes.** `SeedData` and `ProfileData` were `private class` members, which Jackson cannot instantiate. `ProfileData` is now a `static` nested class.
+3. **Wrong collection type.** Fields were declared `List<Map<String, T>>` and read with `.flatMap(m -> m.values().stream())`, but the JSON holds plain arrays of domain objects. They are now `List<T>`.
+4. **Field-name drift.** `persons[].dateOfBirth` did not match `Person.birthDate`, and `teams[].organizationId` did not match `Team.organisationId`. Because Spring's `ObjectMapper` ignores unknown properties, these bound to nothing and left the fields null instead of erroring. The JSON keys were corrected.
 
-Both failures are swallowed by the surrounding `try/catch`, which logs `Failed to initialize {} data` (or `No data found for profile: {}`) and lets startup continue — so an empty database after boot looks like a data problem rather than a wiring problem. **Check the application log for those two messages before assuming the JSON is at fault.**
+It also **returned early unless `spring.profiles.active` was passed as a command-line argument**, so setting the profile via `application.yml` or an environment variable disabled seeding entirely. That check is gone — `@Profile` already governs activation.
 
-A fix requires making `SeedData`/`ProfileData` `static` (or extracting them to their own files) and reconciling the root key — either wrap the JSON contents in a `data` object, or deserialise directly into `Map<String, ProfileData>`. This has not been done.
+Failures were previously swallowed by a broad `try/catch` that logged and continued, which is what let all of this hide. Read failures and persistence failures are now logged separately and specifically, still without blocking startup.
 
-### ⚠ Cross-service IDs are dangling
+`DevelopmentDataInitializerTest` guards the JSON-to-`ProfileData` contract with a **strict** `ObjectMapper` — one that fails on unknown properties, unlike the lenient Spring bean. That strictness is deliberate: it is what surfaced defect 4, and it will fail the build if the seed file and the domain model drift apart again.
 
-The brief specified `managedBy` values referencing gateway users `a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11` (admin) and `…a12` (operator). Those UUIDs exist only in `hc-admin-gateway`'s unused `hc-admin-gw-data.json` blueprint. The gateway actually seeds `user-1` (admin), `user-2` (user), and a random UUID (operator) via `InitialSetupMigration`, so any `managedBy` reference in this service's seed data points at a user that does not exist. See the gateway's `admin-gateway.md` for the full comparison.
+### Cross-service IDs — fixed
+
+The seed data uses `managedBy` / `createdBy` / `userId` values referencing gateway users `a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11` (admin) and `…a12` (operator). The gateway previously seeded `user-1`, `user-2`, and a fresh random UUID for the operator, so these references pointed at users that did not exist.
+
+`InitialSetupMigration` now seeds those exact ids as named constants, matching both this seed data and the `hc-admin-gw-data.json` blueprint. The operator id is stable rather than regenerated per startup. See the gateway's `admin-gateway.md`.

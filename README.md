@@ -131,7 +131,7 @@ Conventions:
 
 ### Development seed data
 
-`DevelopmentDataInitializer` (`@Profile({"dev","test"})`) loads `src/main/resources/data/hc-admin-ms-data.json` on startup. See [`admin-api.md`](admin-api.md#3-development-seed-data) for the shape of that file — and for the reason it does not currently load.
+`DevelopmentDataInitializer` (`@Profile({"dev","test"})`) loads `src/main/resources/data/hc-admin-ms-data.json` on startup, seeding eleven collections and logging a count for each. Records carry explicit ids, so restarts overwrite the same documents rather than duplicating them. `DevelopmentDataInitializerTest` guards the JSON-to-model contract with a strict `ObjectMapper` that fails on unknown fields, so the build breaks if the seed file and the domain model drift apart. See [`admin-api.md`](admin-api.md#3-development-seed-data) for the file's shape.
 
 ### Kafka / SSE bridge
 

@@ -61,7 +61,7 @@
         "id": "person-001",
         "firstName": "John",
         "lastName": "Doe",
-        "dateOfBirth": "1980-01-01",
+        "birthDate": "1980-01-01",
         "gender": "MALE",
         "maritalStatus": "MARRIED",
         "nationality": "Healthlandian",
@@ -75,7 +75,7 @@
         "description": "Core administration",
         "members": "John Doe",
         "supervisorId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-        "organizationId": "org-001"
+        "organisationId": "org-001"
       }
     ],
     "profiles": [],

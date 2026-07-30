@@ -24,7 +24,7 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 | [`admin-api.md`](admin-api.md)                                       | **Design plans and blueprints** — the consolidated history of every brief that produced this service |
 | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | Condensed conventions for Copilot                                                                    |
 
-`admin-api.md` replaced `admin-core-ms.md`, `duty-roster.md`, and `hc-admin-ms-data.md`. **Its contents are historical — do not execute them as prompts.** Consult it for the [duty roster scheduling heuristic](admin-api.md#2-duty-roster-auto-schedule), and for the [seed-data section](admin-api.md#3-development-seed-data), which documents why dev data silently fails to load.
+`admin-api.md` replaced `admin-core-ms.md`, `duty-roster.md`, and `hc-admin-ms-data.md`. **Its contents are historical — do not execute them as prompts.** Consult it for the [duty roster scheduling heuristic](admin-api.md#2-duty-roster-auto-schedule), and for the [seed-data section](admin-api.md#3-development-seed-data), which documents the seed file's shape and the four defects that previously stopped it loading.
 
 ## 📋 Core Responsibilities
 
@@ -70,7 +70,7 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 - **Unit & Integration Tests**: `./mvnw verify` (Docker must be running — Testcontainers provisions MongoDB, and Kafka for `@EmbeddedKafka` classes)
 - **Single class / method**: `./mvnw -q -Dtest=OrganisationResourceIT test` / `./mvnw -q -Dtest=OrganisationResourceIT#createOrganisation test`
 - **Naming**: `*Test.java` for unit tests, `*IT.java` for integration tests; `SpringBootTestClassOrderer` runs the former first.
-- **Test Data**: Seed data is loaded from `src/main/resources/data/hc-admin-ms-data.json` by `DevelopmentDataInitializer`, which is active only under the `dev` and `test` profiles.
+- **Test Data**: Seed data is loaded from `src/main/resources/data/hc-admin-ms-data.json` by `DevelopmentDataInitializer`, active only under the `dev` and `test` profiles. The JSON is keyed by profile at the root (`dev` / `test`), each holding plain arrays of domain objects per collection. Field names must match the domain model exactly — Spring's `ObjectMapper` ignores unknown properties, so a typo binds to nothing instead of failing. `DevelopmentDataInitializerTest` catches that with a strict mapper.
 
 ## 📂 Project Structure
 
