@@ -6,6 +6,8 @@ import net.jojoaddison.domain.Organisation;
 import net.jojoaddison.repository.OrganisationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -91,9 +93,9 @@ public class OrganisationService {
      *
      * @return the list of entities.
      */
-    public List<Organisation> findAll() {
-        log.debug("Request to get all Organisations");
-        return organisationRepository.findAll();
+    public Page<Organisation> findAll(Pageable pageable) {
+        log.debug("Request to get a page of Organisations");
+        return organisationRepository.findAll(pageable);
     }
 
     /**

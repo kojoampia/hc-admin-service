@@ -10,6 +10,8 @@ import net.jojoaddison.service.dto.PricingPlanDTO;
 import net.jojoaddison.service.mapper.PricingPlanMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -80,9 +82,9 @@ public class PricingPlanService {
      *
      * @return the list of entities.
      */
-    public List<PricingPlanDTO> findAll() {
-        LOG.debug("Request to get all PricingPlans");
-        return pricingPlanRepository.findAll().stream().map(pricingPlanMapper::toDto).collect(Collectors.toCollection(LinkedList::new));
+    public Page<PricingPlanDTO> findAll(Pageable pageable) {
+        LOG.debug("Request to get a page of PricingPlans");
+        return pricingPlanRepository.findAll(pageable).map(pricingPlanMapper::toDto);
     }
 
     /**

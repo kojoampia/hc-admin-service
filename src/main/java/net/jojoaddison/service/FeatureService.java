@@ -10,6 +10,8 @@ import net.jojoaddison.service.dto.FeatureDTO;
 import net.jojoaddison.service.mapper.FeatureMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -80,9 +82,9 @@ public class FeatureService {
      *
      * @return the list of entities.
      */
-    public List<FeatureDTO> findAll() {
-        LOG.debug("Request to get all Features");
-        return featureRepository.findAll().stream().map(featureMapper::toDto).collect(Collectors.toCollection(LinkedList::new));
+    public Page<FeatureDTO> findAll(Pageable pageable) {
+        LOG.debug("Request to get a page of Features");
+        return featureRepository.findAll(pageable).map(featureMapper::toDto);
     }
 
     /**
