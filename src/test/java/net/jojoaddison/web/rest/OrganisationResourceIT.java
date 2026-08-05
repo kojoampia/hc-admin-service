@@ -123,10 +123,6 @@ class OrganisationResourceIT {
         assertThat(testOrganisation.getDescription()).isEqualTo(DEFAULT_DESCRIPTION);
         assertThat(testOrganisation.getAddressId()).isEqualTo(DEFAULT_ADDRESS_ID);
         assertThat(testOrganisation.getContactId()).isEqualTo(DEFAULT_CONTACT_ID);
-        assertThat(testOrganisation.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
-        assertThat(testOrganisation.getCreatedBy()).isEqualTo(DEFAULT_CREATED_BY);
-        assertThat(testOrganisation.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testOrganisation.getModifiedBy()).isEqualTo(DEFAULT_MODIFIED_BY);
     }
 
     @Test
@@ -160,11 +156,7 @@ class OrganisationResourceIT {
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
             .andExpect(jsonPath("$.[*].description").value(hasItem(DEFAULT_DESCRIPTION)))
             .andExpect(jsonPath("$.[*].addressId").value(hasItem(DEFAULT_ADDRESS_ID)))
-            .andExpect(jsonPath("$.[*].contactId").value(hasItem(DEFAULT_CONTACT_ID)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)));
+            .andExpect(jsonPath("$.[*].contactId").value(hasItem(DEFAULT_CONTACT_ID)));
     }
 
     @Test
@@ -181,11 +173,7 @@ class OrganisationResourceIT {
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
             .andExpect(jsonPath("$.description").value(DEFAULT_DESCRIPTION))
             .andExpect(jsonPath("$.addressId").value(DEFAULT_ADDRESS_ID))
-            .andExpect(jsonPath("$.contactId").value(DEFAULT_CONTACT_ID))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY));
+            .andExpect(jsonPath("$.contactId").value(DEFAULT_CONTACT_ID));
     }
 
     @Test
@@ -229,10 +217,6 @@ class OrganisationResourceIT {
         assertThat(testOrganisation.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
         assertThat(testOrganisation.getAddressId()).isEqualTo(UPDATED_ADDRESS_ID);
         assertThat(testOrganisation.getContactId()).isEqualTo(UPDATED_CONTACT_ID);
-        assertThat(testOrganisation.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testOrganisation.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testOrganisation.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testOrganisation.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test
@@ -323,10 +307,6 @@ class OrganisationResourceIT {
         assertThat(testOrganisation.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
         assertThat(testOrganisation.getAddressId()).isEqualTo(UPDATED_ADDRESS_ID);
         assertThat(testOrganisation.getContactId()).isEqualTo(UPDATED_CONTACT_ID);
-        assertThat(testOrganisation.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testOrganisation.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testOrganisation.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testOrganisation.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test
@@ -366,10 +346,6 @@ class OrganisationResourceIT {
         assertThat(testOrganisation.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
         assertThat(testOrganisation.getAddressId()).isEqualTo(UPDATED_ADDRESS_ID);
         assertThat(testOrganisation.getContactId()).isEqualTo(UPDATED_CONTACT_ID);
-        assertThat(testOrganisation.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testOrganisation.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testOrganisation.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testOrganisation.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test

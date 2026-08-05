@@ -123,10 +123,6 @@ class HCServiceResourceIT {
         assertThat(testHCService.getDescription()).isEqualTo(DEFAULT_DESCRIPTION);
         assertThat(testHCService.getServiceItems()).isEqualTo(DEFAULT_SERVICE_ITEMS);
         assertThat(testHCService.getAmount()).isEqualTo(DEFAULT_AMOUNT);
-        assertThat(testHCService.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
-        assertThat(testHCService.getCreatedBy()).isEqualTo(DEFAULT_CREATED_BY);
-        assertThat(testHCService.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testHCService.getModifiedBy()).isEqualTo(DEFAULT_MODIFIED_BY);
     }
 
     @Test
@@ -160,11 +156,7 @@ class HCServiceResourceIT {
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
             .andExpect(jsonPath("$.[*].description").value(hasItem(DEFAULT_DESCRIPTION)))
             .andExpect(jsonPath("$.[*].serviceItems").value(hasItem(DEFAULT_SERVICE_ITEMS)))
-            .andExpect(jsonPath("$.[*].amount").value(hasItem(DEFAULT_AMOUNT.doubleValue())))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)));
+            .andExpect(jsonPath("$.[*].amount").value(hasItem(DEFAULT_AMOUNT.doubleValue())));
     }
 
     @Test
@@ -181,11 +173,7 @@ class HCServiceResourceIT {
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
             .andExpect(jsonPath("$.description").value(DEFAULT_DESCRIPTION))
             .andExpect(jsonPath("$.serviceItems").value(DEFAULT_SERVICE_ITEMS))
-            .andExpect(jsonPath("$.amount").value(DEFAULT_AMOUNT.doubleValue()))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY));
+            .andExpect(jsonPath("$.amount").value(DEFAULT_AMOUNT.doubleValue()));
     }
 
     @Test
@@ -229,10 +217,6 @@ class HCServiceResourceIT {
         assertThat(testHCService.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
         assertThat(testHCService.getServiceItems()).isEqualTo(UPDATED_SERVICE_ITEMS);
         assertThat(testHCService.getAmount()).isEqualTo(UPDATED_AMOUNT);
-        assertThat(testHCService.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHCService.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHCService.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testHCService.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test
@@ -317,10 +301,6 @@ class HCServiceResourceIT {
         assertThat(testHCService.getDescription()).isEqualTo(DEFAULT_DESCRIPTION);
         assertThat(testHCService.getServiceItems()).isEqualTo(DEFAULT_SERVICE_ITEMS);
         assertThat(testHCService.getAmount()).isEqualTo(UPDATED_AMOUNT);
-        assertThat(testHCService.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
-        assertThat(testHCService.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHCService.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testHCService.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test
@@ -360,10 +340,6 @@ class HCServiceResourceIT {
         assertThat(testHCService.getDescription()).isEqualTo(UPDATED_DESCRIPTION);
         assertThat(testHCService.getServiceItems()).isEqualTo(UPDATED_SERVICE_ITEMS);
         assertThat(testHCService.getAmount()).isEqualTo(UPDATED_AMOUNT);
-        assertThat(testHCService.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHCService.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHCService.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testHCService.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test

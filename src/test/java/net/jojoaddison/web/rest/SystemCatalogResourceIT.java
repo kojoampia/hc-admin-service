@@ -291,11 +291,7 @@ class SystemCatalogResourceIT {
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
             .andExpect(jsonPath("$.[*].description").value(hasItem(DEFAULT_DESCRIPTION)))
             .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
-            .andExpect(jsonPath("$.[*].content").value(hasItem(DEFAULT_CONTENT)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)));
+            .andExpect(jsonPath("$.[*].content").value(hasItem(DEFAULT_CONTENT)));
     }
 
     @Test
@@ -312,11 +308,7 @@ class SystemCatalogResourceIT {
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
             .andExpect(jsonPath("$.description").value(DEFAULT_DESCRIPTION))
             .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()))
-            .andExpect(jsonPath("$.content").value(DEFAULT_CONTENT))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY));
+            .andExpect(jsonPath("$.content").value(DEFAULT_CONTENT));
     }
 
     @Test

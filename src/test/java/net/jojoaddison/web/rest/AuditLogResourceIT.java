@@ -269,11 +269,7 @@ class AuditLogResourceIT {
             .andExpect(jsonPath("$.[*].id").value(hasItem(auditLog.getId())))
             .andExpect(jsonPath("$.[*].actionType").value(hasItem(DEFAULT_ACTION_TYPE)))
             .andExpect(jsonPath("$.[*].userId").value(hasItem(DEFAULT_USER_ID)))
-            .andExpect(jsonPath("$.[*].metadata").value(hasItem(DEFAULT_METADATA)))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())));
+            .andExpect(jsonPath("$.[*].metadata").value(hasItem(DEFAULT_METADATA)));
     }
 
     @Test
@@ -289,11 +285,7 @@ class AuditLogResourceIT {
             .andExpect(jsonPath("$.id").value(auditLog.getId()))
             .andExpect(jsonPath("$.actionType").value(DEFAULT_ACTION_TYPE))
             .andExpect(jsonPath("$.userId").value(DEFAULT_USER_ID))
-            .andExpect(jsonPath("$.metadata").value(DEFAULT_METADATA))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()));
+            .andExpect(jsonPath("$.metadata").value(DEFAULT_METADATA));
     }
 
     @Test

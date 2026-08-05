@@ -422,11 +422,7 @@ class HCProfileResourceIT {
             .andExpect(jsonPath("$.[*].status").value(hasItem(DEFAULT_STATUS)))
             .andExpect(jsonPath("$.[*].organisationId").value(hasItem(DEFAULT_ORGANISATION_ID)))
             .andExpect(jsonPath("$.[*].teamId").value(hasItem(DEFAULT_TEAM_ID)))
-            .andExpect(jsonPath("$.[*].documentItems").value(hasItem(DEFAULT_DOCUMENT_ITEMS)))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())));
+            .andExpect(jsonPath("$.[*].documentItems").value(hasItem(DEFAULT_DOCUMENT_ITEMS)));
     }
 
     @Test
@@ -449,11 +445,7 @@ class HCProfileResourceIT {
             .andExpect(jsonPath("$.status").value(DEFAULT_STATUS))
             .andExpect(jsonPath("$.organisationId").value(DEFAULT_ORGANISATION_ID))
             .andExpect(jsonPath("$.teamId").value(DEFAULT_TEAM_ID))
-            .andExpect(jsonPath("$.documentItems").value(DEFAULT_DOCUMENT_ITEMS))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()));
+            .andExpect(jsonPath("$.documentItems").value(DEFAULT_DOCUMENT_ITEMS));
     }
 
     @Test

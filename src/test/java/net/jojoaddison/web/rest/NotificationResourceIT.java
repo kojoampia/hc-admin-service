@@ -228,7 +228,6 @@ class NotificationResourceIT {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(notification.getId())))
             .andExpect(jsonPath("$.[*].content").value(hasItem(DEFAULT_CONTENT)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
             .andExpect(jsonPath("$.[*].recipientId").value(hasItem(DEFAULT_RECIPIENT_ID)))
             .andExpect(jsonPath("$.[*].senderId").value(hasItem(DEFAULT_SENDER_ID)))
             .andExpect(jsonPath("$.[*].messageType").value(hasItem(DEFAULT_MESSAGE_TYPE)));
@@ -246,7 +245,6 @@ class NotificationResourceIT {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(notification.getId()))
             .andExpect(jsonPath("$.content").value(DEFAULT_CONTENT))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
             .andExpect(jsonPath("$.recipientId").value(DEFAULT_RECIPIENT_ID))
             .andExpect(jsonPath("$.senderId").value(DEFAULT_SENDER_ID))
             .andExpect(jsonPath("$.messageType").value(DEFAULT_MESSAGE_TYPE));

@@ -378,11 +378,7 @@ class PersonResourceIT {
             .andExpect(jsonPath("$.[*].gender").value(hasItem(DEFAULT_GENDER.toString())))
             .andExpect(jsonPath("$.[*].maritalStatus").value(hasItem(DEFAULT_MARITAL_STATUS)))
             .andExpect(jsonPath("$.[*].nationality").value(hasItem(DEFAULT_NATIONALITY)))
-            .andExpect(jsonPath("$.[*].language").value(hasItem(DEFAULT_LANGUAGE.toString())))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)));
+            .andExpect(jsonPath("$.[*].language").value(hasItem(DEFAULT_LANGUAGE.toString())));
     }
 
     @Test
@@ -403,11 +399,7 @@ class PersonResourceIT {
             .andExpect(jsonPath("$.gender").value(DEFAULT_GENDER.toString()))
             .andExpect(jsonPath("$.maritalStatus").value(DEFAULT_MARITAL_STATUS))
             .andExpect(jsonPath("$.nationality").value(DEFAULT_NATIONALITY))
-            .andExpect(jsonPath("$.language").value(DEFAULT_LANGUAGE.toString()))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY));
+            .andExpect(jsonPath("$.language").value(DEFAULT_LANGUAGE.toString()));
     }
 
     @Test

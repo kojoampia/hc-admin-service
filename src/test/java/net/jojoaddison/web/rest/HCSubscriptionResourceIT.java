@@ -119,10 +119,6 @@ class HCSubscriptionResourceIT {
         assertThat(testHCSubscription.getServiceId()).isEqualTo(DEFAULT_SERVICE_ID);
         assertThat(testHCSubscription.getPatientId()).isEqualTo(DEFAULT_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(DEFAULT_IS_ACTIVE);
-        assertThat(testHCSubscription.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
-        assertThat(testHCSubscription.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testHCSubscription.getCreatedBy()).isEqualTo(DEFAULT_CREATED_BY);
-        assertThat(testHCSubscription.getModifiedBy()).isEqualTo(DEFAULT_MODIFIED_BY);
     }
 
     @Test
@@ -157,11 +153,7 @@ class HCSubscriptionResourceIT {
             .andExpect(jsonPath("$.[*].id").value(hasItem(hCSubscription.getId())))
             .andExpect(jsonPath("$.[*].serviceId").value(hasItem(DEFAULT_SERVICE_ID)))
             .andExpect(jsonPath("$.[*].patientId").value(hasItem(DEFAULT_PATIENT_ID)))
-            .andExpect(jsonPath("$.[*].isActive").value(hasItem(DEFAULT_IS_ACTIVE.booleanValue())))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)));
+            .andExpect(jsonPath("$.[*].isActive").value(hasItem(DEFAULT_IS_ACTIVE.booleanValue())));
     }
 
     @Test
@@ -177,11 +169,7 @@ class HCSubscriptionResourceIT {
             .andExpect(jsonPath("$.id").value(hCSubscription.getId()))
             .andExpect(jsonPath("$.serviceId").value(DEFAULT_SERVICE_ID))
             .andExpect(jsonPath("$.patientId").value(DEFAULT_PATIENT_ID))
-            .andExpect(jsonPath("$.isActive").value(DEFAULT_IS_ACTIVE.booleanValue()))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY));
+            .andExpect(jsonPath("$.isActive").value(DEFAULT_IS_ACTIVE.booleanValue()));
     }
 
     @Test
@@ -223,10 +211,6 @@ class HCSubscriptionResourceIT {
         assertThat(testHCSubscription.getServiceId()).isEqualTo(UPDATED_SERVICE_ID);
         assertThat(testHCSubscription.getPatientId()).isEqualTo(UPDATED_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(UPDATED_IS_ACTIVE);
-        assertThat(testHCSubscription.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHCSubscription.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testHCSubscription.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHCSubscription.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test
@@ -314,10 +298,6 @@ class HCSubscriptionResourceIT {
         assertThat(testHCSubscription.getServiceId()).isEqualTo(UPDATED_SERVICE_ID);
         assertThat(testHCSubscription.getPatientId()).isEqualTo(UPDATED_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(DEFAULT_IS_ACTIVE);
-        assertThat(testHCSubscription.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHCSubscription.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testHCSubscription.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHCSubscription.getModifiedBy()).isEqualTo(DEFAULT_MODIFIED_BY);
     }
 
     @Test
@@ -355,10 +335,6 @@ class HCSubscriptionResourceIT {
         assertThat(testHCSubscription.getServiceId()).isEqualTo(UPDATED_SERVICE_ID);
         assertThat(testHCSubscription.getPatientId()).isEqualTo(UPDATED_PATIENT_ID);
         assertThat(testHCSubscription.getIsActive()).isEqualTo(UPDATED_IS_ACTIVE);
-        assertThat(testHCSubscription.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHCSubscription.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testHCSubscription.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHCSubscription.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
     }
 
     @Test

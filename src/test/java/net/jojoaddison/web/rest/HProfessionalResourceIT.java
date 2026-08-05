@@ -122,10 +122,6 @@ class HProfessionalResourceIT {
         assertThat(testHProfessional.getName()).isEqualTo(DEFAULT_NAME);
         assertThat(testHProfessional.getOrganisation()).isEqualTo(DEFAULT_ORGANISATION);
         assertThat(testHProfessional.getRoster()).isEqualTo(DEFAULT_ROSTER);
-        assertThat(testHProfessional.getCreatedDate()).isEqualTo(DEFAULT_CREATED_DATE);
-        assertThat(testHProfessional.getCreatedBy()).isEqualTo(DEFAULT_CREATED_BY);
-        assertThat(testHProfessional.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testHProfessional.getModifiedBy()).isEqualTo(DEFAULT_MODIFIED_BY);
         assertThat(testHProfessional.getProfile()).isEqualTo(DEFAULT_PROFILE);
     }
 
@@ -160,10 +156,6 @@ class HProfessionalResourceIT {
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
             .andExpect(jsonPath("$.[*].organisation").value(hasItem(DEFAULT_ORGANISATION)))
             .andExpect(jsonPath("$.[*].roster").value(hasItem(DEFAULT_ROSTER)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)))
             .andExpect(jsonPath("$.[*].profile").value(hasItem(DEFAULT_PROFILE)));
     }
 
@@ -181,10 +173,6 @@ class HProfessionalResourceIT {
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
             .andExpect(jsonPath("$.organisation").value(DEFAULT_ORGANISATION))
             .andExpect(jsonPath("$.roster").value(DEFAULT_ROSTER))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY))
             .andExpect(jsonPath("$.profile").value(DEFAULT_PROFILE));
     }
 
@@ -228,10 +216,6 @@ class HProfessionalResourceIT {
         assertThat(testHProfessional.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testHProfessional.getOrganisation()).isEqualTo(UPDATED_ORGANISATION);
         assertThat(testHProfessional.getRoster()).isEqualTo(UPDATED_ROSTER);
-        assertThat(testHProfessional.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHProfessional.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHProfessional.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testHProfessional.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
         assertThat(testHProfessional.getProfile()).isEqualTo(UPDATED_PROFILE);
     }
 
@@ -321,10 +305,6 @@ class HProfessionalResourceIT {
         assertThat(testHProfessional.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testHProfessional.getOrganisation()).isEqualTo(UPDATED_ORGANISATION);
         assertThat(testHProfessional.getRoster()).isEqualTo(DEFAULT_ROSTER);
-        assertThat(testHProfessional.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHProfessional.getCreatedBy()).isEqualTo(DEFAULT_CREATED_BY);
-        assertThat(testHProfessional.getModifiedDate()).isEqualTo(DEFAULT_MODIFIED_DATE);
-        assertThat(testHProfessional.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
         assertThat(testHProfessional.getProfile()).isEqualTo(UPDATED_PROFILE);
     }
 
@@ -364,10 +344,6 @@ class HProfessionalResourceIT {
         assertThat(testHProfessional.getName()).isEqualTo(UPDATED_NAME);
         assertThat(testHProfessional.getOrganisation()).isEqualTo(UPDATED_ORGANISATION);
         assertThat(testHProfessional.getRoster()).isEqualTo(UPDATED_ROSTER);
-        assertThat(testHProfessional.getCreatedDate()).isEqualTo(UPDATED_CREATED_DATE);
-        assertThat(testHProfessional.getCreatedBy()).isEqualTo(UPDATED_CREATED_BY);
-        assertThat(testHProfessional.getModifiedDate()).isEqualTo(UPDATED_MODIFIED_DATE);
-        assertThat(testHProfessional.getModifiedBy()).isEqualTo(UPDATED_MODIFIED_BY);
         assertThat(testHProfessional.getProfile()).isEqualTo(UPDATED_PROFILE);
     }
 

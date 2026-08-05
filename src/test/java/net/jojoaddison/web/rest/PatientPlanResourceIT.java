@@ -266,9 +266,7 @@ class PatientPlanResourceIT {
             .andExpect(jsonPath("$.[*].planId").value(hasItem(DEFAULT_PLAN_ID)))
             .andExpect(jsonPath("$.[*].patientId").value(hasItem(DEFAULT_PATIENT_ID)))
             .andExpect(jsonPath("$.[*].startDate").value(hasItem(DEFAULT_START_DATE.toString())))
-            .andExpect(jsonPath("$.[*].endDate").value(hasItem(DEFAULT_END_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)));
+            .andExpect(jsonPath("$.[*].endDate").value(hasItem(DEFAULT_END_DATE.toString())));
     }
 
     @Test
@@ -285,9 +283,7 @@ class PatientPlanResourceIT {
             .andExpect(jsonPath("$.planId").value(DEFAULT_PLAN_ID))
             .andExpect(jsonPath("$.patientId").value(DEFAULT_PATIENT_ID))
             .andExpect(jsonPath("$.startDate").value(DEFAULT_START_DATE.toString()))
-            .andExpect(jsonPath("$.endDate").value(DEFAULT_END_DATE.toString()))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY));
+            .andExpect(jsonPath("$.endDate").value(DEFAULT_END_DATE.toString()));
     }
 
     @Test

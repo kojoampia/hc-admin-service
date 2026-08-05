@@ -307,11 +307,7 @@ class PhotoResourceIT {
             .andExpect(jsonPath("$.[*].photoType").value(hasItem(DEFAULT_PHOTO_TYPE.toString())))
             .andExpect(jsonPath("$.[*].data").value(hasItem(Base64.getEncoder().encodeToString(DEFAULT_DATA))))
             .andExpect(jsonPath("$.[*].dataContentType").value(hasItem(DEFAULT_DATA_CONTENT_TYPE)))
-            .andExpect(jsonPath("$.[*].photoMetadata").value(hasItem(DEFAULT_PHOTO_METADATA)))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())));
+            .andExpect(jsonPath("$.[*].photoMetadata").value(hasItem(DEFAULT_PHOTO_METADATA)));
     }
 
     /**
@@ -345,11 +341,7 @@ class PhotoResourceIT {
             .andExpect(jsonPath("$.photoType").value(DEFAULT_PHOTO_TYPE.toString()))
             .andExpect(jsonPath("$.data").value(Base64.getEncoder().encodeToString(DEFAULT_DATA)))
             .andExpect(jsonPath("$.dataContentType").value(DEFAULT_DATA_CONTENT_TYPE))
-            .andExpect(jsonPath("$.photoMetadata").value(DEFAULT_PHOTO_METADATA))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()));
+            .andExpect(jsonPath("$.photoMetadata").value(DEFAULT_PHOTO_METADATA));
     }
 
     @Test

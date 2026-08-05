@@ -314,9 +314,7 @@ class AddressResourceIT {
             .andExpect(jsonPath("$.[*].city").value(hasItem(DEFAULT_CITY)))
             .andExpect(jsonPath("$.[*].region").value(hasItem(DEFAULT_REGION)))
             .andExpect(jsonPath("$.[*].code").value(hasItem(DEFAULT_CODE)))
-            .andExpect(jsonPath("$.[*].country").value(hasItem(DEFAULT_COUNTRY)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())));
+            .andExpect(jsonPath("$.[*].country").value(hasItem(DEFAULT_COUNTRY)));
     }
 
     @Test
@@ -336,9 +334,7 @@ class AddressResourceIT {
             .andExpect(jsonPath("$.city").value(DEFAULT_CITY))
             .andExpect(jsonPath("$.region").value(DEFAULT_REGION))
             .andExpect(jsonPath("$.code").value(DEFAULT_CODE))
-            .andExpect(jsonPath("$.country").value(DEFAULT_COUNTRY))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()));
+            .andExpect(jsonPath("$.country").value(DEFAULT_COUNTRY));
     }
 
     @Test

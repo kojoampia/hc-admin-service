@@ -20,6 +20,12 @@ public final class SecurityUtils {
 
     public static final String AUTHORITIES_KEY = "auth";
 
+    /**
+     * Claim carrying the authenticated account's database id, minted by the gateway alongside the
+     * login it puts in {@code sub}. See {@link #getCurrentUserId()}.
+     */
+    public static final String USER_ID_KEY = "uid";
+
     private SecurityUtils() {}
 
     /**
@@ -30,6 +36,29 @@ public final class SecurityUtils {
     public static Optional<String> getCurrentUserLogin() {
         SecurityContext securityContext = SecurityContextHolder.getContext();
         return Optional.ofNullable(extractPrincipal(securityContext.getAuthentication()));
+    }
+
+    /**
+     * The database id of the current user, as opposed to their login.
+     *
+     * <p>This is the identifier the domain documents reference: the seed data puts
+     * {@code a0eebc99-…-a11} in {@code createdBy}, and CLAUDE.md names those ids a contract shared
+     * with hc-patient-ms and hc-professional-service. The login in {@code sub} is a different
+     * identifier space and must not be substituted for it.
+     *
+     * <p>Empty when the request carries no {@code uid} claim — seed loading, service-to-service
+     * calls, or a token minted before the gateway added the claim. Callers should fall back to
+     * {@code Constants.SYSTEM} rather than reaching for the login.
+     *
+     * @return the id of the current user.
+     */
+    public static Optional<String> getCurrentUserId() {
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        Authentication authentication = securityContext.getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof Jwt jwt) {
+            return Optional.ofNullable(jwt.getClaimAsString(USER_ID_KEY)).filter(id -> !id.isBlank());
+        }
+        return Optional.empty();
     }
 
     private static String extractPrincipal(Authentication authentication) {

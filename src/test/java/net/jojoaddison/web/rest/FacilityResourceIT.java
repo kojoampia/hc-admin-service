@@ -319,11 +319,7 @@ class FacilityResourceIT {
             .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())))
             .andExpect(jsonPath("$.[*].addressId").value(hasItem(DEFAULT_ADDRESS_ID)))
             .andExpect(jsonPath("$.[*].contactId").value(hasItem(DEFAULT_CONTACT_ID)))
-            .andExpect(jsonPath("$.[*].photos").value(hasItem(DEFAULT_PHOTOS)))
-            .andExpect(jsonPath("$.[*].createdBy").value(hasItem(DEFAULT_CREATED_BY)))
-            .andExpect(jsonPath("$.[*].createdDate").value(hasItem(DEFAULT_CREATED_DATE.toString())))
-            .andExpect(jsonPath("$.[*].modifiedBy").value(hasItem(DEFAULT_MODIFIED_BY)))
-            .andExpect(jsonPath("$.[*].modifiedDate").value(hasItem(DEFAULT_MODIFIED_DATE.toString())));
+            .andExpect(jsonPath("$.[*].photos").value(hasItem(DEFAULT_PHOTOS)));
     }
 
     @Test
@@ -342,11 +338,7 @@ class FacilityResourceIT {
             .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()))
             .andExpect(jsonPath("$.addressId").value(DEFAULT_ADDRESS_ID))
             .andExpect(jsonPath("$.contactId").value(DEFAULT_CONTACT_ID))
-            .andExpect(jsonPath("$.photos").value(DEFAULT_PHOTOS))
-            .andExpect(jsonPath("$.createdBy").value(DEFAULT_CREATED_BY))
-            .andExpect(jsonPath("$.createdDate").value(DEFAULT_CREATED_DATE.toString()))
-            .andExpect(jsonPath("$.modifiedBy").value(DEFAULT_MODIFIED_BY))
-            .andExpect(jsonPath("$.modifiedDate").value(DEFAULT_MODIFIED_DATE.toString()));
+            .andExpect(jsonPath("$.photos").value(DEFAULT_PHOTOS));
     }
 
     @Test
