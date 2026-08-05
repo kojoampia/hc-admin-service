@@ -13,9 +13,14 @@ import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
+import tech.jhipster.web.util.PaginationUtil;
 import tech.jhipster.web.util.ResponseUtil;
 
 /**
@@ -156,14 +161,22 @@ public class AuditLogResource {
     }
 
     /**
-     * {@code GET  /audit-logs} : get all the auditLogs.
+     * {@code GET  /audit-logs} : get a page of auditLogs.
      *
+     * <p>Paginated, unlike most list endpoints in this service, because this is the one collection
+     * that grows without bound on its own: {@code AuditLogCallback} appends a row for every save and
+     * delete across every other collection. An unbounded {@code findAll()} here would return the
+     * entire history of the system in one response, and would grow slower every day it ran.
+     *
+     * @param pageable the pagination information.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of auditLogs in body.
      */
     @GetMapping("")
-    public List<AuditLog> getAllAuditLogs() {
-        LOG.debug("REST request to get all AuditLogs");
-        return auditLogRepository.findAll();
+    public ResponseEntity<List<AuditLog>> getAllAuditLogs(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
+        LOG.debug("REST request to get a page of AuditLogs");
+        Page<AuditLog> page = auditLogRepository.findAll(pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
     /**

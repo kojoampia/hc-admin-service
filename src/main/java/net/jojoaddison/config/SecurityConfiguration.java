@@ -37,7 +37,18 @@ public class SecurityConfiguration {
                     .requestMatchers(mvc.matcher(HttpMethod.POST, "/api/authenticate")).permitAll()
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/authenticate")).permitAll()
                     .requestMatchers(mvc.matcher("/api/admin/**")).hasAuthority(AuthoritiesConstants.ADMIN)
-                    .requestMatchers(mvc.matcher("/api/**")).authenticated()
+                    // A patient reading their own daily plan is the one path that accepts a token this
+                    // gateway never issues. It has to precede the blanket rules below, which would
+                    // otherwise reject ROLE_PATIENT here before DutyRosterResource's @PreAuthorize
+                    // — the narrower gate — ever runs.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/duty-rosters/patient/**"))
+                        .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR, AuthoritiesConstants.PATIENT)
+                    // The read/write split. Everything else under /api is admin data: operators read
+                    // it, only admins change it. Authentication alone is deliberately not enough —
+                    // a bare ROLE_USER reaches nothing here.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/**"))
+                        .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR)
+                    .requestMatchers(mvc.matcher("/api/**")).hasAuthority(AuthoritiesConstants.ADMIN)
                     .requestMatchers(mvc.matcher("/v3/api-docs/**")).hasAuthority(AuthoritiesConstants.ADMIN)
                     .requestMatchers(mvc.matcher("/management/health")).permitAll()
                     .requestMatchers(mvc.matcher("/management/health/**")).permitAll()

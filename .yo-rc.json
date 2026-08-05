@@ -26,6 +26,7 @@
       "Address",
       "Person",
       "Contact",
+      "Photo",
       "DocumentItem",
       "Team",
       "Organisation",

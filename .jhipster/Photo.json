@@ -1,0 +1,66 @@
+{
+  "annotations": {
+    "changelogDate": "20260512221149"
+  },
+  "dto": "mapstruct",
+  "fields": [
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "altText",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "url",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "profileId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "photoType",
+      "fieldType": "PhotoType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "ID_PHOTO,PORTRAIT,MUGSHOT,DOCUMENT_PHOTO,REPORT_PHOTO,OTHER"
+    },
+    {
+      "fieldName": "data",
+      "fieldType": "ImageBlob",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "photoMetadata",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "createdBy",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "createdDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "modifiedBy",
+      "fieldType": "String",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "modifiedDate",
+      "fieldType": "Instant",
+      "fieldValidateRules": ["required"]
+    }
+  ],
+  "name": "Photo",
+  "pagination": "pagination",
+  "readOnly": false,
+  "relationships": [],
+  "service": "serviceClass"
+}
