@@ -26,8 +26,8 @@
         <m2e.apt.activation>jdt_apt</m2e.apt.activation>
         <run.addResources>false</run.addResources>
         <jhipster-framework.version>9.0.0</jhipster-framework.version>
-        <spring-boot.version>4.0.6</spring-boot.version>
-        <spring-cloud.version>2025.1.1</spring-cloud.version>
+        <spring-boot.version>4.1.0</spring-boot.version>
+        <spring-cloud.version>2025.1.2</spring-cloud.version>
         <mongock.version>5.5.1</mongock.version>
         <springdoc.version>3.0.3</springdoc.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
