@@ -35,8 +35,8 @@ import org.springframework.stereotype.Component;
  * between them: it runs with {@code skipUserManagement: true} and has no route to the gateway's user
  * collection.
  *
- * <p>The gateway now mints the id as a {@code uid} claim (see its {@code security/Account}), so the
- * right identifier arrives on the request and no lookup is needed.
+ * <p>The gateway now mints the id as a {@code uid} claim (see its {@code Account}), so the right
+ * identifier arrives on the request and no lookup is needed.
  *
  * <h2>Behaviour</h2>
  *
