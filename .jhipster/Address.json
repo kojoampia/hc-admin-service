@@ -2,60 +2,81 @@
   "annotations": {
     "changelogDate": "20260512214055"
   },
-  "clientRootFolder": "hcAdminService",
+  "applications": ["*"],
+  "clientRootFolder": "directory",
   "databaseType": "mongodb",
+  "documentation": "Ghana digital address plus postal detail.",
   "dto": "mapstruct",
   "fields": [
     {
-      "fieldName": "street",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "district",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "town",
+      "fieldName": "id",
       "fieldType": "String"
     },
     {
-      "fieldName": "city",
+      "fieldName": "digitalAddress",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required", "maxlength", "pattern"],
+      "fieldValidateRulesMaxlength": "20",
+      "fieldValidateRulesPattern": "^[A-Z]{2}-[0-9]{3}-[0-9]{4}$"
+    },
+    {
+      "fieldName": "streetAddress",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "townDistrict",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "cityState",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
     },
     {
       "fieldName": "region",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "code",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
     },
     {
       "fieldName": "country",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "createdDate",
-      "fieldType": "Instant",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "modifiedDate",
-      "fieldType": "Instant",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
     }
   ],
   "microserviceName": "hcAdminService",
   "name": "Address",
   "pagination": "pagination",
   "readOnly": false,
-  "relationships": [],
+  "relationships": [
+    {
+      "otherEntityName": "profile",
+      "otherEntityRelationshipName": "address",
+      "relationshipName": "profile",
+      "relationshipSide": "right",
+      "relationshipType": "one-to-one"
+    },
+    {
+      "otherEntityName": "hub",
+      "otherEntityRelationshipName": "address",
+      "relationshipName": "hub",
+      "relationshipSide": "right",
+      "relationshipType": "one-to-one"
+    },
+    {
+      "otherEntityName": "organisation",
+      "otherEntityRelationshipName": "address",
+      "relationshipName": "organisation",
+      "relationshipSide": "right",
+      "relationshipType": "one-to-one"
+    }
+  ],
   "searchEngine": "no",
   "service": "serviceClass"
 }

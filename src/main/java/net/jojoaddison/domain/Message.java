@@ -1,9 +1,12 @@
 package net.jojoaddison.domain;
 
 import jakarta.validation.constraints.*;
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
-import net.jojoaddison.domain.enumeration.MessageType;
+import net.jojoaddison.domain.enumeration.MessageChannel;
+import net.jojoaddison.domain.enumeration.MessageStatus;
+import net.jojoaddison.domain.enumeration.Priority;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -15,30 +18,45 @@ import org.springframework.data.mongodb.core.mapping.Field;
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class Message implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Id
     private String id;
 
     @NotNull
-    @Field("content")
-    private String content;
+    @Field("sent_at")
+    private Instant sentAt;
 
     @NotNull
-    @Field("timestamp")
-    private Instant timestamp;
+    @Size(max = 120)
+    @Field("from_address")
+    private String fromAddress;
 
     @NotNull
-    @Field("sender_id")
-    private String senderId;
+    @Size(max = 80)
+    @Field("sender_name")
+    private String senderName;
 
     @NotNull
-    @Field("recipient_id")
-    private String recipientId;
+    @Size(max = 160)
+    @Field("subject")
+    private String subject;
+
+    @Field("body")
+    private String body;
 
     @NotNull
-    @Field("type")
-    private MessageType type;
+    @Field("channel")
+    private MessageChannel channel;
+
+    @NotNull
+    @Field("status")
+    private MessageStatus status;
+
+    @NotNull
+    @Field("priority")
+    private Priority priority;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -55,69 +73,108 @@ public class Message implements Serializable {
         this.id = id;
     }
 
-    public String getContent() {
-        return this.content;
+    public Instant getSentAt() {
+        return this.sentAt;
     }
 
-    public Message content(String content) {
-        this.setContent(content);
+    public Message sentAt(Instant sentAt) {
+        this.setSentAt(sentAt);
         return this;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setSentAt(Instant sentAt) {
+        this.sentAt = sentAt;
     }
 
-    public Instant getTimestamp() {
-        return this.timestamp;
+    public String getFromAddress() {
+        return this.fromAddress;
     }
 
-    public Message timestamp(Instant timestamp) {
-        this.setTimestamp(timestamp);
+    public Message fromAddress(String fromAddress) {
+        this.setFromAddress(fromAddress);
         return this;
     }
 
-    public void setTimestamp(Instant timestamp) {
-        this.timestamp = timestamp;
+    public void setFromAddress(String fromAddress) {
+        this.fromAddress = fromAddress;
     }
 
-    public String getSenderId() {
-        return this.senderId;
+    public String getSenderName() {
+        return this.senderName;
     }
 
-    public Message senderId(String senderId) {
-        this.setSenderId(senderId);
+    public Message senderName(String senderName) {
+        this.setSenderName(senderName);
         return this;
     }
 
-    public void setSenderId(String senderId) {
-        this.senderId = senderId;
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
     }
 
-    public String getRecipientId() {
-        return this.recipientId;
+    public String getSubject() {
+        return this.subject;
     }
 
-    public Message recipientId(String recipientId) {
-        this.setRecipientId(recipientId);
+    public Message subject(String subject) {
+        this.setSubject(subject);
         return this;
     }
 
-    public void setRecipientId(String recipientId) {
-        this.recipientId = recipientId;
+    public void setSubject(String subject) {
+        this.subject = subject;
     }
 
-    public MessageType getType() {
-        return this.type;
+    public String getBody() {
+        return this.body;
     }
 
-    public Message type(MessageType type) {
-        this.setType(type);
+    public Message body(String body) {
+        this.setBody(body);
         return this;
     }
 
-    public void setType(MessageType type) {
-        this.type = type;
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public MessageChannel getChannel() {
+        return this.channel;
+    }
+
+    public Message channel(MessageChannel channel) {
+        this.setChannel(channel);
+        return this;
+    }
+
+    public void setChannel(MessageChannel channel) {
+        this.channel = channel;
+    }
+
+    public MessageStatus getStatus() {
+        return this.status;
+    }
+
+    public Message status(MessageStatus status) {
+        this.setStatus(status);
+        return this;
+    }
+
+    public void setStatus(MessageStatus status) {
+        this.status = status;
+    }
+
+    public Priority getPriority() {
+        return this.priority;
+    }
+
+    public Message priority(Priority priority) {
+        this.setPriority(priority);
+        return this;
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -144,11 +201,14 @@ public class Message implements Serializable {
     public String toString() {
         return "Message{" +
             "id=" + getId() +
-            ", content='" + getContent() + "'" +
-            ", timestamp='" + getTimestamp() + "'" +
-            ", senderId='" + getSenderId() + "'" +
-            ", recipientId='" + getRecipientId() + "'" +
-            ", type='" + getType() + "'" +
+            ", sentAt='" + getSentAt() + "'" +
+            ", fromAddress='" + getFromAddress() + "'" +
+            ", senderName='" + getSenderName() + "'" +
+            ", subject='" + getSubject() + "'" +
+            ", body='" + getBody() + "'" +
+            ", channel='" + getChannel() + "'" +
+            ", status='" + getStatus() + "'" +
+            ", priority='" + getPriority() + "'" +
             "}";
     }
 }

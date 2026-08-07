@@ -86,6 +86,15 @@ public class TeamService {
     }
 
     /**
+     * Get all the teams with eager load of many-to-many relationships.
+     *
+     * @return the list of entities.
+     */
+    public Page<TeamDTO> findAllWithEagerRelationships(Pageable pageable) {
+        return teamRepository.findAllWithEagerRelationships(pageable).map(teamMapper::toDto);
+    }
+
+    /**
      * Get one team by id.
      *
      * @param id the id of the entity.
@@ -93,7 +102,7 @@ public class TeamService {
      */
     public Optional<TeamDTO> findOne(String id) {
         LOG.debug("Request to get Team : {}", id);
-        return teamRepository.findById(id).map(teamMapper::toDto);
+        return teamRepository.findOneWithEagerRelationships(id).map(teamMapper::toDto);
     }
 
     /**

@@ -1,43 +1,42 @@
 package net.jojoaddison.service.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
-import java.time.Instant;
 import java.util.Objects;
 
 /**
  * A DTO for the {@link net.jojoaddison.domain.Address} entity.
  */
+@Schema(description = "Ghana digital address plus postal detail.")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class AddressDTO implements Serializable {
 
     private String id;
 
     @NotNull
-    private String street;
+    @Size(max = 20)
+    @Pattern(regexp = "^[A-Z]{2}-[0-9]{3}-[0-9]{4}$")
+    private String digitalAddress;
 
     @NotNull
-    private String district;
+    @Size(max = 120)
+    private String streetAddress;
 
-    private String town;
+    @Size(max = 60)
+    private String townDistrict;
 
     @NotNull
-    private String city;
+    @Size(max = 60)
+    private String cityState;
 
     @NotNull
+    @Size(max = 60)
     private String region;
 
     @NotNull
-    private String code;
-
-    @NotNull
+    @Size(max = 60)
     private String country;
-
-    @NotNull
-    private Instant createdDate;
-
-    @NotNull
-    private Instant modifiedDate;
 
     public String getId() {
         return id;
@@ -47,36 +46,36 @@ public class AddressDTO implements Serializable {
         this.id = id;
     }
 
-    public String getStreet() {
-        return street;
+    public String getDigitalAddress() {
+        return digitalAddress;
     }
 
-    public void setStreet(String street) {
-        this.street = street;
+    public void setDigitalAddress(String digitalAddress) {
+        this.digitalAddress = digitalAddress;
     }
 
-    public String getDistrict() {
-        return district;
+    public String getStreetAddress() {
+        return streetAddress;
     }
 
-    public void setDistrict(String district) {
-        this.district = district;
+    public void setStreetAddress(String streetAddress) {
+        this.streetAddress = streetAddress;
     }
 
-    public String getTown() {
-        return town;
+    public String getTownDistrict() {
+        return townDistrict;
     }
 
-    public void setTown(String town) {
-        this.town = town;
+    public void setTownDistrict(String townDistrict) {
+        this.townDistrict = townDistrict;
     }
 
-    public String getCity() {
-        return city;
+    public String getCityState() {
+        return cityState;
     }
 
-    public void setCity(String city) {
-        this.city = city;
+    public void setCityState(String cityState) {
+        this.cityState = cityState;
     }
 
     public String getRegion() {
@@ -87,36 +86,12 @@ public class AddressDTO implements Serializable {
         this.region = region;
     }
 
-    public String getCode() {
-        return code;
-    }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
-
     public String getCountry() {
         return country;
     }
 
     public void setCountry(String country) {
         this.country = country;
-    }
-
-    public Instant getCreatedDate() {
-        return createdDate;
-    }
-
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
-    }
-
-    public Instant getModifiedDate() {
-        return modifiedDate;
-    }
-
-    public void setModifiedDate(Instant modifiedDate) {
-        this.modifiedDate = modifiedDate;
     }
 
     @Override
@@ -145,15 +120,12 @@ public class AddressDTO implements Serializable {
     public String toString() {
         return "AddressDTO{" +
             "id='" + getId() + "'" +
-            ", street='" + getStreet() + "'" +
-            ", district='" + getDistrict() + "'" +
-            ", town='" + getTown() + "'" +
-            ", city='" + getCity() + "'" +
+            ", digitalAddress='" + getDigitalAddress() + "'" +
+            ", streetAddress='" + getStreetAddress() + "'" +
+            ", townDistrict='" + getTownDistrict() + "'" +
+            ", cityState='" + getCityState() + "'" +
             ", region='" + getRegion() + "'" +
-            ", code='" + getCode() + "'" +
             ", country='" + getCountry() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
             "}";
     }
 }

@@ -1,0 +1,37 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154855"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "platform",
+  "databaseType": "mongodb",
+  "documentation": "PDF: Option (Category, User ID, Metadata). Renamed to avoid the\\nbare word \"Option\" colliding with TS/Angular vocabulary.",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "category",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "userRef",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "metadata",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "500"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "UserOption",
+  "relationships": [],
+  "searchEngine": "no"
+}

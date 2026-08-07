@@ -1,60 +1,40 @@
 package net.jojoaddison.domain;
 
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import jakarta.validation.constraints.*;
+import java.io.Serial;
 import java.io.Serializable;
-import java.time.Instant;
-import java.util.List;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
- * A Team.
+ * PDF: Team (Name, Description, Supervisor).
  */
 @Document(collection = "team")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class Team implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Id
     private String id;
 
     @NotNull
+    @Size(max = 60)
     @Field("name")
     private String name;
 
-    @NotNull
+    @Size(max = 200)
     @Field("description")
     private String description;
 
-    @Field("members")
-    private String members;
-
-    @Field("supervisor_id")
-    private String supervisorId;
-
-    @Field("organisation_id")
-    private String organisationId;
-
-    @Field("geographic_space_ids")
-    private List<String> geographicSpaceIds;
-
-    @NotNull
-    @Field("created_by")
-    private String createdBy;
-
-    @NotNull
-    @Field("created_date")
-    private Instant createdDate;
-
-    @NotNull
-    @Field("modified_by")
-    private String modifiedBy;
-
-    @NotNull
-    @Field("modified_date")
-    private Instant modifiedDate;
+    @DBRef
+    @Field("supervisor")
+    @JsonIgnoreProperties(value = { "profile", "assignments", "team", "hub" }, allowSetters = true)
+    private Professional supervisor;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -97,108 +77,17 @@ public class Team implements Serializable {
         this.description = description;
     }
 
-    public String getMembers() {
-        return this.members;
+    public Professional getSupervisor() {
+        return this.supervisor;
     }
 
-    public Team members(String members) {
-        this.setMembers(members);
+    public void setSupervisor(Professional professional) {
+        this.supervisor = professional;
+    }
+
+    public Team supervisor(Professional professional) {
+        this.setSupervisor(professional);
         return this;
-    }
-
-    public void setMembers(String members) {
-        this.members = members;
-    }
-
-    public String getSupervisorId() {
-        return this.supervisorId;
-    }
-
-    public Team supervisorId(String supervisorId) {
-        this.setSupervisorId(supervisorId);
-        return this;
-    }
-
-    public void setSupervisorId(String supervisorId) {
-        this.supervisorId = supervisorId;
-    }
-
-    public String getOrganisationId() {
-        return this.organisationId;
-    }
-
-    public Team organisationId(String organisationId) {
-        this.setOrganisationId(organisationId);
-        return this;
-    }
-
-    public void setOrganisationId(String organisationId) {
-        this.organisationId = organisationId;
-    }
-
-    public String getCreatedBy() {
-        return this.createdBy;
-    }
-
-    public Team createdBy(String createdBy) {
-        this.setCreatedBy(createdBy);
-        return this;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public Instant getCreatedDate() {
-        return this.createdDate;
-    }
-
-    public Team createdDate(Instant createdDate) {
-        this.setCreatedDate(createdDate);
-        return this;
-    }
-
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
-    }
-
-    public String getModifiedBy() {
-        return this.modifiedBy;
-    }
-
-    public Team modifiedBy(String modifiedBy) {
-        this.setModifiedBy(modifiedBy);
-        return this;
-    }
-
-    public void setModifiedBy(String modifiedBy) {
-        this.modifiedBy = modifiedBy;
-    }
-
-    public Instant getModifiedDate() {
-        return this.modifiedDate;
-    }
-
-    public Team modifiedDate(Instant modifiedDate) {
-        this.setModifiedDate(modifiedDate);
-        return this;
-    }
-
-    public void setModifiedDate(Instant modifiedDate) {
-        this.modifiedDate = modifiedDate;
-    }
-
-    public List<String> getGeographicSpaceIds() {
-        return this.geographicSpaceIds;
-    }
-
-    public Team geographicSpaceIds(List<String> geographicSpaceIds) {
-        this.setGeographicSpaceIds(geographicSpaceIds);
-        return this;
-    }
-
-    public void setGeographicSpaceIds(List<String> geographicSpaceIds) {
-        this.geographicSpaceIds = geographicSpaceIds;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -227,13 +116,6 @@ public class Team implements Serializable {
             "id=" + getId() +
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
-            ", members='" + getMembers() + "'" +
-            ", supervisorId='" + getSupervisorId() + "'" +
-            ", organisationId='" + getOrganisationId() + "'" +
-            ", createdBy='" + getCreatedBy() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedBy='" + getModifiedBy() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
             "}";
     }
 }

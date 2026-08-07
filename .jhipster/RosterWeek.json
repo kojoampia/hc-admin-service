@@ -1,0 +1,47 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154847"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "operations",
+  "databaseType": "mongodb",
+  "documentation": "PDF: Roster (Name, Description, Patient, Date) — modelled as a\\nweek header so the grid in the demo has something to publish.",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "label",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "startDate",
+      "fieldType": "LocalDate",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "published",
+      "fieldType": "Boolean",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "publishedAt",
+      "fieldType": "Instant"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "RosterWeek",
+  "relationships": [
+    {
+      "otherEntityName": "shiftAssignment",
+      "otherEntityRelationshipName": "week",
+      "relationshipName": "assignment",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    }
+  ],
+  "searchEngine": "no"
+}

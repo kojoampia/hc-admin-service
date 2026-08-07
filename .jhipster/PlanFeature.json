@@ -1,0 +1,40 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154850"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "catalogue",
+  "databaseType": "mongodb",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "label",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "position",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRulesMin": "0"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "PlanFeature",
+  "relationships": [
+    {
+      "otherEntityField": "name",
+      "otherEntityName": "servicePlan",
+      "otherEntityRelationshipName": "feature",
+      "relationshipName": "plan",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one",
+      "relationshipValidateRules": "required"
+    }
+  ],
+  "searchEngine": "no"
+}

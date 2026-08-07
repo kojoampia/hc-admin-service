@@ -4,7 +4,9 @@ import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
-import net.jojoaddison.domain.enumeration.MessageType;
+import net.jojoaddison.domain.enumeration.MessageChannel;
+import net.jojoaddison.domain.enumeration.MessageStatus;
+import net.jojoaddison.domain.enumeration.Priority;
 
 /**
  * A DTO for the {@link net.jojoaddison.domain.Message} entity.
@@ -15,19 +17,30 @@ public class MessageDTO implements Serializable {
     private String id;
 
     @NotNull
-    private String content;
+    private Instant sentAt;
 
     @NotNull
-    private Instant timestamp;
+    @Size(max = 120)
+    private String fromAddress;
 
     @NotNull
-    private String senderId;
+    @Size(max = 80)
+    private String senderName;
 
     @NotNull
-    private String recipientId;
+    @Size(max = 160)
+    private String subject;
+
+    private String body;
 
     @NotNull
-    private MessageType type;
+    private MessageChannel channel;
+
+    @NotNull
+    private MessageStatus status;
+
+    @NotNull
+    private Priority priority;
 
     public String getId() {
         return id;
@@ -37,44 +50,68 @@ public class MessageDTO implements Serializable {
         this.id = id;
     }
 
-    public String getContent() {
-        return content;
+    public Instant getSentAt() {
+        return sentAt;
     }
 
-    public void setContent(String content) {
-        this.content = content;
+    public void setSentAt(Instant sentAt) {
+        this.sentAt = sentAt;
     }
 
-    public Instant getTimestamp() {
-        return timestamp;
+    public String getFromAddress() {
+        return fromAddress;
     }
 
-    public void setTimestamp(Instant timestamp) {
-        this.timestamp = timestamp;
+    public void setFromAddress(String fromAddress) {
+        this.fromAddress = fromAddress;
     }
 
-    public String getSenderId() {
-        return senderId;
+    public String getSenderName() {
+        return senderName;
     }
 
-    public void setSenderId(String senderId) {
-        this.senderId = senderId;
+    public void setSenderName(String senderName) {
+        this.senderName = senderName;
     }
 
-    public String getRecipientId() {
-        return recipientId;
+    public String getSubject() {
+        return subject;
     }
 
-    public void setRecipientId(String recipientId) {
-        this.recipientId = recipientId;
+    public void setSubject(String subject) {
+        this.subject = subject;
     }
 
-    public MessageType getType() {
-        return type;
+    public String getBody() {
+        return body;
     }
 
-    public void setType(MessageType type) {
-        this.type = type;
+    public void setBody(String body) {
+        this.body = body;
+    }
+
+    public MessageChannel getChannel() {
+        return channel;
+    }
+
+    public void setChannel(MessageChannel channel) {
+        this.channel = channel;
+    }
+
+    public MessageStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(MessageStatus status) {
+        this.status = status;
+    }
+
+    public Priority getPriority() {
+        return priority;
+    }
+
+    public void setPriority(Priority priority) {
+        this.priority = priority;
     }
 
     @Override
@@ -103,11 +140,14 @@ public class MessageDTO implements Serializable {
     public String toString() {
         return "MessageDTO{" +
             "id='" + getId() + "'" +
-            ", content='" + getContent() + "'" +
-            ", timestamp='" + getTimestamp() + "'" +
-            ", senderId='" + getSenderId() + "'" +
-            ", recipientId='" + getRecipientId() + "'" +
-            ", type='" + getType() + "'" +
+            ", sentAt='" + getSentAt() + "'" +
+            ", fromAddress='" + getFromAddress() + "'" +
+            ", senderName='" + getSenderName() + "'" +
+            ", subject='" + getSubject() + "'" +
+            ", body='" + getBody() + "'" +
+            ", channel='" + getChannel() + "'" +
+            ", status='" + getStatus() + "'" +
+            ", priority='" + getPriority() + "'" +
             "}";
     }
 }

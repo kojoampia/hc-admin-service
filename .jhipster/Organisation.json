@@ -2,56 +2,82 @@
   "annotations": {
     "changelogDate": "20260512224721"
   },
-  "clientRootFolder": "hcAdminService",
+  "applications": ["*"],
+  "clientRootFolder": "platform",
   "databaseType": "mongodb",
+  "documentation": "PDF: Organisation. One row — Abofonsa BridgeCare itself.",
   "dto": "mapstruct",
   "fields": [
     {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
       "fieldName": "name",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "legalName",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
     },
     {
       "fieldName": "description",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "400"
     },
     {
-      "fieldName": "addressId",
+      "fieldName": "registrationNumber",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "40"
     },
     {
-      "fieldName": "contactId",
+      "fieldName": "tin",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "40"
     },
     {
-      "fieldName": "createdBy",
+      "fieldName": "foundedOn",
+      "fieldType": "LocalDate"
+    },
+    {
+      "fieldName": "switchboard",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "24"
     },
     {
-      "fieldName": "createdDate",
-      "fieldType": "Instant",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "modifiedBy",
+      "fieldName": "email",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "120"
     },
     {
-      "fieldName": "modifiedDate",
-      "fieldType": "Instant",
-      "fieldValidateRules": ["required"]
+      "fieldName": "deskHours",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "80"
     }
   ],
   "microserviceName": "hcAdminService",
   "name": "Organisation",
   "pagination": "pagination",
   "readOnly": false,
-  "relationships": [],
+  "relationships": [
+    {
+      "otherEntityName": "address",
+      "otherEntityRelationshipName": "organisation",
+      "relationshipName": "address",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-one"
+    }
+  ],
   "searchEngine": "no",
   "service": "serviceClass"
 }

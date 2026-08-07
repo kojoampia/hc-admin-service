@@ -1,0 +1,73 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154849"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "catalogue",
+  "databaseType": "mongodb",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "tier",
+      "fieldType": "PlanTier",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "ESSENTIAL,PLUS,FAMILY"
+    },
+    {
+      "fieldName": "tierLabel",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "40"
+    },
+    {
+      "fieldName": "monthlyPrice",
+      "fieldType": "BigDecimal",
+      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "currency",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "3"
+    },
+    {
+      "fieldName": "summary",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "240"
+    },
+    {
+      "fieldName": "featured",
+      "fieldType": "Boolean",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "subscriberCount",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "ServicePlan",
+  "relationships": [
+    {
+      "otherEntityName": "planFeature",
+      "otherEntityRelationshipName": "plan",
+      "relationshipName": "feature",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    }
+  ],
+  "searchEngine": "no"
+}

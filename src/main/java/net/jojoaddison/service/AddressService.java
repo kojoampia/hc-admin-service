@@ -1,6 +1,10 @@
 package net.jojoaddison.service;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import net.jojoaddison.domain.Address;
 import net.jojoaddison.repository.AddressRepository;
 import net.jojoaddison.service.dto.AddressDTO;
@@ -83,6 +87,48 @@ public class AddressService {
     public Page<AddressDTO> findAll(Pageable pageable) {
         LOG.debug("Request to get all Addresses");
         return addressRepository.findAll(pageable).map(addressMapper::toDto);
+    }
+
+    /**
+     *  Get all the addresses where Profile is {@code null}.
+     *  @return the list of entities.
+     */
+
+    public List<AddressDTO> findAllWhereProfileIsNull() {
+        LOG.debug("Request to get all addresses where Profile is null");
+        return StreamSupport
+            .stream(addressRepository.findAll().spliterator(), false)
+            .filter(address -> address.getProfile() == null)
+            .map(addressMapper::toDto)
+            .collect(Collectors.toCollection(LinkedList::new));
+    }
+
+    /**
+     *  Get all the addresses where Hub is {@code null}.
+     *  @return the list of entities.
+     */
+
+    public List<AddressDTO> findAllWhereHubIsNull() {
+        LOG.debug("Request to get all addresses where Hub is null");
+        return StreamSupport
+            .stream(addressRepository.findAll().spliterator(), false)
+            .filter(address -> address.getHub() == null)
+            .map(addressMapper::toDto)
+            .collect(Collectors.toCollection(LinkedList::new));
+    }
+
+    /**
+     *  Get all the addresses where Organisation is {@code null}.
+     *  @return the list of entities.
+     */
+
+    public List<AddressDTO> findAllWhereOrganisationIsNull() {
+        LOG.debug("Request to get all addresses where Organisation is null");
+        return StreamSupport
+            .stream(addressRepository.findAll().spliterator(), false)
+            .filter(address -> address.getOrganisation() == null)
+            .map(addressMapper::toDto)
+            .collect(Collectors.toCollection(LinkedList::new));
     }
 
     /**
