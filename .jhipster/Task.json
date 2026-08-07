@@ -1,0 +1,66 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154846"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "operations",
+  "databaseType": "mongodb",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "title",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "200"
+    },
+    {
+      "fieldName": "state",
+      "fieldType": "TaskState",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "TODO,DOING,DONE"
+    },
+    {
+      "fieldName": "priority",
+      "fieldType": "Priority",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "HIGH,NORMAL,LOW"
+    },
+    {
+      "fieldName": "dueOn",
+      "fieldType": "LocalDate"
+    },
+    {
+      "fieldName": "tag",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "40"
+    },
+    {
+      "fieldName": "createdAt",
+      "fieldType": "Instant"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "Task",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityField": "licenceNumber",
+      "otherEntityName": "professional",
+      "relationshipName": "owner",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    },
+    {
+      "otherEntityField": "subject",
+      "otherEntityName": "message",
+      "relationshipName": "sourceMessage",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
+  "searchEngine": "no"
+}

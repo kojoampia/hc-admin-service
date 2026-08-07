@@ -2,6 +2,8 @@
   "annotations": {
     "changelogDate": "20260512221149"
   },
+  "clientRootFolder": "hcAdminService",
+  "databaseType": "mongodb",
   "dto": "mapstruct",
   "fields": [
     {
@@ -58,9 +60,11 @@
       "fieldValidateRules": ["required"]
     }
   ],
+  "microserviceName": "hcAdminService",
   "name": "Photo",
   "pagination": "pagination",
   "readOnly": false,
   "relationships": [],
+  "searchEngine": "no",
   "service": "serviceClass"
 }

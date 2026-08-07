@@ -1,0 +1,57 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154848"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "operations",
+  "databaseType": "mongodb",
+  "documentation": "One cell of the duty-roster grid.",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "dayIndex",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required", "min", "max"],
+      "fieldValidateRulesMax": "6",
+      "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "shiftDate",
+      "fieldType": "LocalDate",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "shift",
+      "fieldType": "ShiftType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "DAY,EVENING,NIGHT,OFF"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "ShiftAssignment",
+  "pagination": "pagination",
+  "relationships": [
+    {
+      "otherEntityField": "label",
+      "otherEntityName": "rosterWeek",
+      "otherEntityRelationshipName": "assignment",
+      "relationshipName": "week",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one",
+      "relationshipValidateRules": "required"
+    },
+    {
+      "otherEntityField": "licenceNumber",
+      "otherEntityName": "professional",
+      "otherEntityRelationshipName": "assignment",
+      "relationshipName": "professional",
+      "relationshipSide": "right",
+      "relationshipType": "many-to-one",
+      "relationshipValidateRules": "required"
+    }
+  ],
+  "searchEngine": "no"
+}

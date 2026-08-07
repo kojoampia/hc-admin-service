@@ -1,5 +1,6 @@
 package net.jojoaddison.domain;
 
+import static net.jojoaddison.domain.AddressTestSamples.*;
 import static net.jojoaddison.domain.OrganisationTestSamples.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,5 +21,17 @@ class OrganisationTest {
 
         organisation2 = getOrganisationSample2();
         assertThat(organisation1).isNotEqualTo(organisation2);
+    }
+
+    @Test
+    void addressTest() {
+        Organisation organisation = getOrganisationRandomSampleGenerator();
+        Address addressBack = getAddressRandomSampleGenerator();
+
+        organisation.setAddress(addressBack);
+        assertThat(organisation.getAddress()).isEqualTo(addressBack);
+
+        organisation.address(null);
+        assertThat(organisation.getAddress()).isNull();
     }
 }

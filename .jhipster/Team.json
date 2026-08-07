@@ -2,59 +2,42 @@
   "annotations": {
     "changelogDate": "20260512223442"
   },
-  "clientRootFolder": "hcAdminService",
+  "applications": ["*"],
+  "clientRootFolder": "platform",
   "databaseType": "mongodb",
+  "documentation": "PDF: Team (Name, Description, Supervisor).",
   "dto": "mapstruct",
   "fields": [
     {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
       "fieldName": "name",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
     },
     {
       "fieldName": "description",
       "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "members",
-      "fieldType": "String",
-      "fieldValidateRules": []
-    },
-    {
-      "fieldName": "supervisorId",
-      "fieldType": "String"
-    },
-    {
-      "fieldName": "organisationId",
-      "fieldType": "String"
-    },
-    {
-      "fieldName": "createdBy",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "createdDate",
-      "fieldType": "Instant",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "modifiedBy",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "modifiedDate",
-      "fieldType": "Instant",
-      "fieldValidateRules": ["required"]
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "200"
     }
   ],
   "microserviceName": "hcAdminService",
   "name": "Team",
   "pagination": "pagination",
   "readOnly": false,
-  "relationships": [],
+  "relationships": [
+    {
+      "otherEntityField": "licenceNumber",
+      "otherEntityName": "professional",
+      "relationshipName": "supervisor",
+      "relationshipSide": "left",
+      "relationshipType": "many-to-one"
+    }
+  ],
   "searchEngine": "no",
   "service": "serviceClass"
 }

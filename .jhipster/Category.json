@@ -1,0 +1,46 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154851"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "catalogue",
+  "databaseType": "mongodb",
+  "documentation": "PDF: Category (Name, Description).",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "description",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "200"
+    },
+    {
+      "fieldName": "iconKey",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "30"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "Category",
+  "relationships": [
+    {
+      "otherEntityField": "name",
+      "otherEntityName": "serviceActivity",
+      "otherEntityRelationshipName": "category",
+      "relationshipName": "activity",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-many"
+    }
+  ],
+  "searchEngine": "no"
+}

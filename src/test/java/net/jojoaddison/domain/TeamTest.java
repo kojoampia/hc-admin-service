@@ -1,5 +1,6 @@
 package net.jojoaddison.domain;
 
+import static net.jojoaddison.domain.ProfessionalTestSamples.*;
 import static net.jojoaddison.domain.TeamTestSamples.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,5 +21,17 @@ class TeamTest {
 
         team2 = getTeamSample2();
         assertThat(team1).isNotEqualTo(team2);
+    }
+
+    @Test
+    void supervisorTest() {
+        Team team = getTeamRandomSampleGenerator();
+        Professional professionalBack = getProfessionalRandomSampleGenerator();
+
+        team.setSupervisor(professionalBack);
+        assertThat(team.getSupervisor()).isEqualTo(professionalBack);
+
+        team.supervisor(null);
+        assertThat(team.getSupervisor()).isNull();
     }
 }

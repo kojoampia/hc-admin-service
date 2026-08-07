@@ -1,0 +1,107 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154840"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "directory",
+  "databaseType": "mongodb",
+  "documentation": "The shared person record behind both patients and professionals.\\n\\n`accountId` is the identity link to the gateway's Account. It is a plain\\nString, not a relationship: Account lives in hc-admin-gateway's own\\ndatabase and this service cannot join across that boundary — the gateway\\nmints the id and puts it on the JWT so the api can stamp the right one.\\nA Profile with no accountId is a person no login can reach, so it is\\nrequired.",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "accountId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "title",
+      "fieldType": "Title",
+      "fieldTypeDocumentation": "Abofonsa BridgeCare — console domain model, applied to hc-admin-service.\\n\\nThis is `app/hc-admin.jdl` with two things removed:\\n\\n1. the `application { ... }` block, which configures the FRONTEND\\n(skipServer, Angular, jhiPrefix abf). This repository has its own\\n.yo-rc.json describing a MongoDB microservice, and `jhipster jdl`\\napplies the entities below into that existing context.\\n\\n2. `Credential` and `CredentialRole`. Those are the gateway's Account and\\nAuthority: hc-admin-gateway owns user records, this service owns\\neverything else. The link between them is `Profile.accountId`, a plain\\nString rather than a relationship, because the two live in different\\ndatabases and cannot be joined.\\n\\nEvery entity declares `id String`. This is MongoDB — ids are ObjectIds, and\\nletting JHipster default them to Long produces a service the console cannot\\nround-trip against.\\n\\nThe two files must stay in step: the Angular client was generated from the\\nsame declarations, so a field added here and not there is a field the\\nconsole will silently never send.\\n\\nFOUR ENTITY NAMES COLLIDE with this service's earlier model and are\\nreplaced by the definitions below: Address, Message, Organisation, Team.\\nThe earlier shapes remain in git and in jdl/admin-db.jdl, jdl/admin-ms.jdl\\nand jdl/system.jdl.",
+      "fieldValues": "MR,MRS,MS,DR,PROF"
+    },
+    {
+      "fieldName": "firstName",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "50"
+    },
+    {
+      "fieldName": "middleName",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "50"
+    },
+    {
+      "fieldName": "lastName",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "50"
+    },
+    {
+      "fieldName": "dateOfBirth",
+      "fieldType": "LocalDate",
+      "fieldValidateRules": ["required"]
+    },
+    {
+      "fieldName": "sex",
+      "fieldType": "Sex",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "MALE,FEMALE"
+    },
+    {
+      "fieldName": "mobilePhone",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "24"
+    },
+    {
+      "fieldName": "email",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength", "pattern"],
+      "fieldValidateRulesMaxlength": "120",
+      "fieldValidateRulesPattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+    },
+    {
+      "fieldName": "idType",
+      "fieldType": "IdType",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "GHANA_CARD,PASSPORT,VOTER_ID,DRIVERS_LICENCE"
+    },
+    {
+      "fieldName": "idNumber",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "40"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "Profile",
+  "relationships": [
+    {
+      "otherEntityName": "address",
+      "otherEntityRelationshipName": "profile",
+      "relationshipName": "address",
+      "relationshipSide": "left",
+      "relationshipType": "one-to-one"
+    },
+    {
+      "otherEntityName": "patient",
+      "otherEntityRelationshipName": "profile",
+      "relationshipName": "patient",
+      "relationshipSide": "right",
+      "relationshipType": "one-to-one"
+    },
+    {
+      "otherEntityName": "professional",
+      "otherEntityRelationshipName": "profile",
+      "relationshipName": "professional",
+      "relationshipSide": "right",
+      "relationshipType": "one-to-one"
+    }
+  ],
+  "searchEngine": "no"
+}

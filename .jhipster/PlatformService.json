@@ -1,0 +1,56 @@
+{
+  "annotations": {
+    "changelogDate": "20260807154856"
+  },
+  "applications": ["*"],
+  "clientRootFolder": "platform",
+  "databaseType": "mongodb",
+  "fields": [
+    {
+      "fieldName": "id",
+      "fieldType": "String"
+    },
+    {
+      "fieldName": "name",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "host",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
+      "fieldName": "port",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["required", "min", "max"],
+      "fieldValidateRulesMax": "65535",
+      "fieldValidateRulesMin": "1"
+    },
+    {
+      "fieldName": "plane",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "40"
+    },
+    {
+      "fieldName": "health",
+      "fieldType": "ServiceHealth",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "HEALTHY,DEGRADED,DOWN"
+    },
+    {
+      "fieldName": "responseMs",
+      "fieldType": "Integer",
+      "fieldValidateRules": ["min"],
+      "fieldValidateRulesMin": "0"
+    }
+  ],
+  "microserviceName": "hcAdminService",
+  "name": "PlatformService",
+  "readOnly": true,
+  "relationships": [],
+  "searchEngine": "no"
+}

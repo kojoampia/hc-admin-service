@@ -1,44 +1,27 @@
 package net.jojoaddison.service.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
-import java.time.Instant;
-import java.util.List;
 import java.util.Objects;
 
 /**
  * A DTO for the {@link net.jojoaddison.domain.Team} entity.
  */
+@Schema(description = "PDF: Team (Name, Description, Supervisor).")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class TeamDTO implements Serializable {
 
     private String id;
 
     @NotNull
+    @Size(max = 60)
     private String name;
 
-    @NotNull
+    @Size(max = 200)
     private String description;
 
-    private String members;
-
-    private String supervisorId;
-
-    private String organisationId;
-
-    private List<String> geographicSpaceIds;
-
-    @NotNull
-    private String createdBy;
-
-    @NotNull
-    private Instant createdDate;
-
-    @NotNull
-    private String modifiedBy;
-
-    @NotNull
-    private Instant modifiedDate;
+    private ProfessionalDTO supervisor;
 
     public String getId() {
         return id;
@@ -64,68 +47,12 @@ public class TeamDTO implements Serializable {
         this.description = description;
     }
 
-    public String getMembers() {
-        return members;
+    public ProfessionalDTO getSupervisor() {
+        return supervisor;
     }
 
-    public void setMembers(String members) {
-        this.members = members;
-    }
-
-    public String getSupervisorId() {
-        return supervisorId;
-    }
-
-    public void setSupervisorId(String supervisorId) {
-        this.supervisorId = supervisorId;
-    }
-
-    public String getOrganisationId() {
-        return organisationId;
-    }
-
-    public void setOrganisationId(String organisationId) {
-        this.organisationId = organisationId;
-    }
-
-    public List<String> getGeographicSpaceIds() {
-        return geographicSpaceIds;
-    }
-
-    public void setGeographicSpaceIds(List<String> geographicSpaceIds) {
-        this.geographicSpaceIds = geographicSpaceIds;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public Instant getCreatedDate() {
-        return createdDate;
-    }
-
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
-    }
-
-    public String getModifiedBy() {
-        return modifiedBy;
-    }
-
-    public void setModifiedBy(String modifiedBy) {
-        this.modifiedBy = modifiedBy;
-    }
-
-    public Instant getModifiedDate() {
-        return modifiedDate;
-    }
-
-    public void setModifiedDate(Instant modifiedDate) {
-        this.modifiedDate = modifiedDate;
+    public void setSupervisor(ProfessionalDTO supervisor) {
+        this.supervisor = supervisor;
     }
 
     @Override
@@ -156,14 +83,7 @@ public class TeamDTO implements Serializable {
             "id='" + getId() + "'" +
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
-            ", members='" + getMembers() + "'" +
-            ", supervisorId='" + getSupervisorId() + "'" +
-            ", organisationId='" + getOrganisationId() + "'" +
-            ", geographicSpaceIds='" + getGeographicSpaceIds() + "'" +
-            ", createdBy='" + getCreatedBy() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedBy='" + getModifiedBy() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
+            ", supervisor=" + getSupervisor() +
             "}";
     }
 }

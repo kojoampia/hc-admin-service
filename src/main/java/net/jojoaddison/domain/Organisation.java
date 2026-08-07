@@ -1,55 +1,67 @@
 package net.jojoaddison.domain;
 
 import jakarta.validation.constraints.*;
+import java.io.Serial;
 import java.io.Serializable;
-import java.time.Instant;
+import java.time.LocalDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
- * A Organisation.
+ * PDF: Organisation. One row — Abofonsa BridgeCare itself.
  */
 @Document(collection = "organisation")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class Organisation implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Id
     private String id;
 
     @NotNull
+    @Size(max = 80)
     @Field("name")
     private String name;
 
     @NotNull
+    @Size(max = 120)
+    @Field("legal_name")
+    private String legalName;
+
+    @Size(max = 400)
     @Field("description")
     private String description;
 
-    @NotNull
-    @Field("address_id")
-    private String addressId;
+    @Size(max = 40)
+    @Field("registration_number")
+    private String registrationNumber;
 
-    @NotNull
-    @Field("contact_id")
-    private String contactId;
+    @Size(max = 40)
+    @Field("tin")
+    private String tin;
 
-    @NotNull
-    @Field("created_by")
-    private String createdBy;
+    @Field("founded_on")
+    private LocalDate foundedOn;
 
-    @NotNull
-    @Field("created_date")
-    private Instant createdDate;
+    @Size(max = 24)
+    @Field("switchboard")
+    private String switchboard;
 
-    @NotNull
-    @Field("modified_by")
-    private String modifiedBy;
+    @Size(max = 120)
+    @Field("email")
+    private String email;
 
-    @NotNull
-    @Field("modified_date")
-    private Instant modifiedDate;
+    @Size(max = 80)
+    @Field("desk_hours")
+    private String deskHours;
+
+    @DBRef
+    @Field("address")
+    private Address address;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -79,6 +91,19 @@ public class Organisation implements Serializable {
         this.name = name;
     }
 
+    public String getLegalName() {
+        return this.legalName;
+    }
+
+    public Organisation legalName(String legalName) {
+        this.setLegalName(legalName);
+        return this;
+    }
+
+    public void setLegalName(String legalName) {
+        this.legalName = legalName;
+    }
+
     public String getDescription() {
         return this.description;
     }
@@ -92,82 +117,95 @@ public class Organisation implements Serializable {
         this.description = description;
     }
 
-    public String getAddressId() {
-        return this.addressId;
+    public String getRegistrationNumber() {
+        return this.registrationNumber;
     }
 
-    public Organisation addressId(String addressId) {
-        this.setAddressId(addressId);
+    public Organisation registrationNumber(String registrationNumber) {
+        this.setRegistrationNumber(registrationNumber);
         return this;
     }
 
-    public void setAddressId(String addressId) {
-        this.addressId = addressId;
+    public void setRegistrationNumber(String registrationNumber) {
+        this.registrationNumber = registrationNumber;
     }
 
-    public String getContactId() {
-        return this.contactId;
+    public String getTin() {
+        return this.tin;
     }
 
-    public Organisation contactId(String contactId) {
-        this.setContactId(contactId);
+    public Organisation tin(String tin) {
+        this.setTin(tin);
         return this;
     }
 
-    public void setContactId(String contactId) {
-        this.contactId = contactId;
+    public void setTin(String tin) {
+        this.tin = tin;
     }
 
-    public String getCreatedBy() {
-        return this.createdBy;
+    public LocalDate getFoundedOn() {
+        return this.foundedOn;
     }
 
-    public Organisation createdBy(String createdBy) {
-        this.setCreatedBy(createdBy);
+    public Organisation foundedOn(LocalDate foundedOn) {
+        this.setFoundedOn(foundedOn);
         return this;
     }
 
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
+    public void setFoundedOn(LocalDate foundedOn) {
+        this.foundedOn = foundedOn;
     }
 
-    public Instant getCreatedDate() {
-        return this.createdDate;
+    public String getSwitchboard() {
+        return this.switchboard;
     }
 
-    public Organisation createdDate(Instant createdDate) {
-        this.setCreatedDate(createdDate);
+    public Organisation switchboard(String switchboard) {
+        this.setSwitchboard(switchboard);
         return this;
     }
 
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
+    public void setSwitchboard(String switchboard) {
+        this.switchboard = switchboard;
     }
 
-    public String getModifiedBy() {
-        return this.modifiedBy;
+    public String getEmail() {
+        return this.email;
     }
 
-    public Organisation modifiedBy(String modifiedBy) {
-        this.setModifiedBy(modifiedBy);
+    public Organisation email(String email) {
+        this.setEmail(email);
         return this;
     }
 
-    public void setModifiedBy(String modifiedBy) {
-        this.modifiedBy = modifiedBy;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public Instant getModifiedDate() {
-        return this.modifiedDate;
+    public String getDeskHours() {
+        return this.deskHours;
     }
 
-    public Organisation modifiedDate(Instant modifiedDate) {
-        this.setModifiedDate(modifiedDate);
+    public Organisation deskHours(String deskHours) {
+        this.setDeskHours(deskHours);
         return this;
     }
 
-    public void setModifiedDate(Instant modifiedDate) {
-        this.modifiedDate = modifiedDate;
+    public void setDeskHours(String deskHours) {
+        this.deskHours = deskHours;
+    }
+
+    public Address getAddress() {
+        return this.address;
+    }
+
+    public void setAddress(Address address) {
+        this.address = address;
+    }
+
+    public Organisation address(Address address) {
+        this.setAddress(address);
+        return this;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -195,13 +233,14 @@ public class Organisation implements Serializable {
         return "Organisation{" +
             "id=" + getId() +
             ", name='" + getName() + "'" +
+            ", legalName='" + getLegalName() + "'" +
             ", description='" + getDescription() + "'" +
-            ", addressId='" + getAddressId() + "'" +
-            ", contactId='" + getContactId() + "'" +
-            ", createdBy='" + getCreatedBy() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedBy='" + getModifiedBy() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
+            ", registrationNumber='" + getRegistrationNumber() + "'" +
+            ", tin='" + getTin() + "'" +
+            ", foundedOn='" + getFoundedOn() + "'" +
+            ", switchboard='" + getSwitchboard() + "'" +
+            ", email='" + getEmail() + "'" +
+            ", deskHours='" + getDeskHours() + "'" +
             "}";
     }
 }

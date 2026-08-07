@@ -47,11 +47,14 @@ public class MessageAsserts {
     public static void assertMessageUpdatableFieldsEquals(Message expected, Message actual) {
         assertThat(actual)
             .as("Verify Message relevant properties")
-            .satisfies(a -> assertThat(a.getContent()).as("check content").isEqualTo(expected.getContent()))
-            .satisfies(a -> assertThat(a.getTimestamp()).as("check timestamp").isEqualTo(expected.getTimestamp()))
-            .satisfies(a -> assertThat(a.getSenderId()).as("check senderId").isEqualTo(expected.getSenderId()))
-            .satisfies(a -> assertThat(a.getRecipientId()).as("check recipientId").isEqualTo(expected.getRecipientId()))
-            .satisfies(a -> assertThat(a.getType()).as("check type").isEqualTo(expected.getType()));
+            .satisfies(a -> assertThat(a.getSentAt()).as("check sentAt").isEqualTo(expected.getSentAt()))
+            .satisfies(a -> assertThat(a.getFromAddress()).as("check fromAddress").isEqualTo(expected.getFromAddress()))
+            .satisfies(a -> assertThat(a.getSenderName()).as("check senderName").isEqualTo(expected.getSenderName()))
+            .satisfies(a -> assertThat(a.getSubject()).as("check subject").isEqualTo(expected.getSubject()))
+            .satisfies(a -> assertThat(a.getBody()).as("check body").isEqualTo(expected.getBody()))
+            .satisfies(a -> assertThat(a.getChannel()).as("check channel").isEqualTo(expected.getChannel()))
+            .satisfies(a -> assertThat(a.getStatus()).as("check status").isEqualTo(expected.getStatus()))
+            .satisfies(a -> assertThat(a.getPriority()).as("check priority").isEqualTo(expected.getPriority()));
     }
 
     /**

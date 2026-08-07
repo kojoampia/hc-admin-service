@@ -2,35 +2,60 @@
   "annotations": {
     "changelogDate": "20260512155744"
   },
-  "clientRootFolder": "hcAdminService",
+  "applications": ["*"],
+  "clientRootFolder": "operations",
   "databaseType": "mongodb",
   "dto": "mapstruct",
   "fields": [
     {
-      "fieldName": "content",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
+      "fieldName": "id",
+      "fieldType": "String"
     },
     {
-      "fieldName": "timestamp",
+      "fieldName": "sentAt",
       "fieldType": "Instant",
       "fieldValidateRules": ["required"]
     },
     {
-      "fieldName": "senderId",
+      "fieldName": "fromAddress",
       "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "120"
+    },
+    {
+      "fieldName": "senderName",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "80"
+    },
+    {
+      "fieldName": "subject",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "160"
+    },
+    {
+      "fieldName": "body",
+      "fieldType": "TextBlob",
       "fieldValidateRules": ["required"]
     },
     {
-      "fieldName": "recipientId",
-      "fieldType": "String",
-      "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "type",
-      "fieldType": "MessageType",
+      "fieldName": "channel",
+      "fieldType": "MessageChannel",
       "fieldValidateRules": ["required"],
-      "fieldValues": "NOTIFICATION,ALERT,REMINDER"
+      "fieldValues": "PATIENT_APP,PROFESSIONAL_APP,VENDOR_PORTAL,EMAIL"
+    },
+    {
+      "fieldName": "status",
+      "fieldType": "MessageStatus",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "NEW,READ,REPLIED"
+    },
+    {
+      "fieldName": "priority",
+      "fieldType": "Priority",
+      "fieldValidateRules": ["required"],
+      "fieldValues": "HIGH,NORMAL,LOW"
     }
   ],
   "microserviceName": "hcAdminService",

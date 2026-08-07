@@ -1,0 +1,372 @@
+/**
+ * Abofonsa BridgeCare — console domain model, applied to hc-admin-service.
+ *
+ * This is `app/hc-admin.jdl` with two things removed:
+ *
+ *  1. the `application { ... }` block, which configures the FRONTEND
+ *     (skipServer, Angular, jhiPrefix abf). This repository has its own
+ *     .yo-rc.json describing a MongoDB microservice, and `jhipster jdl`
+ *     applies the entities below into that existing context.
+ *
+ *  2. `Credential` and `CredentialRole`. Those are the gateway's Account and
+ *     Authority: hc-admin-gateway owns user records, this service owns
+ *     everything else. The link between them is `Profile.accountId`, a plain
+ *     String rather than a relationship, because the two live in different
+ *     databases and cannot be joined.
+ *
+ * Every entity declares `id String`. This is MongoDB — ids are ObjectIds, and
+ * letting JHipster default them to Long produces a service the console cannot
+ * round-trip against.
+ *
+ * The two files must stay in step: the Angular client was generated from the
+ * same declarations, so a field added here and not there is a field the
+ * console will silently never send.
+ *
+ * FOUR ENTITY NAMES COLLIDE with this service's earlier model and are
+ * replaced by the definitions below: Address, Message, Organisation, Team.
+ * The earlier shapes remain in git and in jdl/admin-db.jdl, jdl/admin-ms.jdl
+ * and jdl/system.jdl.
+ */
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Title { MR, MRS, MS, DR, PROF }
+enum Sex { MALE, FEMALE }
+enum IdType { GHANA_CARD, PASSPORT, VOTER_ID, DRIVERS_LICENCE }
+
+enum AccountStatus { ACTIVE, PENDING, SUSPENDED, ON_LEAVE, UNDER_REVIEW }
+enum VerificationStatus { VERIFIED, PENDING, REJECTED }
+enum ProfessionalRole { CAREGIVER, PARAMEDIC, NURSE, DOCTOR }
+
+enum MessageChannel { PATIENT_APP, PROFESSIONAL_APP, VENDOR_PORTAL, EMAIL }
+enum MessageStatus { NEW, READ, REPLIED }
+enum Priority { HIGH, NORMAL, LOW }
+
+enum TaskState { TODO, DOING, DONE }
+enum ShiftType { DAY, EVENING, NIGHT, OFF }
+
+enum PlanTier { ESSENTIAL, PLUS, FAMILY }
+enum ServiceHealth { HEALTHY, DEGRADED, DOWN }
+enum AuditLevel { INFO, WARN }
+
+// ============================================================
+// CORE IDENTITY  (PDF: Microservice → Profile, Address)
+// ============================================================
+
+/** Ghana digital address plus postal detail. */
+entity Address {
+  id String
+  digitalAddress String required maxlength(20) pattern(/^[A-Z]{2}-[0-9]{3}-[0-9]{4}$/)
+  streetAddress String required maxlength(120)
+  townDistrict String maxlength(60)
+  cityState String required maxlength(60)
+  region String required maxlength(60)
+  country String required maxlength(60)
+}
+
+/**
+ * The shared person record behind both patients and professionals.
+ *
+ * `accountId` is the identity link to the gateway's Account. It is a plain
+ * String, not a relationship: Account lives in hc-admin-gateway's own
+ * database and this service cannot join across that boundary — the gateway
+ * mints the id and puts it on the JWT so the api can stamp the right one.
+ * A Profile with no accountId is a person no login can reach, so it is
+ * required.
+ */
+entity Profile {
+  id String
+  accountId String required maxlength(60)
+  title Title
+  firstName String required maxlength(50)
+  middleName String maxlength(50)
+  lastName String required maxlength(50)
+  dateOfBirth LocalDate required
+  sex Sex required
+  mobilePhone String required maxlength(24)
+  email String required maxlength(120) pattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+  idType IdType required
+  idNumber String required maxlength(40)
+}
+
+/** PDF: Organisation. One row — Abofonsa BridgeCare itself. */
+entity Organisation {
+  id String
+  name String required maxlength(80)
+  legalName String required maxlength(120)
+  description String maxlength(400)
+  registrationNumber String maxlength(40)
+  tin String maxlength(40)
+  foundedOn LocalDate
+  switchboard String maxlength(24)
+  email String maxlength(120)
+  deskHours String maxlength(80)
+}
+
+entity Hub {
+  id String
+  name String required maxlength(60)
+  staffCount Integer min(0)
+}
+
+// ============================================================
+// DIRECTORY  (wireframe: Patients, Professionals, Vendors)
+// ============================================================
+
+/** Next of kin / diaspora sponsor. Called "Angel" throughout the
+    Health Connect product language — keep the name. */
+entity Angel {
+  id String
+  name String required maxlength(80)
+  relationship String required maxlength(60)
+  phone String required maxlength(24)
+  email String maxlength(120)
+  country String maxlength(60)
+}
+
+entity Patient {
+  id String
+  status AccountStatus required
+  joinedOn LocalDate required
+  lastActiveOn LocalDate
+  caseCount Integer min(0)
+}
+
+entity Professional {
+  id String
+  role ProfessionalRole required
+  speciality String maxlength(80)
+  licenceNumber String required maxlength(40)
+  verification VerificationStatus required
+  status AccountStatus required
+  patientCount Integer min(0)
+  caseCount Integer min(0)
+  visitCount Integer min(0)
+  rating BigDecimal min(0) max(5)
+  joinedOn LocalDate required
+}
+
+/** PDF: Team (Name, Description, Supervisor). */
+entity Team {
+  id String
+  name String required maxlength(60)
+  description String maxlength(200)
+}
+
+entity Vendor {
+  id String
+  name String required maxlength(100)
+  category String required maxlength(40)
+  serviceSummary String maxlength(200)
+  contactName String maxlength(80)
+  phone String maxlength(24)
+  email String maxlength(120)
+  city String maxlength(60)
+  status AccountStatus required
+  contractNote String maxlength(80)
+  contractRenewsOn LocalDate
+  orderCount Integer min(0)
+  spendToDate BigDecimal min(0)
+  rating BigDecimal min(0) max(5)
+}
+
+// ============================================================
+// OPERATIONS  (wireframe: Messages, Duty roster; demo: Tasks)
+// ============================================================
+
+entity Message {
+  id String
+  sentAt Instant required
+  fromAddress String required maxlength(120)
+  senderName String required maxlength(80)
+  subject String required maxlength(160)
+  body TextBlob required
+  channel MessageChannel required
+  status MessageStatus required
+  priority Priority required
+}
+
+entity Task {
+  id String
+  title String required maxlength(200)
+  state TaskState required
+  priority Priority required
+  dueOn LocalDate
+  tag String maxlength(40)
+  createdAt Instant
+}
+
+/** PDF: Roster (Name, Description, Patient, Date) — modelled as a
+    week header so the grid in the demo has something to publish. */
+entity RosterWeek {
+  id String
+  label String required maxlength(60)
+  startDate LocalDate required
+  published Boolean required
+  publishedAt Instant
+}
+
+/** One cell of the duty-roster grid. */
+entity ShiftAssignment {
+  id String
+  dayIndex Integer required min(0) max(6)
+  shiftDate LocalDate required
+  shift ShiftType required
+}
+
+// ============================================================
+// CATALOGUE  (wireframe: Service, Catalog; PDF: Category, Activity)
+// ============================================================
+
+entity ServicePlan {
+  id String
+  name String required maxlength(60)
+  tier PlanTier required
+  tierLabel String maxlength(40)
+  monthlyPrice BigDecimal required min(0)
+  currency String required maxlength(3)
+  summary String maxlength(240)
+  featured Boolean required
+  subscriberCount Integer min(0)
+}
+
+entity PlanFeature {
+  id String
+  label String required maxlength(120)
+  position Integer required min(0)
+}
+
+/** PDF: Category (Name, Description). */
+entity Category {
+  id String
+  name String required maxlength(60)
+  description String maxlength(200)
+  iconKey String maxlength(30)
+}
+
+/** A bookable, priced catalogue line. Named ServiceActivity to keep it
+    distinct from CareActivity below — the PDF uses "Activity" for both
+    senses and JDL has no namespaces. */
+entity ServiceActivity {
+  id String
+  name String required maxlength(100)
+  unit String required maxlength(40)
+  unitPrice BigDecimal required min(0)
+  duration String maxlength(40)
+  published Boolean required
+}
+
+/** PDF: Activity (Name, Description, Patient) — the care trail. */
+entity CareActivity {
+  id String
+  name String required maxlength(120)
+  description String maxlength(400)
+  occurredOn LocalDate required
+}
+
+/** PDF: Document (Name, Description, URL, Timestamp). */
+entity Document {
+  id String
+  name String required maxlength(120)
+  description String maxlength(300)
+  url String required maxlength(400)
+  uploadedAt Instant required
+}
+
+// ============================================================
+// GATEWAY & PLATFORM  (PDF: Gateway → Option;
+//                      architecture page → port map)
+// ============================================================
+
+/** PDF: Option (Category, User ID, Metadata). Renamed to avoid the
+    bare word "Option" colliding with TS/Angular vocabulary. */
+entity UserOption {
+  id String
+  category String required maxlength(60)
+  userRef String required maxlength(60)
+  metadata String maxlength(500)
+}
+
+entity PlatformService {
+  id String
+  name String required maxlength(60)
+  host String required maxlength(60)
+  port Integer required min(1) max(65535)
+  plane String required maxlength(40)
+  health ServiceHealth required
+  responseMs Integer min(0)
+}
+
+entity AuditEntry {
+  id String
+  occurredAt Instant required
+  actor String required maxlength(80)
+  action String required maxlength(120)
+  target String maxlength(160)
+  level AuditLevel required
+}
+
+// ============================================================
+// RELATIONSHIPS
+// ============================================================
+
+relationship OneToOne {
+  Profile{address} to Address{profile}
+  Patient{profile required} to Profile{patient}
+  Patient{angel} to Angel{patient}
+  Professional{profile required} to Profile{professional}
+  Hub{address} to Address{hub}
+  Organisation{address} to Address{organisation}
+}
+
+// NOTE ON THE Professional DISPLAY FIELD.
+// The four relationships below were specified as `Professional(lastName)`.
+// A JDL display field must be a direct field of the target entity, and
+// lastName belongs to Profile, which Professional reaches through a
+// relationship — JDL cannot traverse that, so generation fails with
+// "could not find the related field lastName". licenceNumber is
+// Professional's own required, unique identifier and is used instead.
+// The console screens resolve the real display name through Profile.
+relationship ManyToOne {
+  Patient{plan(name)} to ServicePlan
+  Patient{clinicalLead(licenceNumber)} to Professional
+  Patient{hub(name)} to Hub
+  Professional{team(name)} to Team
+  Professional{hub(name)} to Hub
+  Team{supervisor(licenceNumber)} to Professional
+  Task{owner(licenceNumber)} to Professional
+  Task{sourceMessage(subject)} to Message
+}
+
+relationship OneToMany {
+  Category{activity(name)} to ServiceActivity{category(name) required}
+  ServicePlan{feature} to PlanFeature{plan(name) required}
+  RosterWeek{assignment} to ShiftAssignment{week(label) required}
+  Professional{assignment} to ShiftAssignment{professional(licenceNumber) required}
+  Patient{document} to Document{patient}
+  Patient{careActivity} to CareActivity{patient required}
+  Vendor{document} to Document{vendor}
+}
+
+// ============================================================
+// OPTIONS
+// ============================================================
+
+// 9.2.0 warns "the paginate option is deprecated, please use pagination
+// instead", but that is premature: the lexer only defines a `paginate`
+// token (core/parsing/lexer/option-tokens.js), and `pagination` fails to
+// parse. The visitor rewrites paginate -> pagination internally anyway.
+paginate Patient, Professional, Vendor, Message, Task, Document,
+         CareActivity, ServiceActivity, AuditEntry, ShiftAssignment
+         with pagination
+
+readOnly PlatformService, AuditEntry
+
+// Group the generated entity folders to mirror the sidebar sections.
+clientRootFolder Patient, Professional, Vendor, Angel, Profile, Address with directory
+clientRootFolder Message, Task, RosterWeek, ShiftAssignment with operations
+clientRootFolder ServicePlan, PlanFeature, Category, ServiceActivity with catalogue
+clientRootFolder Organisation, Hub, Team, UserOption,
+                 PlatformService, AuditEntry, Document, CareActivity with platform

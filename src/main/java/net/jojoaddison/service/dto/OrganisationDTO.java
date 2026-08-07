@@ -1,41 +1,49 @@
 package net.jojoaddison.service.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
-import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Objects;
 
 /**
  * A DTO for the {@link net.jojoaddison.domain.Organisation} entity.
  */
+@Schema(description = "PDF: Organisation. One row — Abofonsa BridgeCare itself.")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class OrganisationDTO implements Serializable {
 
     private String id;
 
     @NotNull
+    @Size(max = 80)
     private String name;
 
     @NotNull
+    @Size(max = 120)
+    private String legalName;
+
+    @Size(max = 400)
     private String description;
 
-    @NotNull
-    private String addressId;
+    @Size(max = 40)
+    private String registrationNumber;
 
-    @NotNull
-    private String contactId;
+    @Size(max = 40)
+    private String tin;
 
-    @NotNull
-    private String createdBy;
+    private LocalDate foundedOn;
 
-    @NotNull
-    private Instant createdDate;
+    @Size(max = 24)
+    private String switchboard;
 
-    @NotNull
-    private String modifiedBy;
+    @Size(max = 120)
+    private String email;
 
-    @NotNull
-    private Instant modifiedDate;
+    @Size(max = 80)
+    private String deskHours;
+
+    private AddressDTO address;
 
     public String getId() {
         return id;
@@ -53,6 +61,14 @@ public class OrganisationDTO implements Serializable {
         this.name = name;
     }
 
+    public String getLegalName() {
+        return legalName;
+    }
+
+    public void setLegalName(String legalName) {
+        this.legalName = legalName;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -61,52 +77,60 @@ public class OrganisationDTO implements Serializable {
         this.description = description;
     }
 
-    public String getAddressId() {
-        return addressId;
+    public String getRegistrationNumber() {
+        return registrationNumber;
     }
 
-    public void setAddressId(String addressId) {
-        this.addressId = addressId;
+    public void setRegistrationNumber(String registrationNumber) {
+        this.registrationNumber = registrationNumber;
     }
 
-    public String getContactId() {
-        return contactId;
+    public String getTin() {
+        return tin;
     }
 
-    public void setContactId(String contactId) {
-        this.contactId = contactId;
+    public void setTin(String tin) {
+        this.tin = tin;
     }
 
-    public String getCreatedBy() {
-        return createdBy;
+    public LocalDate getFoundedOn() {
+        return foundedOn;
     }
 
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
+    public void setFoundedOn(LocalDate foundedOn) {
+        this.foundedOn = foundedOn;
     }
 
-    public Instant getCreatedDate() {
-        return createdDate;
+    public String getSwitchboard() {
+        return switchboard;
     }
 
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
+    public void setSwitchboard(String switchboard) {
+        this.switchboard = switchboard;
     }
 
-    public String getModifiedBy() {
-        return modifiedBy;
+    public String getEmail() {
+        return email;
     }
 
-    public void setModifiedBy(String modifiedBy) {
-        this.modifiedBy = modifiedBy;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public Instant getModifiedDate() {
-        return modifiedDate;
+    public String getDeskHours() {
+        return deskHours;
     }
 
-    public void setModifiedDate(Instant modifiedDate) {
-        this.modifiedDate = modifiedDate;
+    public void setDeskHours(String deskHours) {
+        this.deskHours = deskHours;
+    }
+
+    public AddressDTO getAddress() {
+        return address;
+    }
+
+    public void setAddress(AddressDTO address) {
+        this.address = address;
     }
 
     @Override
@@ -136,13 +160,15 @@ public class OrganisationDTO implements Serializable {
         return "OrganisationDTO{" +
             "id='" + getId() + "'" +
             ", name='" + getName() + "'" +
+            ", legalName='" + getLegalName() + "'" +
             ", description='" + getDescription() + "'" +
-            ", addressId='" + getAddressId() + "'" +
-            ", contactId='" + getContactId() + "'" +
-            ", createdBy='" + getCreatedBy() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedBy='" + getModifiedBy() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
+            ", registrationNumber='" + getRegistrationNumber() + "'" +
+            ", tin='" + getTin() + "'" +
+            ", foundedOn='" + getFoundedOn() + "'" +
+            ", switchboard='" + getSwitchboard() + "'" +
+            ", email='" + getEmail() + "'" +
+            ", deskHours='" + getDeskHours() + "'" +
+            ", address=" + getAddress() +
             "}";
     }
 }

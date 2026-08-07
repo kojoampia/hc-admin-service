@@ -1,58 +1,64 @@
 package net.jojoaddison.domain;
 
 import jakarta.validation.constraints.*;
+import java.io.Serial;
 import java.io.Serializable;
-import java.time.Instant;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
- * A Address.
+ * Ghana digital address plus postal detail.
  */
 @Document(collection = "address")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class Address implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Id
     private String id;
 
     @NotNull
-    @Field("street")
-    private String street;
+    @Size(max = 20)
+    @Pattern(regexp = "^[A-Z]{2}-[0-9]{3}-[0-9]{4}$")
+    @Field("digital_address")
+    private String digitalAddress;
 
     @NotNull
-    @Field("district")
-    private String district;
+    @Size(max = 120)
+    @Field("street_address")
+    private String streetAddress;
 
-    @Field("town")
-    private String town;
-
-    @NotNull
-    @Field("city")
-    private String city;
+    @Size(max = 60)
+    @Field("town_district")
+    private String townDistrict;
 
     @NotNull
+    @Size(max = 60)
+    @Field("city_state")
+    private String cityState;
+
+    @NotNull
+    @Size(max = 60)
     @Field("region")
     private String region;
 
     @NotNull
-    @Field("code")
-    private String code;
-
-    @NotNull
+    @Size(max = 60)
     @Field("country")
     private String country;
 
-    @NotNull
-    @Field("created_date")
-    private Instant createdDate;
+    @DBRef
+    private Profile profile;
 
-    @NotNull
-    @Field("modified_date")
-    private Instant modifiedDate;
+    @DBRef
+    private Hub hub;
+
+    @DBRef
+    private Organisation organisation;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -69,56 +75,56 @@ public class Address implements Serializable {
         this.id = id;
     }
 
-    public String getStreet() {
-        return this.street;
+    public String getDigitalAddress() {
+        return this.digitalAddress;
     }
 
-    public Address street(String street) {
-        this.setStreet(street);
+    public Address digitalAddress(String digitalAddress) {
+        this.setDigitalAddress(digitalAddress);
         return this;
     }
 
-    public void setStreet(String street) {
-        this.street = street;
+    public void setDigitalAddress(String digitalAddress) {
+        this.digitalAddress = digitalAddress;
     }
 
-    public String getDistrict() {
-        return this.district;
+    public String getStreetAddress() {
+        return this.streetAddress;
     }
 
-    public Address district(String district) {
-        this.setDistrict(district);
+    public Address streetAddress(String streetAddress) {
+        this.setStreetAddress(streetAddress);
         return this;
     }
 
-    public void setDistrict(String district) {
-        this.district = district;
+    public void setStreetAddress(String streetAddress) {
+        this.streetAddress = streetAddress;
     }
 
-    public String getTown() {
-        return this.town;
+    public String getTownDistrict() {
+        return this.townDistrict;
     }
 
-    public Address town(String town) {
-        this.setTown(town);
+    public Address townDistrict(String townDistrict) {
+        this.setTownDistrict(townDistrict);
         return this;
     }
 
-    public void setTown(String town) {
-        this.town = town;
+    public void setTownDistrict(String townDistrict) {
+        this.townDistrict = townDistrict;
     }
 
-    public String getCity() {
-        return this.city;
+    public String getCityState() {
+        return this.cityState;
     }
 
-    public Address city(String city) {
-        this.setCity(city);
+    public Address cityState(String cityState) {
+        this.setCityState(cityState);
         return this;
     }
 
-    public void setCity(String city) {
-        this.city = city;
+    public void setCityState(String cityState) {
+        this.cityState = cityState;
     }
 
     public String getRegion() {
@@ -134,19 +140,6 @@ public class Address implements Serializable {
         this.region = region;
     }
 
-    public String getCode() {
-        return this.code;
-    }
-
-    public Address code(String code) {
-        this.setCode(code);
-        return this;
-    }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
-
     public String getCountry() {
         return this.country;
     }
@@ -160,30 +153,61 @@ public class Address implements Serializable {
         this.country = country;
     }
 
-    public Instant getCreatedDate() {
-        return this.createdDate;
+    public Profile getProfile() {
+        return this.profile;
     }
 
-    public Address createdDate(Instant createdDate) {
-        this.setCreatedDate(createdDate);
+    public void setProfile(Profile profile) {
+        if (this.profile != null) {
+            this.profile.setAddress(null);
+        }
+        if (profile != null) {
+            profile.setAddress(this);
+        }
+        this.profile = profile;
+    }
+
+    public Address profile(Profile profile) {
+        this.setProfile(profile);
         return this;
     }
 
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
+    public Hub getHub() {
+        return this.hub;
     }
 
-    public Instant getModifiedDate() {
-        return this.modifiedDate;
+    public void setHub(Hub hub) {
+        if (this.hub != null) {
+            this.hub.setAddress(null);
+        }
+        if (hub != null) {
+            hub.setAddress(this);
+        }
+        this.hub = hub;
     }
 
-    public Address modifiedDate(Instant modifiedDate) {
-        this.setModifiedDate(modifiedDate);
+    public Address hub(Hub hub) {
+        this.setHub(hub);
         return this;
     }
 
-    public void setModifiedDate(Instant modifiedDate) {
-        this.modifiedDate = modifiedDate;
+    public Organisation getOrganisation() {
+        return this.organisation;
+    }
+
+    public void setOrganisation(Organisation organisation) {
+        if (this.organisation != null) {
+            this.organisation.setAddress(null);
+        }
+        if (organisation != null) {
+            organisation.setAddress(this);
+        }
+        this.organisation = organisation;
+    }
+
+    public Address organisation(Organisation organisation) {
+        this.setOrganisation(organisation);
+        return this;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
@@ -210,15 +234,12 @@ public class Address implements Serializable {
     public String toString() {
         return "Address{" +
             "id=" + getId() +
-            ", street='" + getStreet() + "'" +
-            ", district='" + getDistrict() + "'" +
-            ", town='" + getTown() + "'" +
-            ", city='" + getCity() + "'" +
+            ", digitalAddress='" + getDigitalAddress() + "'" +
+            ", streetAddress='" + getStreetAddress() + "'" +
+            ", townDistrict='" + getTownDistrict() + "'" +
+            ", cityState='" + getCityState() + "'" +
             ", region='" + getRegion() + "'" +
-            ", code='" + getCode() + "'" +
             ", country='" + getCountry() + "'" +
-            ", createdDate='" + getCreatedDate() + "'" +
-            ", modifiedDate='" + getModifiedDate() + "'" +
             "}";
     }
 }
