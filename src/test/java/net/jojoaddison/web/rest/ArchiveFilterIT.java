@@ -138,9 +138,9 @@ class ArchiveFilterIT {
     /**
      * The regression this whole arrangement exists to avoid.
      *
-     * <p>{@code MongoTemplate.remove} on the field, rather than saving {@code null}, because those
-     * are different documents: Spring Data writes an explicit null, and the point is a key that is
-     * not there. Only the second reproduces a record written before the field existed.
+     * <p>{@code $unset} the field (via a MongoDB update) rather than saving {@code null}, because those
+     * are different documents: Spring Data writes an explicit null, but legacy records have the key
+     * completely absent. Only unsetting reproduces a record written before the field existed.
      */
     @Test
     void legacyRecordsWithNoFieldCountAsActive() throws Exception {
