@@ -226,15 +226,15 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             save("personProfiles", profileRecordRepository, profileData.getPersonProfiles());
             save("hubs", hubRepository, profileData.getHubs());
             save("angels", angelRepository, profileData.getAngels());
-            save("patients", patientRepository, profileData.getPatients());
             save("professionals", professionalRepository, profileData.getProfessionals());
+            save("servicePlans", servicePlanRepository, profileData.getServicePlans());
+            save("planFeatures", planFeatureRepository, profileData.getPlanFeatures());
+            save("patients", patientRepository, profileData.getPatients());
             save("vendors", vendorRepository, profileData.getVendors());
             save("messages", messageRepository, profileData.getMessages());
             save("tasks", taskRepository, profileData.getTasks());
             save("rosterWeeks", rosterWeekRepository, profileData.getRosterWeeks());
             save("shiftAssignments", shiftAssignmentRepository, profileData.getShiftAssignments());
-            save("servicePlans", servicePlanRepository, profileData.getServicePlans());
-            save("planFeatures", planFeatureRepository, profileData.getPlanFeatures());
             save("categories", categoryRepository, profileData.getCategories());
             save("serviceActivities", serviceActivityRepository, profileData.getServiceActivities());
             save("careActivities", careActivityRepository, profileData.getCareActivities());
