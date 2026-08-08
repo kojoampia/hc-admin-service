@@ -126,14 +126,21 @@ entity Angel {
   country String maxlength(60)
 }
 
+// isArchived is not in the console's own hc-admin.jdl. The console's directory
+// screens archive a record rather than deleting it — see hc-admin-app — and the
+// list endpoints filter on it. Keep it whenever this file is regenerated.
 entity Patient {
   id String
   status AccountStatus required
   joinedOn LocalDate required
   lastActiveOn LocalDate
   caseCount Integer min(0)
+  isArchived Boolean
 }
 
+// isArchived is not in the console's own hc-admin.jdl. The console's directory
+// screens archive a record rather than deleting it — see hc-admin-app — and the
+// list endpoints filter on it. Keep it whenever this file is regenerated.
 entity Professional {
   id String
   role ProfessionalRole required
@@ -146,6 +153,7 @@ entity Professional {
   visitCount Integer min(0)
   rating BigDecimal min(0) max(5)
   joinedOn LocalDate required
+  isArchived Boolean
 }
 
 /** PDF: Team (Name, Description, Supervisor). */
@@ -161,6 +169,9 @@ entity Team {
   geographicSpaceIds String
 }
 
+// isArchived is not in the console's own hc-admin.jdl. The console's directory
+// screens archive a record rather than deleting it — see hc-admin-app — and the
+// list endpoints filter on it. Keep it whenever this file is regenerated.
 entity Vendor {
   id String
   name String required maxlength(100)
@@ -176,6 +187,7 @@ entity Vendor {
   orderCount Integer min(0)
   spendToDate BigDecimal min(0)
   rating BigDecimal min(0) max(5)
+  isArchived Boolean
 }
 
 // ============================================================

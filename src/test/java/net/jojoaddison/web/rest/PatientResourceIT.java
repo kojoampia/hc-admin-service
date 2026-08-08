@@ -52,6 +52,9 @@ class PatientResourceIT {
     private static final Integer DEFAULT_CASE_COUNT = 0;
     private static final Integer UPDATED_CASE_COUNT = 1;
 
+    private static final Boolean DEFAULT_IS_ARCHIVED = false;
+    private static final Boolean UPDATED_IS_ARCHIVED = true;
+
     private static final String ENTITY_API_URL = "/api/patients";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -82,7 +85,8 @@ class PatientResourceIT {
             .status(DEFAULT_STATUS)
             .joinedOn(DEFAULT_JOINED_ON)
             .lastActiveOn(DEFAULT_LAST_ACTIVE_ON)
-            .caseCount(DEFAULT_CASE_COUNT);
+            .caseCount(DEFAULT_CASE_COUNT)
+            .isArchived(DEFAULT_IS_ARCHIVED);
         // Add required entity
         Profile profile;
         profile = ProfileResourceIT.createEntity();
@@ -102,7 +106,8 @@ class PatientResourceIT {
             .status(UPDATED_STATUS)
             .joinedOn(UPDATED_JOINED_ON)
             .lastActiveOn(UPDATED_LAST_ACTIVE_ON)
-            .caseCount(UPDATED_CASE_COUNT);
+            .caseCount(UPDATED_CASE_COUNT)
+            .isArchived(UPDATED_IS_ARCHIVED);
         // Add required entity
         Profile profile;
         profile = ProfileResourceIT.createUpdatedEntity();
@@ -205,7 +210,8 @@ class PatientResourceIT {
             .andExpect(jsonPath("$.[*].status").value(hasItem(DEFAULT_STATUS.toString())))
             .andExpect(jsonPath("$.[*].joinedOn").value(hasItem(DEFAULT_JOINED_ON.toString())))
             .andExpect(jsonPath("$.[*].lastActiveOn").value(hasItem(DEFAULT_LAST_ACTIVE_ON.toString())))
-            .andExpect(jsonPath("$.[*].caseCount").value(hasItem(DEFAULT_CASE_COUNT)));
+            .andExpect(jsonPath("$.[*].caseCount").value(hasItem(DEFAULT_CASE_COUNT)))
+            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)));
     }
 
     @SuppressWarnings({ "unchecked" })
@@ -239,7 +245,8 @@ class PatientResourceIT {
             .andExpect(jsonPath("$.status").value(DEFAULT_STATUS.toString()))
             .andExpect(jsonPath("$.joinedOn").value(DEFAULT_JOINED_ON.toString()))
             .andExpect(jsonPath("$.lastActiveOn").value(DEFAULT_LAST_ACTIVE_ON.toString()))
-            .andExpect(jsonPath("$.caseCount").value(DEFAULT_CASE_COUNT));
+            .andExpect(jsonPath("$.caseCount").value(DEFAULT_CASE_COUNT))
+            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED));
     }
 
     @Test
@@ -261,7 +268,8 @@ class PatientResourceIT {
             .status(UPDATED_STATUS)
             .joinedOn(UPDATED_JOINED_ON)
             .lastActiveOn(UPDATED_LAST_ACTIVE_ON)
-            .caseCount(UPDATED_CASE_COUNT);
+            .caseCount(UPDATED_CASE_COUNT)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restPatientMockMvc
             .perform(
@@ -333,7 +341,7 @@ class PatientResourceIT {
         Patient partialUpdatedPatient = new Patient();
         partialUpdatedPatient.setId(patient.getId());
 
-        partialUpdatedPatient.status(UPDATED_STATUS).joinedOn(UPDATED_JOINED_ON);
+        partialUpdatedPatient.status(UPDATED_STATUS).joinedOn(UPDATED_JOINED_ON).isArchived(UPDATED_IS_ARCHIVED);
 
         restPatientMockMvc
             .perform(
@@ -364,7 +372,8 @@ class PatientResourceIT {
             .status(UPDATED_STATUS)
             .joinedOn(UPDATED_JOINED_ON)
             .lastActiveOn(UPDATED_LAST_ACTIVE_ON)
-            .caseCount(UPDATED_CASE_COUNT);
+            .caseCount(UPDATED_CASE_COUNT)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restPatientMockMvc
             .perform(

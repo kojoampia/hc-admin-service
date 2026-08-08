@@ -22,4 +22,21 @@ public interface ProfessionalRepository extends MongoRepository<Professional, St
 
     @Query("{'id': ?0}")
     Optional<Professional> findOneWithEagerRelationships(String id);
+
+    /**
+     * The console's directory listings, split on {@code isArchived}.
+     *
+     * <p>Raw queries rather than derived ones: {@code findByIsArchivedNot} would have to be parsed
+     * back into a property, and {@code IsArchived} is exactly the shape Spring Data's parser can
+     * read two ways. These say what they mean against the stored field name.
+     *
+     * <p>{@code $ne: true} and not {@code false}: a document written before this field existed does
+     * not carry it, and {@code is_archived: false} matches none of them. In MongoDB {@code $ne}
+     * does match a missing field, which is the semantics the directory needs.
+     */
+    @Query("{ 'is_archived': true }")
+    Page<Professional> findArchived(Pageable pageable);
+
+    @Query("{ 'is_archived': { '$ne': true } }")
+    Page<Professional> findNotArchived(Pageable pageable);
 }

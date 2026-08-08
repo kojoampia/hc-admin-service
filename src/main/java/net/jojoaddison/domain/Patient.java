@@ -75,6 +75,17 @@ public class Patient implements Serializable {
     @JsonIgnoreProperties(value = { "address" }, allowSetters = true)
     private Hub hub;
 
+    /**
+     * Hidden from the console's directory listings, but not deleted.
+     *
+     * <p>Nullable on purpose, and absent on every document written before this field existed. The
+     * list endpoint's "not archived" filter is therefore {@code $ne: true} rather than
+     * {@code false} — a document with no value at all has to read as not archived, or the whole
+     * directory disappears the day this ships.
+     */
+    @Field("is_archived")
+    private Boolean isArchived;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public String getId() {
@@ -269,6 +280,19 @@ public class Patient implements Serializable {
         return this;
     }
 
+    public Boolean getIsArchived() {
+        return this.isArchived;
+    }
+
+    public Patient isArchived(Boolean isArchived) {
+        this.setIsArchived(isArchived);
+        return this;
+    }
+
+    public void setIsArchived(Boolean isArchived) {
+        this.isArchived = isArchived;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -297,6 +321,7 @@ public class Patient implements Serializable {
             ", joinedOn='" + getJoinedOn() + "'" +
             ", lastActiveOn='" + getLastActiveOn() + "'" +
             ", caseCount=" + getCaseCount() +
+            ", isArchived='" + getIsArchived() + "'" +
             "}";
     }
 }
