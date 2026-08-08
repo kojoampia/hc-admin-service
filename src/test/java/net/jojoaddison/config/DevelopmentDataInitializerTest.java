@@ -80,10 +80,13 @@ class DevelopmentDataInitializerTest {
     void shouldDefaultAbsentAndEmptyCollectionsToEmptyListsRatherThanNull() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        // `profiles` is an empty array in both profiles; several others are empty under `test`.
+        // `profiles` (the pre-console HCProfile) is an empty array in both profiles, and three of
+        // the console collections carry no records because the prototype this data came from had
+        // none — they are the honest empties to assert on now that `test` holds the console dataset.
         assertThat(test.getProfiles()).isNotNull().isEmpty();
-        assertThat(test.getAddresses()).isNotNull().isEmpty();
-        assertThat(test.getOrganisations()).isNotNull().isEmpty();
+        assertThat(test.getCareActivities()).isNotNull().isEmpty();
+        assertThat(test.getDocuments()).isNotNull().isEmpty();
+        assertThat(test.getUserOptions()).isNotNull().isEmpty();
 
         // A ProfileData with no JSON at all must still expose empty lists, not nulls.
         DevelopmentDataInitializer.ProfileData empty = mapper.readValue("{}", DevelopmentDataInitializer.ProfileData.class);
@@ -98,5 +101,51 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getFacilities()).hasSize(1);
         assertThat(test.getAudits()).hasSize(1);
         assertThat(test.getPricingPlans()).hasSize(1);
+    }
+
+    /**
+     * The console dataset, seeded under `test` so the client can run against a real api instead of
+     * its own in-browser mock.
+     *
+     * <p>Counts rather than contents: the point is that every collection the console reads is
+     * present and non-trivial. A seed file that parses but delivers three records would satisfy a
+     * "not empty" assertion and still leave every screen looking broken.
+     */
+    @Test
+    void shouldCarryTheConsoleDatasetUnderTest() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getPersonProfiles()).hasSize(22);
+        assertThat(test.getPatients()).hasSize(12);
+        assertThat(test.getProfessionals()).hasSize(9);
+        assertThat(test.getVendors()).hasSize(9);
+        assertThat(test.getAngels()).hasSize(12);
+        assertThat(test.getMessages()).hasSize(12);
+        assertThat(test.getTasks()).hasSize(13);
+        assertThat(test.getShiftAssignments()).hasSize(39);
+        assertThat(test.getServicePlans()).hasSize(3);
+        assertThat(test.getPlanFeatures()).hasSize(18);
+        assertThat(test.getPlatformServices()).hasSize(13);
+        assertThat(test.getAuditEntries()).hasSize(7);
+        assertThat(test.getAddresses()).hasSize(13);
+        assertThat(test.getTeams()).hasSize(4);
+        assertThat(test.getHubs()).hasSize(2);
+        assertThat(test.getOrganisations()).hasSize(1);
+    }
+
+    /**
+     * The strict mapper is the whole point of this file: Spring's ObjectMapper ignores unknown
+     * properties, so a field name that does not match the domain model binds to nothing and the
+     * record seeds with a null where the console expects a value. Reading the console dataset
+     * through a mapper that rejects unknown properties is what catches that.
+     */
+    @Test
+    void shouldBindEveryConsoleFieldToTheDomainModel() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getPatients().getFirst().getStatus()).isNotNull();
+        assertThat(test.getProfessionals().getFirst().getLicenceNumber()).isNotNull();
+        assertThat(test.getPersonProfiles().getFirst().getFirstName()).isNotNull();
+        assertThat(test.getVendors().getFirst().getName()).isNotNull();
     }
 }

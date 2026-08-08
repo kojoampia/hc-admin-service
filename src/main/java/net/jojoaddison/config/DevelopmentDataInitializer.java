@@ -8,27 +8,63 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.jojoaddison.domain.Address;
+import net.jojoaddison.domain.Angel;
+import net.jojoaddison.domain.AuditEntry;
 import net.jojoaddison.domain.AuditLog;
+import net.jojoaddison.domain.CareActivity;
+import net.jojoaddison.domain.Category;
 import net.jojoaddison.domain.Contact;
 import net.jojoaddison.domain.DutyRoster;
 import net.jojoaddison.domain.Facility;
 import net.jojoaddison.domain.HCProfile;
+import net.jojoaddison.domain.Hub;
+import net.jojoaddison.domain.Message;
 import net.jojoaddison.domain.Organisation;
+import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Person;
+import net.jojoaddison.domain.PlanFeature;
+import net.jojoaddison.domain.PlatformService;
 import net.jojoaddison.domain.PricingPlan;
+import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.RosterWeek;
+import net.jojoaddison.domain.ServiceActivity;
+import net.jojoaddison.domain.ServicePlan;
+import net.jojoaddison.domain.ShiftAssignment;
 import net.jojoaddison.domain.SystemCatalog;
+import net.jojoaddison.domain.Task;
 import net.jojoaddison.domain.Team;
+import net.jojoaddison.domain.UserOption;
+import net.jojoaddison.domain.Vendor;
 import net.jojoaddison.repository.AddressRepository;
+import net.jojoaddison.repository.AngelRepository;
+import net.jojoaddison.repository.AuditEntryRepository;
 import net.jojoaddison.repository.AuditLogRepository;
+import net.jojoaddison.repository.CareActivityRepository;
+import net.jojoaddison.repository.CategoryRepository;
 import net.jojoaddison.repository.ContactRepository;
+import net.jojoaddison.repository.DocumentRepository;
 import net.jojoaddison.repository.DutyRosterRepository;
 import net.jojoaddison.repository.FacilityRepository;
 import net.jojoaddison.repository.HCProfileRepository;
+import net.jojoaddison.repository.HubRepository;
+import net.jojoaddison.repository.MessageRepository;
 import net.jojoaddison.repository.OrganisationRepository;
+import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.PersonRepository;
+import net.jojoaddison.repository.PlanFeatureRepository;
+import net.jojoaddison.repository.PlatformServiceRepository;
 import net.jojoaddison.repository.PricingPlanRepository;
+import net.jojoaddison.repository.ProfessionalRepository;
+import net.jojoaddison.repository.ProfileRepository;
+import net.jojoaddison.repository.RosterWeekRepository;
+import net.jojoaddison.repository.ServiceActivityRepository;
+import net.jojoaddison.repository.ServicePlanRepository;
+import net.jojoaddison.repository.ShiftAssignmentRepository;
 import net.jojoaddison.repository.SystemCatalogRepository;
+import net.jojoaddison.repository.TaskRepository;
 import net.jojoaddison.repository.TeamRepository;
+import net.jojoaddison.repository.UserOptionRepository;
+import net.jojoaddison.repository.VendorRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -57,6 +93,25 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
     private final ObjectMapper mapper;
     private final Environment environment;
     private final AddressRepository addressRepository;
+    private final ProfileRepository profileRecordRepository;
+    private final HubRepository hubRepository;
+    private final AngelRepository angelRepository;
+    private final PatientRepository patientRepository;
+    private final ProfessionalRepository professionalRepository;
+    private final VendorRepository vendorRepository;
+    private final MessageRepository messageRepository;
+    private final TaskRepository taskRepository;
+    private final RosterWeekRepository rosterWeekRepository;
+    private final ShiftAssignmentRepository shiftAssignmentRepository;
+    private final ServicePlanRepository servicePlanRepository;
+    private final PlanFeatureRepository planFeatureRepository;
+    private final CategoryRepository categoryRepository;
+    private final ServiceActivityRepository serviceActivityRepository;
+    private final CareActivityRepository careActivityRepository;
+    private final DocumentRepository documentRepository;
+    private final UserOptionRepository userOptionRepository;
+    private final PlatformServiceRepository platformServiceRepository;
+    private final AuditEntryRepository auditEntryRepository;
     private final ContactRepository contactRepository;
     private final FacilityRepository facilityRepository;
     private final AuditLogRepository auditLogRepository;
@@ -81,7 +136,26 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         HCProfileRepository profileRepository,
         DutyRosterRepository dutyRosterRepository,
         PricingPlanRepository pricingPlanRepository,
-        SystemCatalogRepository systemCatalogRepository
+        SystemCatalogRepository systemCatalogRepository,
+        ProfileRepository profileRecordRepository,
+        HubRepository hubRepository,
+        AngelRepository angelRepository,
+        PatientRepository patientRepository,
+        ProfessionalRepository professionalRepository,
+        VendorRepository vendorRepository,
+        MessageRepository messageRepository,
+        TaskRepository taskRepository,
+        RosterWeekRepository rosterWeekRepository,
+        ShiftAssignmentRepository shiftAssignmentRepository,
+        ServicePlanRepository servicePlanRepository,
+        PlanFeatureRepository planFeatureRepository,
+        CategoryRepository categoryRepository,
+        ServiceActivityRepository serviceActivityRepository,
+        CareActivityRepository careActivityRepository,
+        DocumentRepository documentRepository,
+        UserOptionRepository userOptionRepository,
+        PlatformServiceRepository platformServiceRepository,
+        AuditEntryRepository auditEntryRepository
     ) {
         this.mapper = mapper;
         this.environment = environment;
@@ -96,6 +170,25 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         this.dutyRosterRepository = dutyRosterRepository;
         this.pricingPlanRepository = pricingPlanRepository;
         this.systemCatalogRepository = systemCatalogRepository;
+        this.profileRecordRepository = profileRecordRepository;
+        this.hubRepository = hubRepository;
+        this.angelRepository = angelRepository;
+        this.patientRepository = patientRepository;
+        this.professionalRepository = professionalRepository;
+        this.vendorRepository = vendorRepository;
+        this.messageRepository = messageRepository;
+        this.taskRepository = taskRepository;
+        this.rosterWeekRepository = rosterWeekRepository;
+        this.shiftAssignmentRepository = shiftAssignmentRepository;
+        this.servicePlanRepository = servicePlanRepository;
+        this.planFeatureRepository = planFeatureRepository;
+        this.categoryRepository = categoryRepository;
+        this.serviceActivityRepository = serviceActivityRepository;
+        this.careActivityRepository = careActivityRepository;
+        this.documentRepository = documentRepository;
+        this.userOptionRepository = userOptionRepository;
+        this.platformServiceRepository = platformServiceRepository;
+        this.auditEntryRepository = auditEntryRepository;
     }
 
     @Override
@@ -130,6 +223,25 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             save("dutyRosters", dutyRosterRepository, profileData.getDutyRosters());
             save("pricingPlans", pricingPlanRepository, profileData.getPricingPlans());
             save("systemCatalogs", systemCatalogRepository, profileData.getSystemCatalogs());
+            save("personProfiles", profileRecordRepository, profileData.getPersonProfiles());
+            save("hubs", hubRepository, profileData.getHubs());
+            save("angels", angelRepository, profileData.getAngels());
+            save("patients", patientRepository, profileData.getPatients());
+            save("professionals", professionalRepository, profileData.getProfessionals());
+            save("vendors", vendorRepository, profileData.getVendors());
+            save("messages", messageRepository, profileData.getMessages());
+            save("tasks", taskRepository, profileData.getTasks());
+            save("rosterWeeks", rosterWeekRepository, profileData.getRosterWeeks());
+            save("shiftAssignments", shiftAssignmentRepository, profileData.getShiftAssignments());
+            save("servicePlans", servicePlanRepository, profileData.getServicePlans());
+            save("planFeatures", planFeatureRepository, profileData.getPlanFeatures());
+            save("categories", categoryRepository, profileData.getCategories());
+            save("serviceActivities", serviceActivityRepository, profileData.getServiceActivities());
+            save("careActivities", careActivityRepository, profileData.getCareActivities());
+            save("documents", documentRepository, profileData.getDocuments());
+            save("userOptions", userOptionRepository, profileData.getUserOptions());
+            save("platformServices", platformServiceRepository, profileData.getPlatformServices());
+            save("auditEntries", auditEntryRepository, profileData.getAuditEntries());
         } catch (RuntimeException e) {
             log.error("Failed to persist {} seed data", profile, e);
         }
@@ -172,6 +284,28 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         private List<DutyRoster> dutyRosters = new ArrayList<>();
         private List<PricingPlan> pricingPlans = new ArrayList<>();
         private List<SystemCatalog> systemCatalogs = new ArrayList<>();
+        // Fully qualified: this file imports Spring's @Profile, which shadows the domain type.
+        private List<net.jojoaddison.domain.Profile> personProfiles = new ArrayList<>();
+        private List<Hub> hubs = new ArrayList<>();
+        private List<Angel> angels = new ArrayList<>();
+        private List<Patient> patients = new ArrayList<>();
+        private List<Professional> professionals = new ArrayList<>();
+        private List<Vendor> vendors = new ArrayList<>();
+        private List<Message> messages = new ArrayList<>();
+        private List<Task> tasks = new ArrayList<>();
+        private List<RosterWeek> rosterWeeks = new ArrayList<>();
+        private List<ShiftAssignment> shiftAssignments = new ArrayList<>();
+        private List<ServicePlan> servicePlans = new ArrayList<>();
+        private List<PlanFeature> planFeatures = new ArrayList<>();
+        private List<Category> categories = new ArrayList<>();
+        private List<ServiceActivity> serviceActivities = new ArrayList<>();
+        private List<CareActivity> careActivities = new ArrayList<>();
+        // Fully qualified for the same reason the entity itself is: Document is a name Spring
+        // Data also uses, and this file is easier to read without deciding which one won.
+        private List<net.jojoaddison.domain.Document> documents = new ArrayList<>();
+        private List<UserOption> userOptions = new ArrayList<>();
+        private List<PlatformService> platformServices = new ArrayList<>();
+        private List<AuditEntry> auditEntries = new ArrayList<>();
 
         public List<Address> getAddresses() {
             return addresses;
@@ -259,6 +393,158 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
 
         public void setSystemCatalogs(List<SystemCatalog> systemCatalogs) {
             this.systemCatalogs = nullSafe(systemCatalogs);
+        }
+
+        public List<net.jojoaddison.domain.Profile> getPersonProfiles() {
+            return personProfiles;
+        }
+
+        public void setPersonProfiles(List<net.jojoaddison.domain.Profile> personProfiles) {
+            this.personProfiles = nullSafe(personProfiles);
+        }
+
+        public List<Hub> getHubs() {
+            return hubs;
+        }
+
+        public void setHubs(List<Hub> hubs) {
+            this.hubs = nullSafe(hubs);
+        }
+
+        public List<Angel> getAngels() {
+            return angels;
+        }
+
+        public void setAngels(List<Angel> angels) {
+            this.angels = nullSafe(angels);
+        }
+
+        public List<Patient> getPatients() {
+            return patients;
+        }
+
+        public void setPatients(List<Patient> patients) {
+            this.patients = nullSafe(patients);
+        }
+
+        public List<Professional> getProfessionals() {
+            return professionals;
+        }
+
+        public void setProfessionals(List<Professional> professionals) {
+            this.professionals = nullSafe(professionals);
+        }
+
+        public List<Vendor> getVendors() {
+            return vendors;
+        }
+
+        public void setVendors(List<Vendor> vendors) {
+            this.vendors = nullSafe(vendors);
+        }
+
+        public List<Message> getMessages() {
+            return messages;
+        }
+
+        public void setMessages(List<Message> messages) {
+            this.messages = nullSafe(messages);
+        }
+
+        public List<Task> getTasks() {
+            return tasks;
+        }
+
+        public void setTasks(List<Task> tasks) {
+            this.tasks = nullSafe(tasks);
+        }
+
+        public List<RosterWeek> getRosterWeeks() {
+            return rosterWeeks;
+        }
+
+        public void setRosterWeeks(List<RosterWeek> rosterWeeks) {
+            this.rosterWeeks = nullSafe(rosterWeeks);
+        }
+
+        public List<ShiftAssignment> getShiftAssignments() {
+            return shiftAssignments;
+        }
+
+        public void setShiftAssignments(List<ShiftAssignment> shiftAssignments) {
+            this.shiftAssignments = nullSafe(shiftAssignments);
+        }
+
+        public List<ServicePlan> getServicePlans() {
+            return servicePlans;
+        }
+
+        public void setServicePlans(List<ServicePlan> servicePlans) {
+            this.servicePlans = nullSafe(servicePlans);
+        }
+
+        public List<PlanFeature> getPlanFeatures() {
+            return planFeatures;
+        }
+
+        public void setPlanFeatures(List<PlanFeature> planFeatures) {
+            this.planFeatures = nullSafe(planFeatures);
+        }
+
+        public List<Category> getCategories() {
+            return categories;
+        }
+
+        public void setCategories(List<Category> categories) {
+            this.categories = nullSafe(categories);
+        }
+
+        public List<ServiceActivity> getServiceActivities() {
+            return serviceActivities;
+        }
+
+        public void setServiceActivities(List<ServiceActivity> serviceActivities) {
+            this.serviceActivities = nullSafe(serviceActivities);
+        }
+
+        public List<CareActivity> getCareActivities() {
+            return careActivities;
+        }
+
+        public void setCareActivities(List<CareActivity> careActivities) {
+            this.careActivities = nullSafe(careActivities);
+        }
+
+        public List<net.jojoaddison.domain.Document> getDocuments() {
+            return documents;
+        }
+
+        public void setDocuments(List<net.jojoaddison.domain.Document> documents) {
+            this.documents = nullSafe(documents);
+        }
+
+        public List<UserOption> getUserOptions() {
+            return userOptions;
+        }
+
+        public void setUserOptions(List<UserOption> userOptions) {
+            this.userOptions = nullSafe(userOptions);
+        }
+
+        public List<PlatformService> getPlatformServices() {
+            return platformServices;
+        }
+
+        public void setPlatformServices(List<PlatformService> platformServices) {
+            this.platformServices = nullSafe(platformServices);
+        }
+
+        public List<AuditEntry> getAuditEntries() {
+            return auditEntries;
+        }
+
+        public void setAuditEntries(List<AuditEntry> auditEntries) {
+            this.auditEntries = nullSafe(auditEntries);
         }
 
         private static <T> List<T> nullSafe(List<T> value) {

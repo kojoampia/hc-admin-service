@@ -79,7 +79,9 @@
         "id": "team-001",
         "name": "Admin Team",
         "description": "Core administration",
-        "geographicSpaceIds": ["room-101"]
+        "geographicSpaceIds": [
+          "room-101"
+        ]
       }
     ],
     "profiles": [],
@@ -123,8 +125,2885 @@
     ]
   },
   "test": {
-    "addresses": [],
-    "contacts": [],
+    "addresses": [
+      {
+        "id": "addr-a1",
+        "digitalAddress": "GA-102-4471",
+        "streetAddress": "12 Ring Road East",
+        "townDistrict": "Osu",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a2",
+        "digitalAddress": "AK-039-8812",
+        "streetAddress": "4 Ahodwo Road",
+        "townDistrict": "Ahodwo",
+        "cityState": "Kumasi",
+        "region": "Ashanti",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a3",
+        "digitalAddress": "GA-447-1120",
+        "streetAddress": "88 Spintex Road",
+        "townDistrict": "Baatsona",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a4",
+        "digitalAddress": "AK-118-2204",
+        "streetAddress": "21 Danyame Crescent",
+        "townDistrict": "Danyame",
+        "cityState": "Kumasi",
+        "region": "Ashanti",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a5",
+        "digitalAddress": "GA-771-0093",
+        "streetAddress": "3 Labone Crescent",
+        "townDistrict": "Labone",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a6",
+        "digitalAddress": "GA-220-3318",
+        "streetAddress": "9 Tema Community 5",
+        "townDistrict": "Community 5",
+        "cityState": "Tema",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a7",
+        "digitalAddress": "WR-044-1180",
+        "streetAddress": "6 Beach Road",
+        "townDistrict": "Anaji",
+        "cityState": "Takoradi",
+        "region": "Western",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a8",
+        "digitalAddress": "GA-004-7719",
+        "streetAddress": "44 Achimota Mile 7",
+        "townDistrict": "Achimota",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a9",
+        "digitalAddress": "AK-118-4402",
+        "streetAddress": "15 Nhyiaeso Street",
+        "townDistrict": "Nhyiaeso",
+        "cityState": "Kumasi",
+        "region": "Ashanti",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a10",
+        "digitalAddress": "GA-330-1102",
+        "streetAddress": "2 Adabraka High Street",
+        "townDistrict": "Adabraka",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a11",
+        "digitalAddress": "VR-066-3341",
+        "streetAddress": "7 Volta Street",
+        "townDistrict": "Ho Bankoe",
+        "cityState": "Ho",
+        "region": "Volta",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-a12",
+        "digitalAddress": "GA-881-0074",
+        "streetAddress": "31 Dansoman Last Stop",
+        "townDistrict": "Dansoman",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      },
+      {
+        "id": "addr-org",
+        "digitalAddress": "GA-184-7723",
+        "streetAddress": "17 Nsawam Road, Kokomlemle",
+        "townDistrict": "Kokomlemle",
+        "cityState": "Accra",
+        "region": "Greater Accra",
+        "country": "Ghana"
+      }
+    ],
+    "personProfiles": [
+      {
+        "id": "profile-p1",
+        "accountId": "cred-p1",
+        "title": "DR",
+        "firstName": "Ama",
+        "middleName": null,
+        "lastName": "Boateng",
+        "dateOfBirth": "1900-01-01",
+        "sex": "MALE",
+        "mobilePhone": "+233 24 551 7788",
+        "email": "a.boateng@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P1",
+        "address": null
+      },
+      {
+        "id": "profile-p2",
+        "accountId": "cred-p2",
+        "title": null,
+        "firstName": "Kwesi",
+        "middleName": null,
+        "lastName": "Owusu",
+        "dateOfBirth": "1900-01-01",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 20 447 1290",
+        "email": "k.owusu@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P2",
+        "address": null
+      },
+      {
+        "id": "profile-p3",
+        "accountId": "cred-p3",
+        "title": null,
+        "firstName": "Akosua",
+        "middleName": null,
+        "lastName": "Danso",
+        "dateOfBirth": "1900-01-01",
+        "sex": "MALE",
+        "mobilePhone": "+233 27 330 5514",
+        "email": "a.danso@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P3",
+        "address": null
+      },
+      {
+        "id": "profile-p4",
+        "accountId": "cred-p4",
+        "title": null,
+        "firstName": "Yaw",
+        "middleName": null,
+        "lastName": "Antwi",
+        "dateOfBirth": "1900-01-01",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 55 210 6647",
+        "email": "y.antwi@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P4",
+        "address": null
+      },
+      {
+        "id": "profile-p5",
+        "accountId": "cred-p5",
+        "title": "DR",
+        "firstName": "Nii",
+        "middleName": "Adjei",
+        "lastName": "Osae",
+        "dateOfBirth": "1900-01-01",
+        "sex": "MALE",
+        "mobilePhone": "+233 24 902 4471",
+        "email": "n.osae@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P5",
+        "address": null
+      },
+      {
+        "id": "profile-p6",
+        "accountId": "cred-p6",
+        "title": null,
+        "firstName": "Adjoa",
+        "middleName": null,
+        "lastName": "Sarpong",
+        "dateOfBirth": "1900-01-01",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 26 118 3390",
+        "email": "a.sarpong@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P6",
+        "address": null
+      },
+      {
+        "id": "profile-p7",
+        "accountId": "cred-p7",
+        "title": null,
+        "firstName": "Kofi",
+        "middleName": null,
+        "lastName": "Ntim",
+        "dateOfBirth": "1900-01-01",
+        "sex": "MALE",
+        "mobilePhone": "+233 20 664 8812",
+        "email": "k.ntim@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P7",
+        "address": null
+      },
+      {
+        "id": "profile-p8",
+        "accountId": "cred-p8",
+        "title": null,
+        "firstName": "Abena",
+        "middleName": null,
+        "lastName": "Frimpong",
+        "dateOfBirth": "1900-01-01",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 54 771 2205",
+        "email": "a.frimpong@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P8",
+        "address": null
+      },
+      {
+        "id": "profile-p9",
+        "accountId": "cred-p9",
+        "title": null,
+        "firstName": "Mensah",
+        "middleName": null,
+        "lastName": "Akoto",
+        "dateOfBirth": "1900-01-01",
+        "sex": "MALE",
+        "mobilePhone": "+233 24 330 9987",
+        "email": "m.akoto@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-P9",
+        "address": null
+      },
+      {
+        "id": "profile-a1",
+        "accountId": "cred-a1",
+        "title": null,
+        "firstName": "Kojo",
+        "middleName": null,
+        "lastName": "Ampia-Addison",
+        "dateOfBirth": "1976-04-19",
+        "sex": "MALE",
+        "mobilePhone": "+233 24 228 6304",
+        "email": "kojo@jac.net",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-1140228-6",
+        "address": {
+          "id": "addr-a1"
+        }
+      },
+      {
+        "id": "profile-a2",
+        "accountId": "cred-a2",
+        "title": null,
+        "firstName": "Kwabena",
+        "middleName": "Adda",
+        "lastName": "Frimpong",
+        "dateOfBirth": "1948-10-02",
+        "sex": "MALE",
+        "mobilePhone": "+233 20 771 4408",
+        "email": "k.frimpong@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-4820117-2",
+        "address": {
+          "id": "addr-a2"
+        }
+      },
+      {
+        "id": "profile-a3",
+        "accountId": "cred-a3",
+        "title": null,
+        "firstName": "Nii",
+        "middleName": "Adjei",
+        "lastName": "Osae",
+        "dateOfBirth": "1955-11-30",
+        "sex": "MALE",
+        "mobilePhone": "+233 27 118 9930",
+        "email": "nii.osae@mail.gh",
+        "idType": "PASSPORT",
+        "idNumber": "G-2287714",
+        "address": {
+          "id": "addr-a3"
+        }
+      },
+      {
+        "id": "profile-a4",
+        "accountId": "cred-a4",
+        "title": null,
+        "firstName": "Ama",
+        "middleName": null,
+        "lastName": "Serwaa",
+        "dateOfBirth": "1962-07-11",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 24 660 1174",
+        "email": "a.serwaa@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-6621174-8",
+        "address": {
+          "id": "addr-a4"
+        }
+      },
+      {
+        "id": "profile-a5",
+        "accountId": "cred-a5",
+        "title": null,
+        "firstName": "Yaa",
+        "middleName": null,
+        "lastName": "Asantewaa",
+        "dateOfBirth": "1944-12-25",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 20 993 4417",
+        "email": "yaa.a@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-4412290-1",
+        "address": {
+          "id": "addr-a5"
+        }
+      },
+      {
+        "id": "profile-a6",
+        "accountId": "cred-a6",
+        "title": null,
+        "firstName": "Kwaku",
+        "middleName": null,
+        "lastName": "Darkwa",
+        "dateOfBirth": "1958-03-08",
+        "sex": "MALE",
+        "mobilePhone": "+233 55 220 3318",
+        "email": "k.darkwa@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-5803318-4",
+        "address": {
+          "id": "addr-a6"
+        }
+      },
+      {
+        "id": "profile-a7",
+        "accountId": "cred-a7",
+        "title": null,
+        "firstName": "Beatrice",
+        "middleName": null,
+        "lastName": "Sarsah",
+        "dateOfBirth": "1969-05-17",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 24 771 0084",
+        "email": "b.sarsah@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-6910084-7",
+        "address": {
+          "id": "addr-a7"
+        }
+      },
+      {
+        "id": "profile-a8",
+        "accountId": "cred-a8",
+        "title": null,
+        "firstName": "Emmanuel",
+        "middleName": null,
+        "lastName": "Sam",
+        "dateOfBirth": "1951-01-30",
+        "sex": "MALE",
+        "mobilePhone": "+233 26 004 7719",
+        "email": "e.sam@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-5147719-0",
+        "address": {
+          "id": "addr-a8"
+        }
+      },
+      {
+        "id": "profile-a9",
+        "accountId": "cred-a9",
+        "title": null,
+        "firstName": "Patience",
+        "middleName": null,
+        "lastName": "Baah",
+        "dateOfBirth": "1973-08-22",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 20 118 4402",
+        "email": "p.baah@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-7318440-9",
+        "address": {
+          "id": "addr-a9"
+        }
+      },
+      {
+        "id": "profile-a10",
+        "accountId": "cred-a10",
+        "title": null,
+        "firstName": "Kwabena",
+        "middleName": null,
+        "lastName": "Ofosu",
+        "dateOfBirth": "1940-02-04",
+        "sex": "MALE",
+        "mobilePhone": "+233 24 330 1102",
+        "email": "k.ofosu@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-4021102-5",
+        "address": {
+          "id": "addr-a10"
+        }
+      },
+      {
+        "id": "profile-a11",
+        "accountId": "cred-a11",
+        "title": null,
+        "firstName": "Gifty",
+        "middleName": null,
+        "lastName": "Akator",
+        "dateOfBirth": "1966-09-09",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 27 660 3341",
+        "email": "g.akator@mail.gh",
+        "idType": "GHANA_CARD",
+        "idNumber": "GHA-6603341-2",
+        "address": {
+          "id": "addr-a11"
+        }
+      },
+      {
+        "id": "profile-a12",
+        "accountId": "cred-a12",
+        "title": null,
+        "firstName": "Solomon",
+        "middleName": null,
+        "lastName": "Tetteh",
+        "dateOfBirth": "1980-06-14",
+        "sex": "MALE",
+        "mobilePhone": "+233 55 881 0074",
+        "email": "s.tetteh@mail.gh",
+        "idType": "PASSPORT",
+        "idNumber": "G-4471180",
+        "address": {
+          "id": "addr-a12"
+        }
+      },
+      {
+        "id": "profile-me",
+        "accountId": "cred-me",
+        "title": "MRS",
+        "firstName": "Efua",
+        "middleName": null,
+        "lastName": "Mensah",
+        "dateOfBirth": "1900-01-01",
+        "sex": "FEMALE",
+        "mobilePhone": "+233 24 881 0426",
+        "email": "efua.mensah@abofonsa.care",
+        "idType": "GHANA_CARD",
+        "idNumber": "SEED-PROFILE-ME",
+        "address": null
+      }
+    ],
+    "organisations": [
+      {
+        "id": "org-1",
+        "name": "Abofonsa BridgeCare",
+        "legalName": "Abofonsa BridgeCare Ltd.",
+        "description": "Diaspora-funded home and clinical care coordination for families in Ghana. Providing peace of mind across borders.",
+        "registrationNumber": "CS-2019-0884417",
+        "tin": "C0031884417",
+        "foundedOn": "2019-03-14",
+        "switchboard": "+233 30 273 1188",
+        "email": "operations@abofonsa.care",
+        "deskHours": "Desk 07:00–19:00 GMT · Care line 24/7",
+        "address": {
+          "id": "addr-org",
+          "digitalAddress": "GA-184-7723"
+        }
+      }
+    ],
+    "hubs": [
+      {
+        "id": "hub-1",
+        "name": "Accra Hub",
+        "staffCount": 6,
+        "address": null
+      },
+      {
+        "id": "hub-2",
+        "name": "Kumasi Hub",
+        "staffCount": 3,
+        "address": null
+      }
+    ],
+    "angels": [
+      {
+        "id": "angel-a1",
+        "name": "Ophelia Gaisie",
+        "relationship": "Spouse",
+        "phone": "+233 50 228 6304",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a2",
+        "name": "Nana Frimpong",
+        "relationship": "Son · London",
+        "phone": "+44 7700 900412",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a3",
+        "name": "Naa Osae",
+        "relationship": "Daughter · New York",
+        "phone": "+1 917 555 0142",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a4",
+        "name": "Kwame Serwaa",
+        "relationship": "Son · Berlin",
+        "phone": "+49 170 5550118",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a5",
+        "name": "Akua Asantewaa",
+        "relationship": "Granddaughter · New Jersey",
+        "phone": "+1 646 555 0177",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a6",
+        "name": "Esi Darkwa",
+        "relationship": "Sister",
+        "phone": "+233 24 111 2093",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a7",
+        "name": "Kojo Sarsah",
+        "relationship": "Brother · Amsterdam",
+        "phone": "+31 6 55501182",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a8",
+        "name": "Grace Sam",
+        "relationship": "Daughter · Maryland",
+        "phone": "+1 240 555 0166",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a9",
+        "name": "Yaw Baah",
+        "relationship": "Husband",
+        "phone": "+233 24 550 1187",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a10",
+        "name": "Adwoa Ofosu",
+        "relationship": "Daughter · Manchester",
+        "phone": "+44 7700 900733",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a11",
+        "name": "Selorm Akator",
+        "relationship": "Son · Bronx",
+        "phone": "+1 718 555 0193",
+        "email": null,
+        "country": null
+      },
+      {
+        "id": "angel-a12",
+        "name": "Naa Tetteh",
+        "relationship": "Wife",
+        "phone": "+233 24 771 3308",
+        "email": null,
+        "country": null
+      }
+    ],
+    "patients": [
+      {
+        "id": "a1",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2019-01-14",
+        "lastActiveOn": "2026-08-02",
+        "caseCount": 12,
+        "profile": {
+          "id": "profile-a1",
+          "firstName": "Kojo",
+          "lastName": "Ampia-Addison"
+        },
+        "angel": {
+          "id": "angel-a1",
+          "name": "Ophelia Gaisie"
+        },
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        },
+        "clinicalLead": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a2",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2020-03-22",
+        "lastActiveOn": "2026-08-01",
+        "caseCount": 9,
+        "profile": {
+          "id": "profile-a2",
+          "firstName": "Kwabena",
+          "lastName": "Frimpong"
+        },
+        "angel": {
+          "id": "angel-a2",
+          "name": "Nana Frimpong"
+        },
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        },
+        "clinicalLead": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        },
+        "hub": {
+          "id": "hub-2",
+          "name": "Kumasi Hub"
+        }
+      },
+      {
+        "id": "a3",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2021-09-09",
+        "lastActiveOn": "2026-07-30",
+        "caseCount": 6,
+        "profile": {
+          "id": "profile-a3",
+          "firstName": "Nii",
+          "lastName": "Osae"
+        },
+        "angel": {
+          "id": "angel-a3",
+          "name": "Naa Osae"
+        },
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        },
+        "clinicalLead": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a4",
+        "isArchived": true,
+        "status": "ACTIVE",
+        "joinedOn": "2022-02-17",
+        "lastActiveOn": "2026-07-29",
+        "caseCount": 4,
+        "profile": {
+          "id": "profile-a4",
+          "firstName": "Ama",
+          "lastName": "Serwaa"
+        },
+        "angel": {
+          "id": "angel-a4",
+          "name": "Kwame Serwaa"
+        },
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        },
+        "clinicalLead": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        },
+        "hub": {
+          "id": "hub-2",
+          "name": "Kumasi Hub"
+        }
+      },
+      {
+        "id": "a5",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2019-06-05",
+        "lastActiveOn": "2026-08-03",
+        "caseCount": 11,
+        "profile": {
+          "id": "profile-a5",
+          "firstName": "Yaa",
+          "lastName": "Asantewaa"
+        },
+        "angel": {
+          "id": "angel-a5",
+          "name": "Akua Asantewaa"
+        },
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        },
+        "clinicalLead": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a6",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2023-10-28",
+        "lastActiveOn": "2026-07-26",
+        "caseCount": 3,
+        "profile": {
+          "id": "profile-a6",
+          "firstName": "Kwaku",
+          "lastName": "Darkwa"
+        },
+        "angel": {
+          "id": "angel-a6",
+          "name": "Esi Darkwa"
+        },
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        },
+        "clinicalLead": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a7",
+        "isArchived": false,
+        "status": "PENDING",
+        "joinedOn": "2026-08-02",
+        "lastActiveOn": "2026-08-02",
+        "caseCount": 0,
+        "profile": {
+          "id": "profile-a7",
+          "firstName": "Beatrice",
+          "lastName": "Sarsah"
+        },
+        "angel": {
+          "id": "angel-a7",
+          "name": "Kojo Sarsah"
+        },
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        },
+        "clinicalLead": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a8",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2020-12-11",
+        "lastActiveOn": "2026-08-04",
+        "caseCount": 7,
+        "profile": {
+          "id": "profile-a8",
+          "firstName": "Emmanuel",
+          "lastName": "Sam"
+        },
+        "angel": {
+          "id": "angel-a8",
+          "name": "Grace Sam"
+        },
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        },
+        "clinicalLead": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a9",
+        "isArchived": false,
+        "status": "SUSPENDED",
+        "joinedOn": "2023-04-19",
+        "lastActiveOn": "2026-06-12",
+        "caseCount": 2,
+        "profile": {
+          "id": "profile-a9",
+          "firstName": "Patience",
+          "lastName": "Baah"
+        },
+        "angel": {
+          "id": "angel-a9",
+          "name": "Yaw Baah"
+        },
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        },
+        "clinicalLead": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        },
+        "hub": {
+          "id": "hub-2",
+          "name": "Kumasi Hub"
+        }
+      },
+      {
+        "id": "a10",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2019-01-03",
+        "lastActiveOn": "2026-08-05",
+        "caseCount": 14,
+        "profile": {
+          "id": "profile-a10",
+          "firstName": "Kwabena",
+          "lastName": "Ofosu"
+        },
+        "angel": {
+          "id": "angel-a10",
+          "name": "Adwoa Ofosu"
+        },
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        },
+        "clinicalLead": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a11",
+        "isArchived": true,
+        "status": "ACTIVE",
+        "joinedOn": "2022-07-25",
+        "lastActiveOn": "2026-07-28",
+        "caseCount": 5,
+        "profile": {
+          "id": "profile-a11",
+          "firstName": "Gifty",
+          "lastName": "Akator"
+        },
+        "angel": {
+          "id": "angel-a11",
+          "name": "Selorm Akator"
+        },
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        },
+        "clinicalLead": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "a12",
+        "isArchived": false,
+        "status": "PENDING",
+        "joinedOn": "2026-08-04",
+        "lastActiveOn": "2026-08-04",
+        "caseCount": 0,
+        "profile": {
+          "id": "profile-a12",
+          "firstName": "Solomon",
+          "lastName": "Tetteh"
+        },
+        "angel": {
+          "id": "angel-a12",
+          "name": "Naa Tetteh"
+        },
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        },
+        "clinicalLead": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      }
+    ],
+    "professionals": [
+      {
+        "id": "p1",
+        "isArchived": false,
+        "role": "DOCTOR",
+        "speciality": "Internal medicine",
+        "licenceNumber": "MDC/RN/23-4471",
+        "verification": "VERIFIED",
+        "status": "ACTIVE",
+        "patientCount": 34,
+        "caseCount": 12,
+        "visitCount": 41,
+        "rating": 4.9,
+        "joinedOn": "2021-06-11",
+        "profile": {
+          "id": "profile-p1",
+          "firstName": "Ama",
+          "lastName": "Boateng"
+        },
+        "team": {
+          "id": "team-1",
+          "name": "Clinical review"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "p2",
+        "isArchived": false,
+        "role": "NURSE",
+        "speciality": "Geriatric nursing",
+        "licenceNumber": "NMC/GH/19-8820",
+        "verification": "VERIFIED",
+        "status": "ACTIVE",
+        "patientCount": 28,
+        "caseCount": 9,
+        "visitCount": 63,
+        "rating": 4.8,
+        "joinedOn": "2020-09-03",
+        "profile": {
+          "id": "profile-p2",
+          "firstName": "Kwesi",
+          "lastName": "Owusu"
+        },
+        "team": {
+          "id": "team-2",
+          "name": "Home visits · North"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "p3",
+        "isArchived": false,
+        "role": "CAREGIVER",
+        "speciality": "Daily living support",
+        "licenceNumber": "CG/ABF/22-114",
+        "verification": "VERIFIED",
+        "status": "ACTIVE",
+        "patientCount": 19,
+        "caseCount": 6,
+        "visitCount": 88,
+        "rating": 4.7,
+        "joinedOn": "2022-01-19",
+        "profile": {
+          "id": "profile-p3",
+          "firstName": "Akosua",
+          "lastName": "Danso"
+        },
+        "team": {
+          "id": "team-3",
+          "name": "Home visits · South"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "p4",
+        "isArchived": true,
+        "role": "PARAMEDIC",
+        "speciality": "Emergency response",
+        "licenceNumber": "AMB/GH/21-3092",
+        "verification": "VERIFIED",
+        "status": "ACTIVE",
+        "patientCount": 12,
+        "caseCount": 15,
+        "visitCount": 22,
+        "rating": 4.9,
+        "joinedOn": "2021-04-27",
+        "profile": {
+          "id": "profile-p4",
+          "firstName": "Yaw",
+          "lastName": "Antwi"
+        },
+        "team": {
+          "id": "team-4",
+          "name": "Rapid response"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "p5",
+        "isArchived": false,
+        "role": "DOCTOR",
+        "speciality": "Cardiology",
+        "licenceNumber": "MDC/RN/20-1187",
+        "verification": "VERIFIED",
+        "status": "ON_LEAVE",
+        "patientCount": 21,
+        "caseCount": 8,
+        "visitCount": 19,
+        "rating": 4.8,
+        "joinedOn": "2020-02-08",
+        "profile": {
+          "id": "profile-p5",
+          "firstName": "Nii",
+          "lastName": "Osae"
+        },
+        "team": {
+          "id": "team-1",
+          "name": "Clinical review"
+        },
+        "hub": {
+          "id": "hub-2",
+          "name": "Kumasi Hub"
+        }
+      },
+      {
+        "id": "p6",
+        "isArchived": false,
+        "role": "NURSE",
+        "speciality": "Wound care",
+        "licenceNumber": "NMC/GH/22-4410",
+        "verification": "VERIFIED",
+        "status": "ACTIVE",
+        "patientCount": 17,
+        "caseCount": 5,
+        "visitCount": 47,
+        "rating": 4.6,
+        "joinedOn": "2022-11-14",
+        "profile": {
+          "id": "profile-p6",
+          "firstName": "Adjoa",
+          "lastName": "Sarpong"
+        },
+        "team": {
+          "id": "team-2",
+          "name": "Home visits · North"
+        },
+        "hub": {
+          "id": "hub-2",
+          "name": "Kumasi Hub"
+        }
+      },
+      {
+        "id": "p7",
+        "isArchived": false,
+        "role": "CAREGIVER",
+        "speciality": "Mobility & physio support",
+        "licenceNumber": "CG/ABF/24-206",
+        "verification": "PENDING",
+        "status": "PENDING",
+        "patientCount": 0,
+        "caseCount": 0,
+        "visitCount": 0,
+        "rating": 0,
+        "joinedOn": "2026-07-28",
+        "profile": {
+          "id": "profile-p7",
+          "firstName": "Kofi",
+          "lastName": "Ntim"
+        },
+        "team": {
+          "id": "team-3",
+          "name": "Home visits · South"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "p8",
+        "isArchived": false,
+        "role": "PARAMEDIC",
+        "speciality": "Emergency response",
+        "licenceNumber": "AMB/GH/26-0117",
+        "verification": "PENDING",
+        "status": "PENDING",
+        "patientCount": 0,
+        "caseCount": 0,
+        "visitCount": 0,
+        "rating": 0,
+        "joinedOn": "2026-07-31",
+        "profile": {
+          "id": "profile-p8",
+          "firstName": "Abena",
+          "lastName": "Frimpong"
+        },
+        "team": {
+          "id": "team-4",
+          "name": "Rapid response"
+        },
+        "hub": {
+          "id": "hub-1",
+          "name": "Accra Hub"
+        }
+      },
+      {
+        "id": "p9",
+        "isArchived": false,
+        "role": "NURSE",
+        "speciality": "Chronic disease management",
+        "licenceNumber": "NMC/GH/18-2204",
+        "verification": "VERIFIED",
+        "status": "SUSPENDED",
+        "patientCount": 0,
+        "caseCount": 2,
+        "visitCount": 31,
+        "rating": 4.2,
+        "joinedOn": "2019-05-22",
+        "profile": {
+          "id": "profile-p9",
+          "firstName": "Mensah",
+          "lastName": "Akoto"
+        },
+        "team": {
+          "id": "team-1",
+          "name": "Clinical review"
+        },
+        "hub": {
+          "id": "hub-2",
+          "name": "Kumasi Hub"
+        }
+      }
+    ],
+    "teams": [
+      {
+        "id": "team-1",
+        "name": "Clinical review",
+        "description": null,
+        "supervisor": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "team-2",
+        "name": "Home visits · North",
+        "description": null,
+        "supervisor": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "team-3",
+        "name": "Home visits · South",
+        "description": null,
+        "supervisor": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "team-4",
+        "name": "Rapid response",
+        "description": null,
+        "supervisor": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      }
+    ],
+    "vendors": [
+      {
+        "id": "v1",
+        "isArchived": false,
+        "name": "Kaneshie Medical Supplies",
+        "category": "Consumables",
+        "serviceSummary": "Dressings, gloves, mobility aids",
+        "contactName": "Ernest Adu",
+        "phone": "+233 30 222 8814",
+        "email": "orders@kaneshiemed.gh",
+        "city": "Accra",
+        "status": "ACTIVE",
+        "contractNote": "Renews 31 Dec 2026",
+        "contractRenewsOn": "2026-12-31",
+        "orderCount": 148,
+        "spendToDate": 84200,
+        "rating": 4.7
+      },
+      {
+        "id": "v2",
+        "isArchived": false,
+        "name": "Ridge Diagnostics Lab",
+        "category": "Diagnostics",
+        "serviceSummary": "Bloods, urea & electrolytes, imaging referral",
+        "contactName": "Dr. Selina Ofori",
+        "phone": "+233 30 277 1140",
+        "email": "lab@ridgediagnostics.gh",
+        "city": "Accra",
+        "status": "ACTIVE",
+        "contractNote": "Renews 30 Jun 2027",
+        "contractRenewsOn": "2027-06-30",
+        "orderCount": 302,
+        "spendToDate": 156800,
+        "rating": 4.9
+      },
+      {
+        "id": "v3",
+        "isArchived": false,
+        "name": "GoldStar Pharmacy",
+        "category": "Pharmacy",
+        "serviceSummary": "Prescription fulfilment & delivery",
+        "contactName": "Ibrahim Yakubu",
+        "phone": "+233 24 118 7730",
+        "email": "dispense@goldstarrx.gh",
+        "city": "Kumasi",
+        "status": "ACTIVE",
+        "contractNote": "Renews 30 Sep 2026",
+        "contractRenewsOn": "2026-09-30",
+        "orderCount": 511,
+        "spendToDate": 233400,
+        "rating": 4.6
+      },
+      {
+        "id": "v4",
+        "isArchived": true,
+        "name": "SwiftAmb Transport",
+        "category": "Transport",
+        "serviceSummary": "Non-emergency patient transport, ambulance",
+        "contactName": "Michael Tetteh",
+        "phone": "+233 55 330 0091",
+        "email": "dispatch@swiftamb.gh",
+        "city": "Accra",
+        "status": "ACTIVE",
+        "contractNote": "Renews 28 Feb 2027",
+        "contractRenewsOn": "2027-02-28",
+        "orderCount": 96,
+        "spendToDate": 61300,
+        "rating": 4.8
+      },
+      {
+        "id": "v5",
+        "isArchived": false,
+        "name": "Homecare Equipment GH",
+        "category": "Equipment",
+        "serviceSummary": "Hospital beds, oxygen concentrators, hoists",
+        "contactName": "Doris Nyarko",
+        "phone": "+233 20 881 4470",
+        "email": "hire@homecare-equip.gh",
+        "city": "Tema",
+        "status": "UNDER_REVIEW",
+        "contractNote": "Expires 31 Aug 2026",
+        "contractRenewsOn": "2026-08-31",
+        "orderCount": 44,
+        "spendToDate": 39900,
+        "rating": 4.1
+      },
+      {
+        "id": "v6",
+        "isArchived": false,
+        "name": "Volta Nutrition Services",
+        "category": "Nutrition",
+        "serviceSummary": "Therapeutic meal plans and delivery",
+        "contactName": "Selorm Agbeko",
+        "phone": "+233 27 004 1128",
+        "email": "plans@voltanutrition.gh",
+        "city": "Ho",
+        "status": "ACTIVE",
+        "contractNote": "Renews 31 Mar 2027",
+        "contractRenewsOn": "2027-03-31",
+        "orderCount": 187,
+        "spendToDate": 52700,
+        "rating": 4.5
+      },
+      {
+        "id": "v7",
+        "isArchived": false,
+        "name": "Takoradi Physio Partners",
+        "category": "Therapy",
+        "serviceSummary": "Home physiotherapy sessions",
+        "contactName": "Gifty Mensah",
+        "phone": "+233 24 550 3312",
+        "email": "bookings@tkphysio.gh",
+        "city": "Takoradi",
+        "status": "ACTIVE",
+        "contractNote": "Renews 31 Jan 2027",
+        "contractRenewsOn": "2027-01-31",
+        "orderCount": 73,
+        "spendToDate": 41100,
+        "rating": 4.4
+      },
+      {
+        "id": "v8",
+        "isArchived": false,
+        "name": "BridgePay Settlement",
+        "category": "Payments",
+        "serviceSummary": "3rd-party payment API gateway",
+        "contactName": "Nana Owusu",
+        "phone": "+233 30 288 0012",
+        "email": "support@bridgepay.gh",
+        "city": "Accra",
+        "status": "ACTIVE",
+        "contractNote": "Renews 31 Dec 2026",
+        "contractRenewsOn": "2026-12-31",
+        "orderCount": 0,
+        "spendToDate": 0,
+        "rating": 4.9
+      },
+      {
+        "id": "v9",
+        "isArchived": false,
+        "name": "Cape Coast Care Linens",
+        "category": "Consumables",
+        "serviceSummary": "Laundry, linens, incontinence supplies",
+        "contactName": "Abena Quaye",
+        "phone": "+233 26 770 4419",
+        "email": "hello@cclinens.gh",
+        "city": "Cape Coast",
+        "status": "PENDING",
+        "contractNote": "Awaiting first contract",
+        "contractRenewsOn": null,
+        "orderCount": 0,
+        "spendToDate": 0,
+        "rating": 0
+      }
+    ],
+    "messages": [
+      {
+        "id": "m1",
+        "sentAt": "2026-08-05T08:12:00Z",
+        "fromAddress": "k.ofosu@mail.gh",
+        "senderName": "Kwabena Ofosu",
+        "subject": "Home visit rescheduling request",
+        "body": "Good morning. The nurse is booked for Thursday 09:00 but I have a clinic appointment at Korle Bu that morning. Could the visit move to Friday afternoon? My daughter in Manchester has already been notified.",
+        "channel": "PATIENT_APP",
+        "status": "NEW",
+        "priority": "HIGH"
+      },
+      {
+        "id": "m2",
+        "sentAt": "2026-08-05T07:41:00Z",
+        "fromAddress": "a.serwaa@mail.gh",
+        "senderName": "Ama Serwaa",
+        "subject": "Service plan upgrade — Essential to Plus",
+        "body": "My son in Berlin would like to move my plan up so that the physiotherapy sessions are included. What is the difference in the monthly amount and when would it start?",
+        "channel": "PATIENT_APP",
+        "status": "NEW",
+        "priority": "NORMAL"
+      },
+      {
+        "id": "m3",
+        "sentAt": "2026-08-04T19:26:00Z",
+        "fromAddress": "g.akator@mail.gh",
+        "senderName": "Gifty Akator",
+        "subject": "Lab report not visible in my record",
+        "body": "Ridge Diagnostics say my urea and electrolytes result was sent on Saturday, but nothing appears under Reports in my record. Please check.",
+        "channel": "PATIENT_APP",
+        "status": "NEW",
+        "priority": "HIGH"
+      },
+      {
+        "id": "m4",
+        "sentAt": "2026-08-04T15:03:00Z",
+        "fromAddress": "k.owusu@abofonsa.care",
+        "senderName": "Nurse Kwesi Owusu",
+        "subject": "Duty roster clash — Wednesday night",
+        "body": "I am rostered for the Wednesday night shift and the Thursday early shift back to back. That leaves under six hours between. Can one of them be reassigned?",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "HIGH"
+      },
+      {
+        "id": "m5",
+        "sentAt": "2026-08-04T11:47:00Z",
+        "fromAddress": "k.darkwa@mail.gh",
+        "senderName": "Kwaku Darkwa",
+        "subject": "Angel contact update",
+        "body": "Please change my next-of-kin number. My sister Esi has a new line: 024 111 2093. The old MTN number is no longer in use.",
+        "channel": "PATIENT_APP",
+        "status": "READ",
+        "priority": "NORMAL"
+      },
+      {
+        "id": "m6",
+        "sentAt": "2026-08-03T16:22:00Z",
+        "fromAddress": "lab@ridgediagnostics.gh",
+        "senderName": "Ridge Diagnostics Lab",
+        "subject": "August pricing schedule attached",
+        "body": "Please find our revised schedule effective 01 September. Panel pricing is unchanged; home phlebotomy call-out rises by 8 cedis.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "NORMAL"
+      },
+      {
+        "id": "m7",
+        "sentAt": "2026-08-03T09:58:00Z",
+        "fromAddress": "e.sam@mail.gh",
+        "senderName": "Emmanuel Sam",
+        "subject": "Thank you to the rapid response team",
+        "body": "Yaw and his team reached the house in under twenty minutes on Sunday. My daughter in Maryland was on the call the whole time. Please pass on our thanks.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "LOW"
+      },
+      {
+        "id": "m8",
+        "sentAt": "2026-08-02T14:31:00Z",
+        "fromAddress": "b.sarsah@mail.gh",
+        "senderName": "Beatrice Sarsah",
+        "subject": "Registration — documents uploaded",
+        "body": "I have uploaded my Ghana Card and the referral letter from my GP. My brother in Amsterdam is the sponsor on the account. Is anything else needed before approval?",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "NORMAL"
+      },
+      {
+        "id": "m9",
+        "sentAt": "2026-08-02T10:09:00Z",
+        "fromAddress": "dispense@goldstarrx.gh",
+        "senderName": "GoldStar Pharmacy",
+        "subject": "Delivery exception — Kumasi route",
+        "body": "Three deliveries on the Nhyiaeso route were returned; the rider could not reach the recipients. We will retry Monday unless you advise otherwise.",
+        "channel": "VENDOR_PORTAL",
+        "status": "REPLIED",
+        "priority": "NORMAL"
+      },
+      {
+        "id": "m10",
+        "sentAt": "2026-08-01T17:44:00Z",
+        "fromAddress": "a.boateng@abofonsa.care",
+        "senderName": "Dr. Ama Boateng",
+        "subject": "Case escalation — patient a5",
+        "body": "Yaa Asantewaa needs a cardiology review this month. Dr. Osae is on leave — can the referral route to an external partner instead?",
+        "channel": "PROFESSIONAL_APP",
+        "status": "REPLIED",
+        "priority": "HIGH"
+      },
+      {
+        "id": "m11",
+        "sentAt": "2026-08-01T08:15:00Z",
+        "fromAddress": "k.frimpong@mail.gh",
+        "senderName": "Kwabena Adda Frimpong",
+        "subject": "Monthly summary for my son",
+        "body": "Please make sure the monthly care summary reaches Nana in London by the first week. Last month it arrived late and he chased me about it.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "LOW"
+      },
+      {
+        "id": "m12",
+        "sentAt": "2026-07-31T12:50:00Z",
+        "fromAddress": "y.antwi@abofonsa.care",
+        "senderName": "Yaw Antwi",
+        "subject": "Vehicle service due — response unit 2",
+        "body": "Unit 2 is due its 20,000 km service next week. SwiftAmb can cover our calls for two days if we schedule it Tuesday and Wednesday.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "REPLIED",
+        "priority": "NORMAL"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "t1",
+        "title": "Verify Kofi Ntim caregiver licence with the registry",
+        "state": "TODO",
+        "priority": "HIGH",
+        "dueOn": "2026-08-07",
+        "tag": "Onboarding",
+        "createdAt": null,
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t2",
+        "title": "Approve Beatrice Sarsah patient registration",
+        "state": "TODO",
+        "priority": "HIGH",
+        "dueOn": "2026-08-06",
+        "tag": "Accounts",
+        "createdAt": null,
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t3",
+        "title": "Resolve Wednesday night roster clash for Kwesi Owusu",
+        "state": "TODO",
+        "priority": "HIGH",
+        "dueOn": "2026-08-06",
+        "tag": "Roster",
+        "createdAt": null,
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t4",
+        "title": "Renew Homecare Equipment GH contract before 31 Aug",
+        "state": "TODO",
+        "priority": "NORMAL",
+        "dueOn": "2026-08-20",
+        "tag": "Vendors",
+        "createdAt": null,
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t5",
+        "title": "Publish September catalogue price update",
+        "state": "TODO",
+        "priority": "LOW",
+        "dueOn": "2026-08-25",
+        "tag": "Catalog",
+        "createdAt": null,
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t6",
+        "title": "Chase Ridge Diagnostics on the missing urea report",
+        "state": "DOING",
+        "priority": "HIGH",
+        "dueOn": "2026-08-05",
+        "tag": "Reports",
+        "createdAt": null,
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t7",
+        "title": "Draft cardiology cover arrangement while Dr. Osae is on leave",
+        "state": "DOING",
+        "priority": "HIGH",
+        "dueOn": "2026-08-08",
+        "tag": "Clinical",
+        "createdAt": null,
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t8",
+        "title": "Migrate Kumasi hub rosters onto the new template",
+        "state": "DOING",
+        "priority": "NORMAL",
+        "dueOn": "2026-08-12",
+        "tag": "Roster",
+        "createdAt": null,
+        "owner": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t9",
+        "title": "Quarterly review of Bridge Family plan pricing",
+        "state": "DOING",
+        "priority": "NORMAL",
+        "dueOn": "2026-08-15",
+        "tag": "Plans",
+        "createdAt": null,
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t10",
+        "title": "Suspend Mensah Akoto pending HR investigation",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-07-28",
+        "tag": "Accounts",
+        "createdAt": null,
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t11",
+        "title": "Onboard Volta Nutrition Services to the vendor portal",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-07-24",
+        "tag": "Vendors",
+        "createdAt": null,
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t12",
+        "title": "Roll out July care summaries to all sponsor contacts",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-08-02",
+        "tag": "Comms",
+        "createdAt": null,
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t13",
+        "title": "Patch admin gateway to 5504.3 and restart",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-07-19",
+        "tag": "Platform",
+        "createdAt": null,
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      }
+    ],
+    "rosterWeeks": [
+      {
+        "id": "week-2026-08-03",
+        "label": "Week of 3 August 2026",
+        "startDate": "2026-08-03",
+        "published": false,
+        "publishedAt": null
+      }
+    ],
+    "shiftAssignments": [
+      {
+        "id": "shift-1",
+        "dayIndex": 0,
+        "shiftDate": "2026-08-03",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "shift-2",
+        "dayIndex": 1,
+        "shiftDate": "2026-08-04",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "shift-3",
+        "dayIndex": 2,
+        "shiftDate": "2026-08-05",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "shift-4",
+        "dayIndex": 3,
+        "shiftDate": "2026-08-06",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "shift-5",
+        "dayIndex": 4,
+        "shiftDate": "2026-08-07",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "shift-6",
+        "dayIndex": 6,
+        "shiftDate": "2026-08-09",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "shift-7",
+        "dayIndex": 0,
+        "shiftDate": "2026-08-03",
+        "shift": "EVENING",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-8",
+        "dayIndex": 1,
+        "shiftDate": "2026-08-04",
+        "shift": "EVENING",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-9",
+        "dayIndex": 2,
+        "shiftDate": "2026-08-05",
+        "shift": "NIGHT",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-10",
+        "dayIndex": 3,
+        "shiftDate": "2026-08-06",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-11",
+        "dayIndex": 4,
+        "shiftDate": "2026-08-07",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-12",
+        "dayIndex": 5,
+        "shiftDate": "2026-08-08",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-13",
+        "dayIndex": 6,
+        "shiftDate": "2026-08-09",
+        "shift": "EVENING",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "shift-14",
+        "dayIndex": 0,
+        "shiftDate": "2026-08-03",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "shift-15",
+        "dayIndex": 1,
+        "shiftDate": "2026-08-04",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "shift-16",
+        "dayIndex": 2,
+        "shiftDate": "2026-08-05",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "shift-17",
+        "dayIndex": 3,
+        "shiftDate": "2026-08-06",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "shift-18",
+        "dayIndex": 4,
+        "shiftDate": "2026-08-07",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "shift-19",
+        "dayIndex": 5,
+        "shiftDate": "2026-08-08",
+        "shift": "EVENING",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "shift-20",
+        "dayIndex": 0,
+        "shiftDate": "2026-08-03",
+        "shift": "NIGHT",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-21",
+        "dayIndex": 1,
+        "shiftDate": "2026-08-04",
+        "shift": "NIGHT",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-22",
+        "dayIndex": 2,
+        "shiftDate": "2026-08-05",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-23",
+        "dayIndex": 3,
+        "shiftDate": "2026-08-06",
+        "shift": "NIGHT",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-24",
+        "dayIndex": 4,
+        "shiftDate": "2026-08-07",
+        "shift": "NIGHT",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-25",
+        "dayIndex": 5,
+        "shiftDate": "2026-08-08",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-26",
+        "dayIndex": 6,
+        "shiftDate": "2026-08-09",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "shift-27",
+        "dayIndex": 0,
+        "shiftDate": "2026-08-03",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-28",
+        "dayIndex": 1,
+        "shiftDate": "2026-08-04",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-29",
+        "dayIndex": 2,
+        "shiftDate": "2026-08-05",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-30",
+        "dayIndex": 3,
+        "shiftDate": "2026-08-06",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-31",
+        "dayIndex": 4,
+        "shiftDate": "2026-08-07",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-32",
+        "dayIndex": 5,
+        "shiftDate": "2026-08-08",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-33",
+        "dayIndex": 6,
+        "shiftDate": "2026-08-09",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "shift-34",
+        "dayIndex": 0,
+        "shiftDate": "2026-08-03",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "shift-35",
+        "dayIndex": 1,
+        "shiftDate": "2026-08-04",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "shift-36",
+        "dayIndex": 2,
+        "shiftDate": "2026-08-05",
+        "shift": "DAY",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "shift-37",
+        "dayIndex": 3,
+        "shiftDate": "2026-08-06",
+        "shift": "EVENING",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "shift-38",
+        "dayIndex": 4,
+        "shiftDate": "2026-08-07",
+        "shift": "EVENING",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "shift-39",
+        "dayIndex": 6,
+        "shiftDate": "2026-08-09",
+        "shift": "OFF",
+        "week": {
+          "id": "week-2026-08-03",
+          "label": "Week of 3 August 2026"
+        },
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      }
+    ],
+    "servicePlans": [
+      {
+        "id": "pl1",
+        "name": "Bridge Essential",
+        "tier": "ESSENTIAL",
+        "tierLabel": "Entry",
+        "monthlyPrice": 320,
+        "currency": "GHS",
+        "summary": "Monthly check-in visit, record keeping and the 24/7 care line.",
+        "featured": true,
+        "subscriberCount": 41
+      },
+      {
+        "id": "pl2",
+        "name": "Bridge Plus",
+        "tier": "PLUS",
+        "tierLabel": "Most chosen",
+        "monthlyPrice": 680,
+        "currency": "GHS",
+        "summary": "Fortnightly nursing visits, physiotherapy and priority scheduling.",
+        "featured": false,
+        "subscriberCount": 52
+      },
+      {
+        "id": "pl3",
+        "name": "Bridge Family",
+        "tier": "FAMILY",
+        "tierLabel": "Full cover",
+        "monthlyPrice": 1240,
+        "currency": "GHS",
+        "summary": "Weekly care, rapid response cover and a named clinical lead.",
+        "featured": false,
+        "subscriberCount": 23
+      }
+    ],
+    "planFeatures": [
+      {
+        "id": "pf-1",
+        "label": "1 home visit per month",
+        "position": 0,
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        }
+      },
+      {
+        "id": "pf-2",
+        "label": "Full digital health record",
+        "position": 1,
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        }
+      },
+      {
+        "id": "pf-3",
+        "label": "24/7 care line access",
+        "position": 2,
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        }
+      },
+      {
+        "id": "pf-4",
+        "label": "Monthly summary to one sponsor",
+        "position": 3,
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        }
+      },
+      {
+        "id": "pf-5",
+        "label": "Pharmacy delivery at cost",
+        "position": 4,
+        "plan": {
+          "id": "pl1",
+          "name": "Bridge Essential"
+        }
+      },
+      {
+        "id": "pf-6",
+        "label": "2 home visits per month",
+        "position": 0,
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        }
+      },
+      {
+        "id": "pf-7",
+        "label": "Physiotherapy sessions included",
+        "position": 1,
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        }
+      },
+      {
+        "id": "pf-8",
+        "label": "Priority appointment scheduling",
+        "position": 2,
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        }
+      },
+      {
+        "id": "pf-9",
+        "label": "Quarterly doctor review",
+        "position": 3,
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        }
+      },
+      {
+        "id": "pf-10",
+        "label": "Summaries to up to three sponsors",
+        "position": 4,
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        }
+      },
+      {
+        "id": "pf-11",
+        "label": "Lab panel twice yearly",
+        "position": 5,
+        "plan": {
+          "id": "pl2",
+          "name": "Bridge Plus"
+        }
+      },
+      {
+        "id": "pf-12",
+        "label": "Weekly home visits",
+        "position": 0,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      },
+      {
+        "id": "pf-13",
+        "label": "Named doctor as clinical lead",
+        "position": 1,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      },
+      {
+        "id": "pf-14",
+        "label": "Rapid response cover included",
+        "position": 2,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      },
+      {
+        "id": "pf-15",
+        "label": "Unlimited sponsor accounts",
+        "position": 3,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      },
+      {
+        "id": "pf-16",
+        "label": "Full lab panel quarterly",
+        "position": 4,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      },
+      {
+        "id": "pf-17",
+        "label": "Equipment hire at 50%",
+        "position": 5,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      },
+      {
+        "id": "pf-18",
+        "label": "Live video visit on request",
+        "position": 6,
+        "plan": {
+          "id": "pl3",
+          "name": "Bridge Family"
+        }
+      }
+    ],
+    "categories": [
+      {
+        "id": "c1",
+        "name": "Clinical visits",
+        "description": "Nurse, doctor and paramedic attendance at the home",
+        "iconKey": "stetho"
+      },
+      {
+        "id": "c2",
+        "name": "Diagnostics",
+        "description": "Laboratory panels, imaging referral and phlebotomy",
+        "iconKey": "report"
+      },
+      {
+        "id": "c3",
+        "name": "Daily living",
+        "description": "Grooming, mobility, companionship and household support",
+        "iconKey": "leaf"
+      },
+      {
+        "id": "c4",
+        "name": "Pharmacy",
+        "description": "Prescription fulfilment, dosette packing and delivery",
+        "iconKey": "pill"
+      },
+      {
+        "id": "c5",
+        "name": "Equipment",
+        "description": "Beds, oxygen, hoists and mobility aid hire",
+        "iconKey": "card"
+      },
+      {
+        "id": "c6",
+        "name": "Transport",
+        "description": "Clinic runs, discharge transport and ambulance",
+        "iconKey": "pin"
+      }
+    ],
+    "serviceActivities": [
+      {
+        "id": "ac1",
+        "name": "Routine nursing visit",
+        "unit": "per visit",
+        "unitPrice": 180,
+        "duration": "60 min",
+        "published": true,
+        "category": {
+          "id": "c1",
+          "name": "Clinical visits"
+        }
+      },
+      {
+        "id": "ac2",
+        "name": "Doctor home consultation",
+        "unit": "per visit",
+        "unitPrice": 450,
+        "duration": "45 min",
+        "published": true,
+        "category": {
+          "id": "c1",
+          "name": "Clinical visits"
+        }
+      },
+      {
+        "id": "ac3",
+        "name": "Wound dressing",
+        "unit": "per visit",
+        "unitPrice": 140,
+        "duration": "30 min",
+        "published": true,
+        "category": {
+          "id": "c1",
+          "name": "Clinical visits"
+        }
+      },
+      {
+        "id": "ac4",
+        "name": "Rapid response call-out",
+        "unit": "per call",
+        "unitPrice": 620,
+        "duration": "On demand",
+        "published": true,
+        "category": {
+          "id": "c1",
+          "name": "Clinical visits"
+        }
+      },
+      {
+        "id": "ac5",
+        "name": "Urea & electrolytes panel",
+        "unit": "per test",
+        "unitPrice": 210,
+        "duration": "24 h result",
+        "published": true,
+        "category": {
+          "id": "c2",
+          "name": "Diagnostics"
+        }
+      },
+      {
+        "id": "ac6",
+        "name": "Full blood count",
+        "unit": "per test",
+        "unitPrice": 160,
+        "duration": "24 h result",
+        "published": true,
+        "category": {
+          "id": "c2",
+          "name": "Diagnostics"
+        }
+      },
+      {
+        "id": "ac7",
+        "name": "Home phlebotomy call-out",
+        "unit": "per visit",
+        "unitPrice": 95,
+        "duration": "20 min",
+        "published": true,
+        "category": {
+          "id": "c2",
+          "name": "Diagnostics"
+        }
+      },
+      {
+        "id": "ac8",
+        "name": "Grooming & bathing support",
+        "unit": "per session",
+        "unitPrice": 120,
+        "duration": "90 min",
+        "published": true,
+        "category": {
+          "id": "c3",
+          "name": "Daily living"
+        }
+      },
+      {
+        "id": "ac9",
+        "name": "Companionship visit",
+        "unit": "per session",
+        "unitPrice": 85,
+        "duration": "120 min",
+        "published": true,
+        "category": {
+          "id": "c3",
+          "name": "Daily living"
+        }
+      },
+      {
+        "id": "ac10",
+        "name": "Physiotherapy session",
+        "unit": "per session",
+        "unitPrice": 230,
+        "duration": "45 min",
+        "published": true,
+        "category": {
+          "id": "c3",
+          "name": "Daily living"
+        }
+      },
+      {
+        "id": "ac11",
+        "name": "Prescription fulfilment",
+        "unit": "per script",
+        "unitPrice": 40,
+        "duration": "Same day",
+        "published": true,
+        "category": {
+          "id": "c4",
+          "name": "Pharmacy"
+        }
+      },
+      {
+        "id": "ac12",
+        "name": "Weekly dosette packing",
+        "unit": "per week",
+        "unitPrice": 65,
+        "duration": "Weekly",
+        "published": true,
+        "category": {
+          "id": "c4",
+          "name": "Pharmacy"
+        }
+      },
+      {
+        "id": "ac13",
+        "name": "Hospital bed hire",
+        "unit": "per month",
+        "unitPrice": 540,
+        "duration": "Monthly",
+        "published": true,
+        "category": {
+          "id": "c5",
+          "name": "Equipment"
+        }
+      },
+      {
+        "id": "ac14",
+        "name": "Oxygen concentrator hire",
+        "unit": "per month",
+        "unitPrice": 720,
+        "duration": "Monthly",
+        "published": false,
+        "category": {
+          "id": "c5",
+          "name": "Equipment"
+        }
+      },
+      {
+        "id": "ac15",
+        "name": "Clinic transport, one way",
+        "unit": "per trip",
+        "unitPrice": 150,
+        "duration": "Scheduled",
+        "published": true,
+        "category": {
+          "id": "c6",
+          "name": "Transport"
+        }
+      },
+      {
+        "id": "ac16",
+        "name": "Ambulance transfer",
+        "unit": "per trip",
+        "unitPrice": 880,
+        "duration": "On demand",
+        "published": true,
+        "category": {
+          "id": "c6",
+          "name": "Transport"
+        }
+      }
+    ],
+    "careActivities": [],
+    "documents": [],
+    "userOptions": [],
+    "platformServices": [
+      {
+        "id": "svc-5501",
+        "name": "Admin Dashboard",
+        "host": "hc-admin-dashboard",
+        "port": 5501,
+        "plane": "Admin",
+        "health": "HEALTHY",
+        "responseMs": 68
+      },
+      {
+        "id": "svc-5504",
+        "name": "Admin Gateway",
+        "host": "hc-admin-gateway",
+        "port": 5504,
+        "plane": "Admin",
+        "health": "HEALTHY",
+        "responseMs": 41
+      },
+      {
+        "id": "svc-5507",
+        "name": "Admin Service",
+        "host": "hc-admin-ms",
+        "port": 5507,
+        "plane": "Admin",
+        "health": "HEALTHY",
+        "responseMs": 37
+      },
+      {
+        "id": "svc-5502",
+        "name": "Professional Dashboard",
+        "host": "hc-professional-dashboard",
+        "port": 5502,
+        "plane": "Professional",
+        "health": "HEALTHY",
+        "responseMs": 74
+      },
+      {
+        "id": "svc-5505",
+        "name": "Professional Gateway",
+        "host": "hc-professional-gateway",
+        "port": 5505,
+        "plane": "Professional",
+        "health": "HEALTHY",
+        "responseMs": 44
+      },
+      {
+        "id": "svc-5508",
+        "name": "Professional Service",
+        "host": "hc-professional-service",
+        "port": 5508,
+        "plane": "Professional",
+        "health": "HEALTHY",
+        "responseMs": 39
+      },
+      {
+        "id": "svc-5503",
+        "name": "Patient Dashboard",
+        "host": "hc-patient-dashboard",
+        "port": 5503,
+        "plane": "Patient",
+        "health": "HEALTHY",
+        "responseMs": 71
+      },
+      {
+        "id": "svc-5506",
+        "name": "Patient Gateway",
+        "host": "hc-patient-gateway",
+        "port": 5506,
+        "plane": "Patient",
+        "health": "HEALTHY",
+        "responseMs": 46
+      },
+      {
+        "id": "svc-5509",
+        "name": "Patient Service",
+        "host": "hc-patient-ms",
+        "port": 5509,
+        "plane": "Patient",
+        "health": "HEALTHY",
+        "responseMs": 35
+      },
+      {
+        "id": "svc-5500",
+        "name": "Vendor Gateway",
+        "host": "hc-vendor-gw",
+        "port": 5500,
+        "plane": "Vendor and payments",
+        "health": "DEGRADED",
+        "responseMs": 212
+      },
+      {
+        "id": "svc-5512",
+        "name": "Vendor Service",
+        "host": "hc-vendorr-ms",
+        "port": 5512,
+        "plane": "Vendor and payments",
+        "health": "HEALTHY",
+        "responseMs": 58
+      },
+      {
+        "id": "svc-5511",
+        "name": "Payment Service",
+        "host": "hc-payment-ms",
+        "port": 5511,
+        "plane": "Vendor and payments",
+        "health": "HEALTHY",
+        "responseMs": 92
+      },
+      {
+        "id": "svc-9092",
+        "name": "Kafka event bus",
+        "host": "hc-kafka",
+        "port": 9092,
+        "plane": "Core",
+        "health": "HEALTHY",
+        "responseMs": 12
+      }
+    ],
+    "auditEntries": [
+      {
+        "id": "audit-1",
+        "occurredAt": "2026-08-05T08:31:00Z",
+        "actor": "Efua Mensah",
+        "action": "signed in",
+        "target": "admin-gateway",
+        "level": "INFO"
+      },
+      {
+        "id": "audit-2",
+        "occurredAt": "2026-08-04T17:02:00Z",
+        "actor": "Efua Mensah",
+        "action": "suspended account",
+        "target": "p9 · Mensah Akoto",
+        "level": "WARN"
+      },
+      {
+        "id": "audit-3",
+        "occurredAt": "2026-08-04T11:48:00Z",
+        "actor": "System",
+        "action": "flagged slow response",
+        "target": "5500 · hc-vendor-gw",
+        "level": "WARN"
+      },
+      {
+        "id": "audit-4",
+        "occurredAt": "2026-08-03T15:20:00Z",
+        "actor": "Kwame Asare",
+        "action": "published price update",
+        "target": "catalog · Diagnostics",
+        "level": "INFO"
+      },
+      {
+        "id": "audit-5",
+        "occurredAt": "2026-08-02T09:14:00Z",
+        "actor": "Efua Mensah",
+        "action": "approved vendor",
+        "target": "v6 · Volta Nutrition",
+        "level": "INFO"
+      },
+      {
+        "id": "audit-6",
+        "occurredAt": "2026-08-01T18:55:00Z",
+        "actor": "System",
+        "action": "nightly backup completed",
+        "target": "mongo · all shards",
+        "level": "INFO"
+      },
+      {
+        "id": "audit-7",
+        "occurredAt": "2026-07-31T07:40:00Z",
+        "actor": "Efua Mensah",
+        "action": "rotated API credential",
+        "target": "BridgePay Settlement",
+        "level": "WARN"
+      }
+    ],
     "facilities": [
       {
         "id": "t1c4e567-d8b5-4a2a-9c0a-1b9e8d6c7b0t",
@@ -152,11 +3031,6 @@
         "modifiedDate": "2023-05-11T16:00:00Z"
       }
     ],
-    "organisations": [],
-    "persons": [],
-    "teams": [],
-    "profiles": [],
-    "dutyRosters": [],
     "pricingPlans": [
       {
         "id": "plan-expired",
@@ -167,7 +3041,6 @@
         "billingCycle": "ANNUALLY",
         "active": false
       }
-    ],
-    "systemCatalogs": []
+    ]
   }
 }
