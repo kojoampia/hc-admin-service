@@ -74,6 +74,9 @@ class ProfessionalResourceIT {
     private static final LocalDate DEFAULT_JOINED_ON = LocalDate.ofEpochDay(0L);
     private static final LocalDate UPDATED_JOINED_ON = LocalDate.parse("2024-03-26");
 
+    private static final Boolean DEFAULT_IS_ARCHIVED = false;
+    private static final Boolean UPDATED_IS_ARCHIVED = true;
+
     private static final String ENTITY_API_URL = "/api/professionals";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -110,7 +113,8 @@ class ProfessionalResourceIT {
             .caseCount(DEFAULT_CASE_COUNT)
             .visitCount(DEFAULT_VISIT_COUNT)
             .rating(DEFAULT_RATING)
-            .joinedOn(DEFAULT_JOINED_ON);
+            .joinedOn(DEFAULT_JOINED_ON)
+            .isArchived(DEFAULT_IS_ARCHIVED);
         // Add required entity
         Profile profile;
         profile = ProfileResourceIT.createEntity();
@@ -136,7 +140,8 @@ class ProfessionalResourceIT {
             .caseCount(UPDATED_CASE_COUNT)
             .visitCount(UPDATED_VISIT_COUNT)
             .rating(UPDATED_RATING)
-            .joinedOn(UPDATED_JOINED_ON);
+            .joinedOn(UPDATED_JOINED_ON)
+            .isArchived(UPDATED_IS_ARCHIVED);
         // Add required entity
         Profile profile;
         profile = ProfileResourceIT.createUpdatedEntity();
@@ -290,7 +295,8 @@ class ProfessionalResourceIT {
             .andExpect(jsonPath("$.[*].caseCount").value(hasItem(DEFAULT_CASE_COUNT)))
             .andExpect(jsonPath("$.[*].visitCount").value(hasItem(DEFAULT_VISIT_COUNT)))
             .andExpect(jsonPath("$.[*].rating").value(hasItem(sameNumber(DEFAULT_RATING))))
-            .andExpect(jsonPath("$.[*].joinedOn").value(hasItem(DEFAULT_JOINED_ON.toString())));
+            .andExpect(jsonPath("$.[*].joinedOn").value(hasItem(DEFAULT_JOINED_ON.toString())))
+            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)));
     }
 
     @SuppressWarnings({ "unchecked" })
@@ -330,7 +336,8 @@ class ProfessionalResourceIT {
             .andExpect(jsonPath("$.caseCount").value(DEFAULT_CASE_COUNT))
             .andExpect(jsonPath("$.visitCount").value(DEFAULT_VISIT_COUNT))
             .andExpect(jsonPath("$.rating").value(sameNumber(DEFAULT_RATING)))
-            .andExpect(jsonPath("$.joinedOn").value(DEFAULT_JOINED_ON.toString()));
+            .andExpect(jsonPath("$.joinedOn").value(DEFAULT_JOINED_ON.toString()))
+            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED));
     }
 
     @Test
@@ -358,7 +365,8 @@ class ProfessionalResourceIT {
             .caseCount(UPDATED_CASE_COUNT)
             .visitCount(UPDATED_VISIT_COUNT)
             .rating(UPDATED_RATING)
-            .joinedOn(UPDATED_JOINED_ON);
+            .joinedOn(UPDATED_JOINED_ON)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restProfessionalMockMvc
             .perform(
@@ -439,7 +447,8 @@ class ProfessionalResourceIT {
             .licenceNumber(UPDATED_LICENCE_NUMBER)
             .verification(UPDATED_VERIFICATION)
             .caseCount(UPDATED_CASE_COUNT)
-            .visitCount(UPDATED_VISIT_COUNT);
+            .visitCount(UPDATED_VISIT_COUNT)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restProfessionalMockMvc
             .perform(
@@ -479,7 +488,8 @@ class ProfessionalResourceIT {
             .caseCount(UPDATED_CASE_COUNT)
             .visitCount(UPDATED_VISIT_COUNT)
             .rating(UPDATED_RATING)
-            .joinedOn(UPDATED_JOINED_ON);
+            .joinedOn(UPDATED_JOINED_ON)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restProfessionalMockMvc
             .perform(

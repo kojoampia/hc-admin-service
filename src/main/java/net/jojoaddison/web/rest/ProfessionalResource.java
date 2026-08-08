@@ -139,6 +139,7 @@ public class ProfessionalResource {
                 updateIfPresent(existingProfessional::setVisitCount, professional.getVisitCount());
                 updateIfPresent(existingProfessional::setRating, professional.getRating());
                 updateIfPresent(existingProfessional::setJoinedOn, professional.getJoinedOn());
+                updateIfPresent(existingProfessional::setIsArchived, professional.getIsArchived());
 
                 return existingProfessional;
             })
@@ -155,19 +156,32 @@ public class ProfessionalResource {
      *
      * @param pageable the pagination information.
      * @param eagerload flag to eager load entities from relationships (This is applicable for many-to-many).
+     * @param isArchivedEquals when true, return only archived records; when false, only unarchived.
+     * @param isArchivedNotEquals the inverse, sent by the console as {@code isArchived.notEquals=true}.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Professionals in body.
      */
     @GetMapping("")
     public ResponseEntity<List<Professional>> getAllProfessionals(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
-        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload
+        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload,
+        @RequestParam(name = "isArchived.equals", required = false) Boolean isArchivedEquals,
+        @RequestParam(name = "isArchived.notEquals", required = false) Boolean isArchivedNotEquals
     ) {
         LOG.debug("REST request to get a page of Professionals");
+        // The two operators the console sends, and only those. This is not a criteria framework:
+        // every other entity here lists unfiltered, and inventing a general query language for one
+        // boolean would be a much larger surface than the screen that needs it.
+        Boolean archived = resolveArchivedFilter(isArchivedEquals, isArchivedNotEquals);
+
+        // eagerload is not a distinction MongoDB makes here — findAllWithEagerRelationships is
+        // literally @Query("{}") — so the filtered queries serve both branches.
         Page<Professional> page;
-        if (eagerload) {
-            page = professionalRepository.findAllWithEagerRelationships(pageable);
+        if (archived == null) {
+            page = eagerload ? professionalRepository.findAllWithEagerRelationships(pageable) : professionalRepository.findAll(pageable);
+        } else if (archived) {
+            page = professionalRepository.findArchived(pageable);
         } else {
-            page = professionalRepository.findAll(pageable);
+            page = professionalRepository.findNotArchived(pageable);
         }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
@@ -203,5 +217,21 @@ public class ProfessionalResource {
         if (value != null) {
             setter.accept(value);
         }
+    }
+
+    /**
+     * Collapses the two operators into a single "want archived?" answer, or null for no filter.
+     *
+     * <p>{@code equals} wins if both are sent. They can only disagree by a caller's mistake, and
+     * answering the positive form is less surprising than picking one silently or erroring.
+     */
+    private static Boolean resolveArchivedFilter(Boolean equals, Boolean notEquals) {
+        if (equals != null) {
+            return equals;
+        }
+        if (notEquals != null) {
+            return !notEquals;
+        }
+        return null;
     }
 }

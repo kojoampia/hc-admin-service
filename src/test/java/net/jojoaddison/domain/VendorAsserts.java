@@ -67,7 +67,8 @@ public class VendorAsserts {
             )
             .satisfies(a ->
                 assertThat(a.getRating()).as("check rating").usingComparator(bigDecimalCompareTo).isEqualTo(expected.getRating())
-            );
+            )
+            .satisfies(a -> assertThat(a.getIsArchived()).as("check isArchived").isEqualTo(expected.getIsArchived()));
     }
 
     /**

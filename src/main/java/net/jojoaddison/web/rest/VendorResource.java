@@ -142,6 +142,7 @@ public class VendorResource {
                 updateIfPresent(existingVendor::setOrderCount, vendor.getOrderCount());
                 updateIfPresent(existingVendor::setSpendToDate, vendor.getSpendToDate());
                 updateIfPresent(existingVendor::setRating, vendor.getRating());
+                updateIfPresent(existingVendor::setIsArchived, vendor.getIsArchived());
 
                 return existingVendor;
             })
@@ -154,12 +155,30 @@ public class VendorResource {
      * {@code GET  /vendors} : get all the Vendors.
      *
      * @param pageable the pagination information.
+     * @param isArchivedEquals when true, return only archived records; when false, only unarchived.
+     * @param isArchivedNotEquals the inverse, sent by the console as {@code isArchived.notEquals=true}.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Vendors in body.
      */
     @GetMapping("")
-    public ResponseEntity<List<Vendor>> getAllVendors(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
+    public ResponseEntity<List<Vendor>> getAllVendors(
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable,
+        @RequestParam(name = "isArchived.equals", required = false) Boolean isArchivedEquals,
+        @RequestParam(name = "isArchived.notEquals", required = false) Boolean isArchivedNotEquals
+    ) {
         LOG.debug("REST request to get a page of Vendors");
-        Page<Vendor> page = vendorRepository.findAll(pageable);
+        // The two operators the console sends, and only those. This is not a criteria framework:
+        // every other entity here lists unfiltered, and inventing a general query language for one
+        // boolean would be a much larger surface than the screen that needs it.
+        Boolean archived = resolveArchivedFilter(isArchivedEquals, isArchivedNotEquals);
+
+        Page<Vendor> page;
+        if (archived == null) {
+            page = vendorRepository.findAll(pageable);
+        } else if (archived) {
+            page = vendorRepository.findArchived(pageable);
+        } else {
+            page = vendorRepository.findNotArchived(pageable);
+        }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
@@ -194,5 +213,21 @@ public class VendorResource {
         if (value != null) {
             setter.accept(value);
         }
+    }
+
+    /**
+     * Collapses the two operators into a single "want archived?" answer, or null for no filter.
+     *
+     * <p>{@code equals} wins if both are sent. They can only disagree by a caller's mistake, and
+     * answering the positive form is less surprising than picking one silently or erroring.
+     */
+    private static Boolean resolveArchivedFilter(Boolean equals, Boolean notEquals) {
+        if (equals != null) {
+            return equals;
+        }
+        if (notEquals != null) {
+            return !notEquals;
+        }
+        return null;
     }
 }

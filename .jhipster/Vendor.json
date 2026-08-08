@@ -2,7 +2,9 @@
   "annotations": {
     "changelogDate": "20260807154845"
   },
-  "applications": ["*"],
+  "applications": [
+    "*"
+  ],
   "clientRootFolder": "directory",
   "databaseType": "mongodb",
   "fields": [
@@ -13,55 +15,75 @@
     {
       "fieldName": "name",
       "fieldType": "String",
-      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRules": [
+        "required",
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "100"
     },
     {
       "fieldName": "category",
       "fieldType": "String",
-      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRules": [
+        "required",
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "40"
     },
     {
       "fieldName": "serviceSummary",
       "fieldType": "String",
-      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRules": [
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "200"
     },
     {
       "fieldName": "contactName",
       "fieldType": "String",
-      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRules": [
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "80"
     },
     {
       "fieldName": "phone",
       "fieldType": "String",
-      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRules": [
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "24"
     },
     {
       "fieldName": "email",
       "fieldType": "String",
-      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRules": [
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "120"
     },
     {
       "fieldName": "city",
       "fieldType": "String",
-      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRules": [
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "60"
     },
     {
       "fieldName": "status",
       "fieldType": "AccountStatus",
-      "fieldValidateRules": ["required"],
+      "fieldValidateRules": [
+        "required"
+      ],
       "fieldValues": "ACTIVE,PENDING,SUSPENDED,ON_LEAVE,UNDER_REVIEW"
     },
     {
       "fieldName": "contractNote",
       "fieldType": "String",
-      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRules": [
+        "maxlength"
+      ],
       "fieldValidateRulesMaxlength": "80"
     },
     {
@@ -71,21 +93,32 @@
     {
       "fieldName": "orderCount",
       "fieldType": "Integer",
-      "fieldValidateRules": ["min"],
+      "fieldValidateRules": [
+        "min"
+      ],
       "fieldValidateRulesMin": "0"
     },
     {
       "fieldName": "spendToDate",
       "fieldType": "BigDecimal",
-      "fieldValidateRules": ["min"],
+      "fieldValidateRules": [
+        "min"
+      ],
       "fieldValidateRulesMin": "0"
     },
     {
       "fieldName": "rating",
       "fieldType": "BigDecimal",
-      "fieldValidateRules": ["min", "max"],
+      "fieldValidateRules": [
+        "min",
+        "max"
+      ],
       "fieldValidateRulesMax": "5",
       "fieldValidateRulesMin": "0"
+    },
+    {
+      "fieldName": "isArchived",
+      "fieldType": "Boolean"
     }
   ],
   "microserviceName": "hcAdminService",

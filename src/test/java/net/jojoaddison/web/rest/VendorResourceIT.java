@@ -72,6 +72,9 @@ class VendorResourceIT {
     private static final BigDecimal DEFAULT_RATING = new BigDecimal(0);
     private static final BigDecimal UPDATED_RATING = new BigDecimal(1);
 
+    private static final Boolean DEFAULT_IS_ARCHIVED = false;
+    private static final Boolean UPDATED_IS_ARCHIVED = true;
+
     private static final String ENTITY_API_URL = "/api/vendors";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -108,7 +111,8 @@ class VendorResourceIT {
             .contractRenewsOn(DEFAULT_CONTRACT_RENEWS_ON)
             .orderCount(DEFAULT_ORDER_COUNT)
             .spendToDate(DEFAULT_SPEND_TO_DATE)
-            .rating(DEFAULT_RATING);
+            .rating(DEFAULT_RATING)
+            .isArchived(DEFAULT_IS_ARCHIVED);
     }
 
     /**
@@ -131,7 +135,8 @@ class VendorResourceIT {
             .contractRenewsOn(UPDATED_CONTRACT_RENEWS_ON)
             .orderCount(UPDATED_ORDER_COUNT)
             .spendToDate(UPDATED_SPEND_TO_DATE)
-            .rating(UPDATED_RATING);
+            .rating(UPDATED_RATING)
+            .isArchived(UPDATED_IS_ARCHIVED);
     }
 
     @BeforeEach
@@ -252,7 +257,8 @@ class VendorResourceIT {
             .andExpect(jsonPath("$.[*].contractRenewsOn").value(hasItem(DEFAULT_CONTRACT_RENEWS_ON.toString())))
             .andExpect(jsonPath("$.[*].orderCount").value(hasItem(DEFAULT_ORDER_COUNT)))
             .andExpect(jsonPath("$.[*].spendToDate").value(hasItem(sameNumber(DEFAULT_SPEND_TO_DATE))))
-            .andExpect(jsonPath("$.[*].rating").value(hasItem(sameNumber(DEFAULT_RATING))));
+            .andExpect(jsonPath("$.[*].rating").value(hasItem(sameNumber(DEFAULT_RATING))))
+            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)));
     }
 
     @Test
@@ -278,7 +284,8 @@ class VendorResourceIT {
             .andExpect(jsonPath("$.contractRenewsOn").value(DEFAULT_CONTRACT_RENEWS_ON.toString()))
             .andExpect(jsonPath("$.orderCount").value(DEFAULT_ORDER_COUNT))
             .andExpect(jsonPath("$.spendToDate").value(sameNumber(DEFAULT_SPEND_TO_DATE)))
-            .andExpect(jsonPath("$.rating").value(sameNumber(DEFAULT_RATING)));
+            .andExpect(jsonPath("$.rating").value(sameNumber(DEFAULT_RATING)))
+            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED));
     }
 
     @Test
@@ -388,7 +395,8 @@ class VendorResourceIT {
             .status(UPDATED_STATUS)
             .contractNote(UPDATED_CONTRACT_NOTE)
             .contractRenewsOn(UPDATED_CONTRACT_RENEWS_ON)
-            .orderCount(UPDATED_ORDER_COUNT);
+            .orderCount(UPDATED_ORDER_COUNT)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restVendorMockMvc
             .perform(
@@ -428,7 +436,8 @@ class VendorResourceIT {
             .contractRenewsOn(UPDATED_CONTRACT_RENEWS_ON)
             .orderCount(UPDATED_ORDER_COUNT)
             .spendToDate(UPDATED_SPEND_TO_DATE)
-            .rating(UPDATED_RATING);
+            .rating(UPDATED_RATING)
+            .isArchived(UPDATED_IS_ARCHIVED);
 
         restVendorMockMvc
             .perform(

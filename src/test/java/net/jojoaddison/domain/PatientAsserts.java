@@ -50,7 +50,8 @@ public class PatientAsserts {
             .satisfies(a -> assertThat(a.getStatus()).as("check status").isEqualTo(expected.getStatus()))
             .satisfies(a -> assertThat(a.getJoinedOn()).as("check joinedOn").isEqualTo(expected.getJoinedOn()))
             .satisfies(a -> assertThat(a.getLastActiveOn()).as("check lastActiveOn").isEqualTo(expected.getLastActiveOn()))
-            .satisfies(a -> assertThat(a.getCaseCount()).as("check caseCount").isEqualTo(expected.getCaseCount()));
+            .satisfies(a -> assertThat(a.getCaseCount()).as("check caseCount").isEqualTo(expected.getCaseCount()))
+            .satisfies(a -> assertThat(a.getIsArchived()).as("check isArchived").isEqualTo(expected.getIsArchived()));
     }
 
     /**
