@@ -16,7 +16,8 @@
         "id": "cont-001",
         "personId": "person-001",
         "email": "admin@healthconnect.com",
-        "phoneNumber": "+1234567890"
+        "phoneNumber": "233302000000",
+        "countryCode": 233
       }
     ],
     "facilities": [
@@ -64,6 +65,7 @@
       {
         "id": "person-001",
         "firstName": "John",
+        "middleName": "Kwesi",
         "lastName": "Doe",
         "birthDate": "1980-01-01",
         "gender": "MALE",
@@ -77,9 +79,7 @@
         "id": "team-001",
         "name": "Admin Team",
         "description": "Core administration",
-        "geographicSpaceIds": [
-          "room-101"
-        ]
+        "geographicSpaceIds": ["room-101"]
       }
     ],
     "profiles": [],
