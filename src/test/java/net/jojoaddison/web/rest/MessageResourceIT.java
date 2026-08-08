@@ -13,7 +13,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Message;
-import net.jojoaddison.domain.enumeration.MessageType;
+import net.jojoaddison.domain.enumeration.MessageChannel;
+import net.jojoaddison.domain.enumeration.MessageStatus;
+import net.jojoaddison.domain.enumeration.Priority;
 import net.jojoaddison.repository.MessageRepository;
 import net.jojoaddison.service.dto.MessageDTO;
 import net.jojoaddison.service.mapper.MessageMapper;
@@ -34,25 +36,34 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser
 class MessageResourceIT {
 
-    private static final String DEFAULT_CONTENT = "AAAAAAAAAA";
-    private static final String UPDATED_CONTENT = "BBBBBBBBBB";
+    private static final Instant DEFAULT_SENT_AT = Instant.ofEpochMilli(0L);
+    private static final Instant UPDATED_SENT_AT = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
-    private static final Instant DEFAULT_TIMESTAMP = Instant.ofEpochMilli(0L);
-    private static final Instant UPDATED_TIMESTAMP = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+    private static final String DEFAULT_FROM_ADDRESS = "AAAAAAAAAA";
+    private static final String UPDATED_FROM_ADDRESS = "BBBBBBBBBB";
 
-    private static final String DEFAULT_SENDER_ID = "AAAAAAAAAA";
-    private static final String UPDATED_SENDER_ID = "BBBBBBBBBB";
+    private static final String DEFAULT_SENDER_NAME = "AAAAAAAAAA";
+    private static final String UPDATED_SENDER_NAME = "BBBBBBBBBB";
 
-    private static final String DEFAULT_RECIPIENT_ID = "AAAAAAAAAA";
-    private static final String UPDATED_RECIPIENT_ID = "BBBBBBBBBB";
+    private static final String DEFAULT_SUBJECT = "AAAAAAAAAA";
+    private static final String UPDATED_SUBJECT = "BBBBBBBBBB";
 
-    private static final MessageType DEFAULT_TYPE = MessageType.NOTIFICATION;
-    private static final MessageType UPDATED_TYPE = MessageType.ALERT;
+    private static final String DEFAULT_BODY = "AAAAAAAAAA";
+    private static final String UPDATED_BODY = "BBBBBBBBBB";
 
+    private static final MessageChannel DEFAULT_CHANNEL = MessageChannel.EMAIL;
+    private static final MessageChannel UPDATED_CHANNEL = MessageChannel.PATIENT_APP;
+
+    private static final MessageStatus DEFAULT_STATUS = MessageStatus.NEW;
+    private static final MessageStatus UPDATED_STATUS = MessageStatus.READ;
+
+    private static final Priority DEFAULT_PRIORITY = Priority.LOW;
+    private static final Priority UPDATED_PRIORITY = Priority.NORMAL;
     private static final String ENTITY_API_URL = "/api/messages";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
-    private final ObjectMapper om = TestUtil.createObjectMapper();
+    @Autowired
+    private ObjectMapper om;
 
     @Autowired
     private MessageRepository messageRepository;
@@ -75,11 +86,14 @@ class MessageResourceIT {
      */
     public static Message createEntity() {
         return new Message()
-            .content(DEFAULT_CONTENT)
-            .timestamp(DEFAULT_TIMESTAMP)
-            .senderId(DEFAULT_SENDER_ID)
-            .recipientId(DEFAULT_RECIPIENT_ID)
-            .type(DEFAULT_TYPE);
+            .sentAt(DEFAULT_SENT_AT)
+            .fromAddress(DEFAULT_FROM_ADDRESS)
+            .senderName(DEFAULT_SENDER_NAME)
+            .subject(DEFAULT_SUBJECT)
+            .body(DEFAULT_BODY)
+            .channel(DEFAULT_CHANNEL)
+            .status(DEFAULT_STATUS)
+            .priority(DEFAULT_PRIORITY);
     }
 
     /**
@@ -90,11 +104,14 @@ class MessageResourceIT {
      */
     public static Message createUpdatedEntity() {
         return new Message()
-            .content(UPDATED_CONTENT)
-            .timestamp(UPDATED_TIMESTAMP)
-            .senderId(UPDATED_SENDER_ID)
-            .recipientId(UPDATED_RECIPIENT_ID)
-            .type(UPDATED_TYPE);
+            .sentAt(UPDATED_SENT_AT)
+            .fromAddress(UPDATED_FROM_ADDRESS)
+            .senderName(UPDATED_SENDER_NAME)
+            .subject(UPDATED_SUBJECT)
+            .body(UPDATED_BODY)
+            .channel(UPDATED_CHANNEL)
+            .status(UPDATED_STATUS)
+            .priority(UPDATED_PRIORITY);
     }
 
     @BeforeEach
@@ -151,10 +168,10 @@ class MessageResourceIT {
     }
 
     @Test
-    void checkContentIsRequired() throws Exception {
+    void checkSentAtIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        message.setContent(null);
+        message.setSentAt(null);
 
         // Create the Message, which fails.
         MessageDTO messageDTO = messageMapper.toDto(message);
@@ -167,10 +184,10 @@ class MessageResourceIT {
     }
 
     @Test
-    void checkTimestampIsRequired() throws Exception {
+    void checkFromAddressIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        message.setTimestamp(null);
+        message.setFromAddress(null);
 
         // Create the Message, which fails.
         MessageDTO messageDTO = messageMapper.toDto(message);
@@ -183,10 +200,10 @@ class MessageResourceIT {
     }
 
     @Test
-    void checkSenderIdIsRequired() throws Exception {
+    void checkSenderNameIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        message.setSenderId(null);
+        message.setSenderName(null);
 
         // Create the Message, which fails.
         MessageDTO messageDTO = messageMapper.toDto(message);
@@ -199,10 +216,10 @@ class MessageResourceIT {
     }
 
     @Test
-    void checkRecipientIdIsRequired() throws Exception {
+    void checkSubjectIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        message.setRecipientId(null);
+        message.setSubject(null);
 
         // Create the Message, which fails.
         MessageDTO messageDTO = messageMapper.toDto(message);
@@ -215,10 +232,42 @@ class MessageResourceIT {
     }
 
     @Test
-    void checkTypeIsRequired() throws Exception {
+    void checkChannelIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        message.setType(null);
+        message.setChannel(null);
+
+        // Create the Message, which fails.
+        MessageDTO messageDTO = messageMapper.toDto(message);
+
+        restMessageMockMvc
+            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO)))
+            .andExpect(status().isBadRequest());
+
+        assertSameRepositoryCount(databaseSizeBeforeTest);
+    }
+
+    @Test
+    void checkStatusIsRequired() throws Exception {
+        long databaseSizeBeforeTest = getRepositoryCount();
+        // set the field null
+        message.setStatus(null);
+
+        // Create the Message, which fails.
+        MessageDTO messageDTO = messageMapper.toDto(message);
+
+        restMessageMockMvc
+            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO)))
+            .andExpect(status().isBadRequest());
+
+        assertSameRepositoryCount(databaseSizeBeforeTest);
+    }
+
+    @Test
+    void checkPriorityIsRequired() throws Exception {
+        long databaseSizeBeforeTest = getRepositoryCount();
+        // set the field null
+        message.setPriority(null);
 
         // Create the Message, which fails.
         MessageDTO messageDTO = messageMapper.toDto(message);
@@ -241,11 +290,14 @@ class MessageResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(message.getId())))
-            .andExpect(jsonPath("$.[*].content").value(hasItem(DEFAULT_CONTENT)))
-            .andExpect(jsonPath("$.[*].timestamp").value(hasItem(DEFAULT_TIMESTAMP.toString())))
-            .andExpect(jsonPath("$.[*].senderId").value(hasItem(DEFAULT_SENDER_ID)))
-            .andExpect(jsonPath("$.[*].recipientId").value(hasItem(DEFAULT_RECIPIENT_ID)))
-            .andExpect(jsonPath("$.[*].type").value(hasItem(DEFAULT_TYPE.toString())));
+            .andExpect(jsonPath("$.[*].sentAt").value(hasItem(DEFAULT_SENT_AT.toString())))
+            .andExpect(jsonPath("$.[*].fromAddress").value(hasItem(DEFAULT_FROM_ADDRESS)))
+            .andExpect(jsonPath("$.[*].senderName").value(hasItem(DEFAULT_SENDER_NAME)))
+            .andExpect(jsonPath("$.[*].subject").value(hasItem(DEFAULT_SUBJECT)))
+            .andExpect(jsonPath("$.[*].body").value(hasItem(DEFAULT_BODY)))
+            .andExpect(jsonPath("$.[*].channel").value(hasItem(DEFAULT_CHANNEL.toString())))
+            .andExpect(jsonPath("$.[*].status").value(hasItem(DEFAULT_STATUS.toString())))
+            .andExpect(jsonPath("$.[*].priority").value(hasItem(DEFAULT_PRIORITY.toString())));
     }
 
     @Test
@@ -259,11 +311,14 @@ class MessageResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(message.getId()))
-            .andExpect(jsonPath("$.content").value(DEFAULT_CONTENT))
-            .andExpect(jsonPath("$.timestamp").value(DEFAULT_TIMESTAMP.toString()))
-            .andExpect(jsonPath("$.senderId").value(DEFAULT_SENDER_ID))
-            .andExpect(jsonPath("$.recipientId").value(DEFAULT_RECIPIENT_ID))
-            .andExpect(jsonPath("$.type").value(DEFAULT_TYPE.toString()));
+            .andExpect(jsonPath("$.sentAt").value(DEFAULT_SENT_AT.toString()))
+            .andExpect(jsonPath("$.fromAddress").value(DEFAULT_FROM_ADDRESS))
+            .andExpect(jsonPath("$.senderName").value(DEFAULT_SENDER_NAME))
+            .andExpect(jsonPath("$.subject").value(DEFAULT_SUBJECT))
+            .andExpect(jsonPath("$.body").value(DEFAULT_BODY))
+            .andExpect(jsonPath("$.channel").value(DEFAULT_CHANNEL.toString()))
+            .andExpect(jsonPath("$.status").value(DEFAULT_STATUS.toString()))
+            .andExpect(jsonPath("$.priority").value(DEFAULT_PRIORITY.toString()));
     }
 
     @Test
@@ -282,11 +337,14 @@ class MessageResourceIT {
         // Update the message
         Message updatedMessage = messageRepository.findById(message.getId()).orElseThrow();
         updatedMessage
-            .content(UPDATED_CONTENT)
-            .timestamp(UPDATED_TIMESTAMP)
-            .senderId(UPDATED_SENDER_ID)
-            .recipientId(UPDATED_RECIPIENT_ID)
-            .type(UPDATED_TYPE);
+            .sentAt(UPDATED_SENT_AT)
+            .fromAddress(UPDATED_FROM_ADDRESS)
+            .senderName(UPDATED_SENDER_NAME)
+            .subject(UPDATED_SUBJECT)
+            .body(UPDATED_BODY)
+            .channel(UPDATED_CHANNEL)
+            .status(UPDATED_STATUS)
+            .priority(UPDATED_PRIORITY);
         MessageDTO messageDTO = messageMapper.toDto(updatedMessage);
 
         restMessageMockMvc
@@ -311,7 +369,7 @@ class MessageResourceIT {
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restMessageMockMvc
             .perform(
-                put(ENTITY_API_URL_ID, messageDTO.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO))
+                put(ENTITY_API_URL_ID, message.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO))
             )
             .andExpect(status().isBadRequest());
 
@@ -368,7 +426,11 @@ class MessageResourceIT {
         Message partialUpdatedMessage = new Message();
         partialUpdatedMessage.setId(message.getId());
 
-        partialUpdatedMessage.content(UPDATED_CONTENT).timestamp(UPDATED_TIMESTAMP).recipientId(UPDATED_RECIPIENT_ID).type(UPDATED_TYPE);
+        partialUpdatedMessage
+            .sentAt(UPDATED_SENT_AT)
+            .fromAddress(UPDATED_FROM_ADDRESS)
+            .senderName(UPDATED_SENDER_NAME)
+            .subject(UPDATED_SUBJECT);
 
         restMessageMockMvc
             .perform(
@@ -396,11 +458,14 @@ class MessageResourceIT {
         partialUpdatedMessage.setId(message.getId());
 
         partialUpdatedMessage
-            .content(UPDATED_CONTENT)
-            .timestamp(UPDATED_TIMESTAMP)
-            .senderId(UPDATED_SENDER_ID)
-            .recipientId(UPDATED_RECIPIENT_ID)
-            .type(UPDATED_TYPE);
+            .sentAt(UPDATED_SENT_AT)
+            .fromAddress(UPDATED_FROM_ADDRESS)
+            .senderName(UPDATED_SENDER_NAME)
+            .subject(UPDATED_SUBJECT)
+            .body(UPDATED_BODY)
+            .channel(UPDATED_CHANNEL)
+            .status(UPDATED_STATUS)
+            .priority(UPDATED_PRIORITY);
 
         restMessageMockMvc
             .perform(
@@ -427,7 +492,7 @@ class MessageResourceIT {
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restMessageMockMvc
             .perform(
-                patch(ENTITY_API_URL_ID, messageDTO.getId())
+                patch(ENTITY_API_URL_ID, message.getId())
                     .contentType("application/merge-patch+json")
                     .content(om.writeValueAsBytes(messageDTO))
             )

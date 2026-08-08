@@ -8,8 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Address;
@@ -33,37 +31,28 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser
 class AddressResourceIT {
 
-    private static final String DEFAULT_STREET = "AAAAAAAAAA";
-    private static final String UPDATED_STREET = "BBBBBBBBBB";
+    private static final String DEFAULT_DIGITAL_ADDRESS = "AA-123-4567";
+    private static final String UPDATED_DIGITAL_ADDRESS = "BB-987-6543";
 
-    private static final String DEFAULT_DISTRICT = "AAAAAAAAAA";
-    private static final String UPDATED_DISTRICT = "BBBBBBBBBB";
+    private static final String DEFAULT_STREET_ADDRESS = "AAAAAAAAAA";
+    private static final String UPDATED_STREET_ADDRESS = "BBBBBBBBBB";
 
-    private static final String DEFAULT_TOWN = "AAAAAAAAAA";
-    private static final String UPDATED_TOWN = "BBBBBBBBBB";
+    private static final String DEFAULT_TOWN_DISTRICT = "AAAAAAAAAA";
+    private static final String UPDATED_TOWN_DISTRICT = "BBBBBBBBBB";
 
-    private static final String DEFAULT_CITY = "AAAAAAAAAA";
-    private static final String UPDATED_CITY = "BBBBBBBBBB";
+    private static final String DEFAULT_CITY_STATE = "AAAAAAAAAA";
+    private static final String UPDATED_CITY_STATE = "BBBBBBBBBB";
 
     private static final String DEFAULT_REGION = "AAAAAAAAAA";
     private static final String UPDATED_REGION = "BBBBBBBBBB";
 
-    private static final String DEFAULT_CODE = "AAAAAAAAAA";
-    private static final String UPDATED_CODE = "BBBBBBBBBB";
-
     private static final String DEFAULT_COUNTRY = "AAAAAAAAAA";
     private static final String UPDATED_COUNTRY = "BBBBBBBBBB";
-
-    private static final Instant DEFAULT_CREATED_DATE = Instant.ofEpochMilli(0L);
-    private static final Instant UPDATED_CREATED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-
-    private static final Instant DEFAULT_MODIFIED_DATE = Instant.ofEpochMilli(0L);
-    private static final Instant UPDATED_MODIFIED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-
     private static final String ENTITY_API_URL = "/api/addresses";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
-    private final ObjectMapper om = TestUtil.createObjectMapper();
+    @Autowired
+    private ObjectMapper om;
 
     @Autowired
     private AddressRepository addressRepository;
@@ -86,15 +75,12 @@ class AddressResourceIT {
      */
     public static Address createEntity() {
         return new Address()
-            .street(DEFAULT_STREET)
-            .district(DEFAULT_DISTRICT)
-            .town(DEFAULT_TOWN)
-            .city(DEFAULT_CITY)
+            .digitalAddress(DEFAULT_DIGITAL_ADDRESS)
+            .streetAddress(DEFAULT_STREET_ADDRESS)
+            .townDistrict(DEFAULT_TOWN_DISTRICT)
+            .cityState(DEFAULT_CITY_STATE)
             .region(DEFAULT_REGION)
-            .code(DEFAULT_CODE)
-            .country(DEFAULT_COUNTRY)
-            .createdDate(DEFAULT_CREATED_DATE)
-            .modifiedDate(DEFAULT_MODIFIED_DATE);
+            .country(DEFAULT_COUNTRY);
     }
 
     /**
@@ -105,15 +91,12 @@ class AddressResourceIT {
      */
     public static Address createUpdatedEntity() {
         return new Address()
-            .street(UPDATED_STREET)
-            .district(UPDATED_DISTRICT)
-            .town(UPDATED_TOWN)
-            .city(UPDATED_CITY)
+            .digitalAddress(UPDATED_DIGITAL_ADDRESS)
+            .streetAddress(UPDATED_STREET_ADDRESS)
+            .townDistrict(UPDATED_TOWN_DISTRICT)
+            .cityState(UPDATED_CITY_STATE)
             .region(UPDATED_REGION)
-            .code(UPDATED_CODE)
-            .country(UPDATED_COUNTRY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+            .country(UPDATED_COUNTRY);
     }
 
     @BeforeEach
@@ -170,10 +153,10 @@ class AddressResourceIT {
     }
 
     @Test
-    void checkStreetIsRequired() throws Exception {
+    void checkDigitalAddressIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        address.setStreet(null);
+        address.setDigitalAddress(null);
 
         // Create the Address, which fails.
         AddressDTO addressDTO = addressMapper.toDto(address);
@@ -186,10 +169,10 @@ class AddressResourceIT {
     }
 
     @Test
-    void checkDistrictIsRequired() throws Exception {
+    void checkStreetAddressIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        address.setDistrict(null);
+        address.setStreetAddress(null);
 
         // Create the Address, which fails.
         AddressDTO addressDTO = addressMapper.toDto(address);
@@ -202,10 +185,10 @@ class AddressResourceIT {
     }
 
     @Test
-    void checkCityIsRequired() throws Exception {
+    void checkCityStateIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
-        address.setCity(null);
+        address.setCityState(null);
 
         // Create the Address, which fails.
         AddressDTO addressDTO = addressMapper.toDto(address);
@@ -234,22 +217,6 @@ class AddressResourceIT {
     }
 
     @Test
-    void checkCodeIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        address.setCode(null);
-
-        // Create the Address, which fails.
-        AddressDTO addressDTO = addressMapper.toDto(address);
-
-        restAddressMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(addressDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
     void checkCountryIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
         // set the field null
@@ -266,39 +233,7 @@ class AddressResourceIT {
     }
 
     @Test
-    void checkCreatedDateIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        address.setCreatedDate(null);
-
-        // Create the Address, which fails.
-        AddressDTO addressDTO = addressMapper.toDto(address);
-
-        restAddressMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(addressDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkModifiedDateIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        address.setModifiedDate(null);
-
-        // Create the Address, which fails.
-        AddressDTO addressDTO = addressMapper.toDto(address);
-
-        restAddressMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(addressDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void getAllAddresses() throws Exception {
+    void getAllAddresss() throws Exception {
         // Initialize the database
         insertedAddress = addressRepository.save(address);
 
@@ -308,12 +243,11 @@ class AddressResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(address.getId())))
-            .andExpect(jsonPath("$.[*].street").value(hasItem(DEFAULT_STREET)))
-            .andExpect(jsonPath("$.[*].district").value(hasItem(DEFAULT_DISTRICT)))
-            .andExpect(jsonPath("$.[*].town").value(hasItem(DEFAULT_TOWN)))
-            .andExpect(jsonPath("$.[*].city").value(hasItem(DEFAULT_CITY)))
+            .andExpect(jsonPath("$.[*].digitalAddress").value(hasItem(DEFAULT_DIGITAL_ADDRESS)))
+            .andExpect(jsonPath("$.[*].streetAddress").value(hasItem(DEFAULT_STREET_ADDRESS)))
+            .andExpect(jsonPath("$.[*].townDistrict").value(hasItem(DEFAULT_TOWN_DISTRICT)))
+            .andExpect(jsonPath("$.[*].cityState").value(hasItem(DEFAULT_CITY_STATE)))
             .andExpect(jsonPath("$.[*].region").value(hasItem(DEFAULT_REGION)))
-            .andExpect(jsonPath("$.[*].code").value(hasItem(DEFAULT_CODE)))
             .andExpect(jsonPath("$.[*].country").value(hasItem(DEFAULT_COUNTRY)));
     }
 
@@ -328,12 +262,11 @@ class AddressResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(address.getId()))
-            .andExpect(jsonPath("$.street").value(DEFAULT_STREET))
-            .andExpect(jsonPath("$.district").value(DEFAULT_DISTRICT))
-            .andExpect(jsonPath("$.town").value(DEFAULT_TOWN))
-            .andExpect(jsonPath("$.city").value(DEFAULT_CITY))
+            .andExpect(jsonPath("$.digitalAddress").value(DEFAULT_DIGITAL_ADDRESS))
+            .andExpect(jsonPath("$.streetAddress").value(DEFAULT_STREET_ADDRESS))
+            .andExpect(jsonPath("$.townDistrict").value(DEFAULT_TOWN_DISTRICT))
+            .andExpect(jsonPath("$.cityState").value(DEFAULT_CITY_STATE))
             .andExpect(jsonPath("$.region").value(DEFAULT_REGION))
-            .andExpect(jsonPath("$.code").value(DEFAULT_CODE))
             .andExpect(jsonPath("$.country").value(DEFAULT_COUNTRY));
     }
 
@@ -353,15 +286,12 @@ class AddressResourceIT {
         // Update the address
         Address updatedAddress = addressRepository.findById(address.getId()).orElseThrow();
         updatedAddress
-            .street(UPDATED_STREET)
-            .district(UPDATED_DISTRICT)
-            .town(UPDATED_TOWN)
-            .city(UPDATED_CITY)
+            .digitalAddress(UPDATED_DIGITAL_ADDRESS)
+            .streetAddress(UPDATED_STREET_ADDRESS)
+            .townDistrict(UPDATED_TOWN_DISTRICT)
+            .cityState(UPDATED_CITY_STATE)
             .region(UPDATED_REGION)
-            .code(UPDATED_CODE)
-            .country(UPDATED_COUNTRY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+            .country(UPDATED_COUNTRY);
         AddressDTO addressDTO = addressMapper.toDto(updatedAddress);
 
         restAddressMockMvc
@@ -386,7 +316,7 @@ class AddressResourceIT {
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restAddressMockMvc
             .perform(
-                put(ENTITY_API_URL_ID, addressDTO.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(addressDTO))
+                put(ENTITY_API_URL_ID, address.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(addressDTO))
             )
             .andExpect(status().isBadRequest());
 
@@ -444,11 +374,9 @@ class AddressResourceIT {
         partialUpdatedAddress.setId(address.getId());
 
         partialUpdatedAddress
-            .town(UPDATED_TOWN)
-            .region(UPDATED_REGION)
-            .code(UPDATED_CODE)
-            .country(UPDATED_COUNTRY)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+            .digitalAddress(UPDATED_DIGITAL_ADDRESS)
+            .streetAddress(UPDATED_STREET_ADDRESS)
+            .townDistrict(UPDATED_TOWN_DISTRICT);
 
         restAddressMockMvc
             .perform(
@@ -476,15 +404,12 @@ class AddressResourceIT {
         partialUpdatedAddress.setId(address.getId());
 
         partialUpdatedAddress
-            .street(UPDATED_STREET)
-            .district(UPDATED_DISTRICT)
-            .town(UPDATED_TOWN)
-            .city(UPDATED_CITY)
+            .digitalAddress(UPDATED_DIGITAL_ADDRESS)
+            .streetAddress(UPDATED_STREET_ADDRESS)
+            .townDistrict(UPDATED_TOWN_DISTRICT)
+            .cityState(UPDATED_CITY_STATE)
             .region(UPDATED_REGION)
-            .code(UPDATED_CODE)
-            .country(UPDATED_COUNTRY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+            .country(UPDATED_COUNTRY);
 
         restAddressMockMvc
             .perform(
@@ -511,7 +436,7 @@ class AddressResourceIT {
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restAddressMockMvc
             .perform(
-                patch(ENTITY_API_URL_ID, addressDTO.getId())
+                patch(ENTITY_API_URL_ID, address.getId())
                     .contentType("application/merge-patch+json")
                     .content(om.writeValueAsBytes(addressDTO))
             )

@@ -3,6 +3,7 @@ package net.jojoaddison.service.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -22,6 +23,9 @@ public class TeamDTO implements Serializable {
     private String description;
 
     private ProfessionalDTO supervisor;
+
+    /** See {@link net.jojoaddison.domain.Team#getGeographicSpaceIds()} — api-side, not console. */
+    private List<String> geographicSpaceIds;
 
     public String getId() {
         return id;
@@ -55,6 +59,14 @@ public class TeamDTO implements Serializable {
         this.supervisor = supervisor;
     }
 
+    public List<String> getGeographicSpaceIds() {
+        return geographicSpaceIds;
+    }
+
+    public void setGeographicSpaceIds(List<String> geographicSpaceIds) {
+        this.geographicSpaceIds = geographicSpaceIds;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -84,6 +96,7 @@ public class TeamDTO implements Serializable {
             ", name='" + getName() + "'" +
             ", description='" + getDescription() + "'" +
             ", supervisor=" + getSupervisor() +
+            ", geographicSpaceIds='" + getGeographicSpaceIds() + "'" +
             "}";
     }
 }

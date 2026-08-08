@@ -43,6 +43,7 @@ class PaginationIT {
             "/api/facility-catalogs",
             "/api/features",
             "/api/profiles",
+            "/api/hc-profiles",
             "/api/hc-services",
             "/api/hc-subscriptions",
             "/api/h-professionals",

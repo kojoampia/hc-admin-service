@@ -50,8 +50,27 @@ public class TeamService {
     public TeamDTO update(TeamDTO teamDTO) {
         LOG.debug("Request to update Team : {}", teamDTO);
         Team team = teamMapper.toEntity(teamDTO);
+        restoreGeographicSpaceIds(team);
         team = teamRepository.save(team);
         return teamMapper.toDto(team);
+    }
+
+    /**
+     * Puts the stored {@code geographicSpaceIds} back when the incoming payload has none.
+     *
+     * <p>PUT sends a whole document, so a client that does not know about the field erases it — and
+     * the console client, generated from a JDL that does not declare it, is exactly such a client.
+     * The field is the auto-scheduler's only geography ({@code DutyRosterService}), and it fails
+     * silently: shifts stop matching any covering team and are skipped rather than erroring.
+     *
+     * <p>Absent means absent. A caller that deliberately clears the coverage sends an empty list,
+     * which is preserved.
+     */
+    private void restoreGeographicSpaceIds(Team team) {
+        if (team.getGeographicSpaceIds() != null || team.getId() == null) {
+            return;
+        }
+        teamRepository.findById(team.getId()).map(Team::getGeographicSpaceIds).ifPresent(team::setGeographicSpaceIds);
     }
 
     /**

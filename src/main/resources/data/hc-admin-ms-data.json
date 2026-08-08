@@ -3,12 +3,11 @@
     "addresses": [
       {
         "id": "addr-001",
-        "street": "123 Main St",
-        "district": "Downtown",
-        "town": "Med City",
-        "city": "Capital",
+        "digitalAddress": "GA-123-4567",
+        "streetAddress": "123 Main St",
+        "townDistrict": "Downtown",
+        "cityState": "Med City",
         "region": "Central",
-        "code": "12345",
         "country": "Healthland"
       }
     ],
@@ -51,9 +50,14 @@
       {
         "id": "org-001",
         "name": "Health Connect Corp",
+        "legalName": "Health Connect Corporation Limited",
         "description": "Main organization",
-        "addressId": "addr-001",
-        "contactId": "cont-001"
+        "registrationNumber": "RC-000123",
+        "tin": "TIN-000123",
+        "foundedOn": "2020-01-15",
+        "switchboard": "+233302000000",
+        "email": "info@healthconnect.invalid",
+        "deskHours": "Mon-Fri 08:00-17:00"
       }
     ],
     "persons": [
@@ -73,9 +77,9 @@
         "id": "team-001",
         "name": "Admin Team",
         "description": "Core administration",
-        "members": "John Doe",
-        "supervisorId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-        "organisationId": "org-001"
+        "geographicSpaceIds": [
+          "room-101"
+        ]
       }
     ],
     "profiles": [],
@@ -85,7 +89,7 @@
         "date": "2026-06-10",
         "duty": "DOCTOR",
         "professionalId": "prof-001",
-        "shift": "MORNING",
+        "shift": "DAY",
         "name": "Morning Ward Round",
         "description": "Routine checkups",
         "patientId": "pat-001",

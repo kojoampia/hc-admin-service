@@ -61,26 +61,29 @@ public class OrganisationService {
                 if (organisation.getName() != null) {
                     existingOrganisation.setName(organisation.getName());
                 }
+                if (organisation.getLegalName() != null) {
+                    existingOrganisation.setLegalName(organisation.getLegalName());
+                }
                 if (organisation.getDescription() != null) {
                     existingOrganisation.setDescription(organisation.getDescription());
                 }
-                if (organisation.getAddressId() != null) {
-                    existingOrganisation.setAddressId(organisation.getAddressId());
+                if (organisation.getRegistrationNumber() != null) {
+                    existingOrganisation.setRegistrationNumber(organisation.getRegistrationNumber());
                 }
-                if (organisation.getContactId() != null) {
-                    existingOrganisation.setContactId(organisation.getContactId());
+                if (organisation.getTin() != null) {
+                    existingOrganisation.setTin(organisation.getTin());
                 }
-                if (organisation.getCreatedDate() != null) {
-                    existingOrganisation.setCreatedDate(organisation.getCreatedDate());
+                if (organisation.getFoundedOn() != null) {
+                    existingOrganisation.setFoundedOn(organisation.getFoundedOn());
                 }
-                if (organisation.getCreatedBy() != null) {
-                    existingOrganisation.setCreatedBy(organisation.getCreatedBy());
+                if (organisation.getSwitchboard() != null) {
+                    existingOrganisation.setSwitchboard(organisation.getSwitchboard());
                 }
-                if (organisation.getModifiedDate() != null) {
-                    existingOrganisation.setModifiedDate(organisation.getModifiedDate());
+                if (organisation.getEmail() != null) {
+                    existingOrganisation.setEmail(organisation.getEmail());
                 }
-                if (organisation.getModifiedBy() != null) {
-                    existingOrganisation.setModifiedBy(organisation.getModifiedBy());
+                if (organisation.getDeskHours() != null) {
+                    existingOrganisation.setDeskHours(organisation.getDeskHours());
                 }
 
                 return existingOrganisation;

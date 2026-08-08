@@ -40,7 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
  */
 @IntegrationTest
 @ExtendWith(MockitoExtension.class)
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 class ProfessionalResourceIT {
 

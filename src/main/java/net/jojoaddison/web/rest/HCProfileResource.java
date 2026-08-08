@@ -28,7 +28,7 @@ import tech.jhipster.web.util.ResponseUtil;
  * REST controller for managing {@link net.jojoaddison.domain.HCProfile}.
  */
 @RestController
-@RequestMapping("/api/profiles")
+@RequestMapping("/api/hc-profiles")
 public class HCProfileResource {
 
     private static final Logger LOG = LoggerFactory.getLogger(HCProfileResource.class);
@@ -62,7 +62,7 @@ public class HCProfileResource {
         }
         profileDTO = profileService.save(profileDTO);
         return ResponseEntity
-            .created(new URI("/api/profiles/" + profileDTO.getId()))
+            .created(new URI("/api/hc-profiles/" + profileDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, profileDTO.getId()))
             .body(profileDTO);
     }

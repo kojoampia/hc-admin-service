@@ -149,10 +149,16 @@ entity Professional {
 }
 
 /** PDF: Team (Name, Description, Supervisor). */
+// geographicSpaceIds is NOT in the console's own hc-admin.jdl. It is declared here because
+// DutyRosterService.autoScheduleShifts reads it through
+// TeamRepository.findByGeographicSpaceIdsContaining, and the first application of this model
+// dropped it — which does not fail the build, only the context at startup, because Spring Data
+// derives that query from the property name. Keep it whenever this file is regenerated.
 entity Team {
   id String
   name String required maxlength(60)
   description String maxlength(200)
+  geographicSpaceIds String
 }
 
 entity Vendor {
