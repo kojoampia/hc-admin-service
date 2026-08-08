@@ -75,7 +75,7 @@ class HCProfileResourceIT {
     private static final Instant DEFAULT_MODIFIED_DATE = Instant.ofEpochMilli(0L);
     private static final Instant UPDATED_MODIFIED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
 
-    private static final String ENTITY_API_URL = "/api/profiles";
+    private static final String ENTITY_API_URL = "/api/hc-profiles";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
     private final ObjectMapper om = TestUtil.createObjectMapper();

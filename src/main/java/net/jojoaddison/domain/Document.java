@@ -8,14 +8,16 @@ import java.io.Serializable;
 import java.time.Instant;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
-import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
  * PDF: Document (Name, Description, URL, Timestamp).
  */
 @Schema(description = "PDF: Document (Name, Description, URL, Timestamp).")
-@Document(collection = "jhi_document")
+// Fully qualified, and the matching import is deliberately absent: a compilation unit cannot import
+// a type whose simple name it declares, and this entity is called Document. Same in Patient and
+// Vendor, which hold Set<Document> — there the import would also shadow the domain class.
+@org.springframework.data.mongodb.core.mapping.Document(collection = "jhi_document")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class Document implements Serializable {
 

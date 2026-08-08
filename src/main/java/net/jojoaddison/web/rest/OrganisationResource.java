@@ -1,5 +1,7 @@
 package net.jojoaddison.web.rest;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
@@ -53,7 +55,7 @@ public class OrganisationResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<Organisation> createOrganisation(@RequestBody Organisation organisation) throws URISyntaxException {
+    public ResponseEntity<Organisation> createOrganisation(@Valid @RequestBody Organisation organisation) throws URISyntaxException {
         log.debug("REST request to save Organisation : {}", organisation);
         if (organisation.getId() != null) {
             throw new BadRequestAlertException("A new organisation cannot already have an ID", ENTITY_NAME, "idexists");
@@ -78,7 +80,7 @@ public class OrganisationResource {
     @PutMapping("/{id}")
     public ResponseEntity<Organisation> updateOrganisation(
         @PathVariable(value = "id", required = false) final String id,
-        @RequestBody Organisation organisation
+        @Valid @RequestBody Organisation organisation
     ) throws URISyntaxException {
         log.debug("REST request to update Organisation : {}, {}", id, organisation);
         if (organisation.getId() == null) {
@@ -113,7 +115,7 @@ public class OrganisationResource {
     @PatchMapping(value = "/{id}", consumes = { "application/json", "application/merge-patch+json" })
     public ResponseEntity<Organisation> partialUpdateOrganisation(
         @PathVariable(value = "id", required = false) final String id,
-        @RequestBody Organisation organisation
+        @NotNull @RequestBody Organisation organisation
     ) throws URISyntaxException {
         log.debug("REST request to partial update Organisation partially : {}, {}", id, organisation);
         if (organisation.getId() == null) {

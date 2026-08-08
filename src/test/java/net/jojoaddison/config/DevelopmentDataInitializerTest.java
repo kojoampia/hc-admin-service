@@ -68,11 +68,11 @@ class DevelopmentDataInitializerTest {
         assertThat(roster.getId()).isEqualTo("dr-001");
         assertThat(roster.getDate()).isEqualTo(LocalDate.of(2026, 6, 10));
         assertThat(roster.getDuty()).isEqualTo(DutyRole.DOCTOR);
-        assertThat(roster.getShift()).isEqualTo(ShiftType.MORNING);
+        assertThat(roster.getShift()).isEqualTo(ShiftType.DAY);
         assertThat(roster.getStatus()).isEqualTo(ShiftStatus.ASSIGNED);
         assertThat(roster.getPatientId()).isEqualTo("pat-001");
 
-        assertThat(dev.getAddresses().get(0).getStreet()).isEqualTo("123 Main St");
+        assertThat(dev.getAddresses().get(0).getStreetAddress()).isEqualTo("123 Main St");
         assertThat(dev.getAudits().get(0).getCreatedDate()).isNotNull();
     }
 

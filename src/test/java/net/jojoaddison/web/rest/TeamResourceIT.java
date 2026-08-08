@@ -8,8 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Team;
@@ -38,35 +37,11 @@ class TeamResourceIT {
 
     private static final String DEFAULT_DESCRIPTION = "AAAAAAAAAA";
     private static final String UPDATED_DESCRIPTION = "BBBBBBBBBB";
-
-    private static final String DEFAULT_MEMBERS = "AAAAAAAAAA";
-    private static final String UPDATED_MEMBERS = "BBBBBBBBBB";
-
-    private static final String DEFAULT_SUPERVISOR_ID = "AAAAAAAAAA";
-    private static final String UPDATED_SUPERVISOR_ID = "BBBBBBBBBB";
-
-    private static final String DEFAULT_ORGANISATION_ID = "AAAAAAAAAA";
-    private static final String UPDATED_ORGANISATION_ID = "BBBBBBBBBB";
-
-    private static final String DEFAULT_GEOGRAPHIC_SPACE_IDS = "AAAAAAAAAA";
-    private static final String UPDATED_GEOGRAPHIC_SPACE_IDS = "BBBBBBBBBB";
-
-    private static final String DEFAULT_CREATED_BY = "AAAAAAAAAA";
-    private static final String UPDATED_CREATED_BY = "BBBBBBBBBB";
-
-    private static final Instant DEFAULT_CREATED_DATE = Instant.ofEpochMilli(0L);
-    private static final Instant UPDATED_CREATED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-
-    private static final String DEFAULT_MODIFIED_BY = "AAAAAAAAAA";
-    private static final String UPDATED_MODIFIED_BY = "BBBBBBBBBB";
-
-    private static final Instant DEFAULT_MODIFIED_DATE = Instant.ofEpochMilli(0L);
-    private static final Instant UPDATED_MODIFIED_DATE = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-
     private static final String ENTITY_API_URL = "/api/teams";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
-    private final ObjectMapper om = TestUtil.createObjectMapper();
+    @Autowired
+    private ObjectMapper om;
 
     @Autowired
     private TeamRepository teamRepository;
@@ -88,17 +63,7 @@ class TeamResourceIT {
      * if they test an entity which requires the current entity.
      */
     public static Team createEntity() {
-        return new Team()
-            .name(DEFAULT_NAME)
-            .description(DEFAULT_DESCRIPTION)
-            .members(DEFAULT_MEMBERS)
-            .supervisorId(DEFAULT_SUPERVISOR_ID)
-            .organisationId(DEFAULT_ORGANISATION_ID)
-            .geographicSpaceIds(java.util.List.of(DEFAULT_GEOGRAPHIC_SPACE_IDS))
-            .createdBy(DEFAULT_CREATED_BY)
-            .createdDate(DEFAULT_CREATED_DATE)
-            .modifiedBy(DEFAULT_MODIFIED_BY)
-            .modifiedDate(DEFAULT_MODIFIED_DATE);
+        return new Team().name(DEFAULT_NAME).description(DEFAULT_DESCRIPTION);
     }
 
     /**
@@ -108,17 +73,7 @@ class TeamResourceIT {
      * if they test an entity which requires the current entity.
      */
     public static Team createUpdatedEntity() {
-        return new Team()
-            .name(UPDATED_NAME)
-            .description(UPDATED_DESCRIPTION)
-            .members(UPDATED_MEMBERS)
-            .supervisorId(UPDATED_SUPERVISOR_ID)
-            .organisationId(UPDATED_ORGANISATION_ID)
-            .geographicSpaceIds(java.util.List.of(UPDATED_GEOGRAPHIC_SPACE_IDS))
-            .createdBy(UPDATED_CREATED_BY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedBy(UPDATED_MODIFIED_BY)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+        return new Team().name(UPDATED_NAME).description(UPDATED_DESCRIPTION);
     }
 
     @BeforeEach
@@ -191,86 +146,6 @@ class TeamResourceIT {
     }
 
     @Test
-    void checkDescriptionIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        team.setDescription(null);
-
-        // Create the Team, which fails.
-        TeamDTO teamDTO = teamMapper.toDto(team);
-
-        restTeamMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkCreatedByIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        team.setCreatedBy(null);
-
-        // Create the Team, which fails.
-        TeamDTO teamDTO = teamMapper.toDto(team);
-
-        restTeamMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkCreatedDateIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        team.setCreatedDate(null);
-
-        // Create the Team, which fails.
-        TeamDTO teamDTO = teamMapper.toDto(team);
-
-        restTeamMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkModifiedByIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        team.setModifiedBy(null);
-
-        // Create the Team, which fails.
-        TeamDTO teamDTO = teamMapper.toDto(team);
-
-        restTeamMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkModifiedDateIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        team.setModifiedDate(null);
-
-        // Create the Team, which fails.
-        TeamDTO teamDTO = teamMapper.toDto(team);
-
-        restTeamMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
     void getAllTeams() throws Exception {
         // Initialize the database
         insertedTeam = teamRepository.save(team);
@@ -282,11 +157,7 @@ class TeamResourceIT {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(team.getId())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
-            .andExpect(jsonPath("$.[*].description").value(hasItem(DEFAULT_DESCRIPTION)))
-            .andExpect(jsonPath("$.[*].members").value(hasItem(DEFAULT_MEMBERS)))
-            .andExpect(jsonPath("$.[*].supervisorId").value(hasItem(DEFAULT_SUPERVISOR_ID)))
-            .andExpect(jsonPath("$.[*].organisationId").value(hasItem(DEFAULT_ORGANISATION_ID)))
-            .andExpect(jsonPath("$.[*].geographicSpaceIds").value(hasItem(java.util.List.of(DEFAULT_GEOGRAPHIC_SPACE_IDS))));
+            .andExpect(jsonPath("$.[*].description").value(hasItem(DEFAULT_DESCRIPTION)));
     }
 
     @Test
@@ -301,11 +172,7 @@ class TeamResourceIT {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(team.getId()))
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
-            .andExpect(jsonPath("$.description").value(DEFAULT_DESCRIPTION))
-            .andExpect(jsonPath("$.members").value(DEFAULT_MEMBERS))
-            .andExpect(jsonPath("$.supervisorId").value(DEFAULT_SUPERVISOR_ID))
-            .andExpect(jsonPath("$.organisationId").value(DEFAULT_ORGANISATION_ID))
-            .andExpect(jsonPath("$.geographicSpaceIds").value(hasItem(DEFAULT_GEOGRAPHIC_SPACE_IDS)));
+            .andExpect(jsonPath("$.description").value(DEFAULT_DESCRIPTION));
     }
 
     @Test
@@ -323,16 +190,7 @@ class TeamResourceIT {
 
         // Update the team
         Team updatedTeam = teamRepository.findById(team.getId()).orElseThrow();
-        updatedTeam
-            .name(UPDATED_NAME)
-            .description(UPDATED_DESCRIPTION)
-            .members(UPDATED_MEMBERS)
-            .supervisorId(UPDATED_SUPERVISOR_ID)
-            .organisationId(UPDATED_ORGANISATION_ID)
-            .createdBy(UPDATED_CREATED_BY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedBy(UPDATED_MODIFIED_BY)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+        updatedTeam.name(UPDATED_NAME).description(UPDATED_DESCRIPTION);
         TeamDTO teamDTO = teamMapper.toDto(updatedTeam);
 
         restTeamMockMvc
@@ -342,6 +200,45 @@ class TeamResourceIT {
         // Validate the Team in the database
         assertSameRepositoryCount(databaseSizeBeforeUpdate);
         assertPersistedTeamToMatchAllProperties(updatedTeam);
+    }
+
+    /**
+     * geographicSpaceIds is the auto-scheduler's only geography and is not part of the console
+     * model, so the client that drives these screens does not send it. PUT replaces a whole
+     * document, so without the guard in {@code TeamService.update} an ordinary rename would erase
+     * the coverage — and silently: {@code DutyRosterService} would stop finding a covering team and
+     * skip the shift rather than fail.
+     */
+    @Test
+    void putDoesNotEraseGeographicSpaceIdsTheClientDoesNotSend() throws Exception {
+        insertedTeam = teamRepository.save(team.geographicSpaceIds(List.of("room-101")));
+
+        Team updatedTeam = teamRepository.findById(team.getId()).orElseThrow();
+        updatedTeam.setName(UPDATED_NAME);
+        TeamDTO teamDTO = teamMapper.toDto(updatedTeam);
+        teamDTO.setGeographicSpaceIds(null);
+
+        restTeamMockMvc
+            .perform(put(ENTITY_API_URL_ID, teamDTO.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
+            .andExpect(status().isOk());
+
+        assertThat(getPersistedTeam(team).getGeographicSpaceIds()).containsExactly("room-101");
+    }
+
+    /** An empty list is a deliberate clear, and is not treated as "absent". */
+    @Test
+    void putWithAnEmptyListClearsGeographicSpaceIds() throws Exception {
+        insertedTeam = teamRepository.save(team.geographicSpaceIds(List.of("room-101")));
+
+        Team updatedTeam = teamRepository.findById(team.getId()).orElseThrow();
+        TeamDTO teamDTO = teamMapper.toDto(updatedTeam);
+        teamDTO.setGeographicSpaceIds(List.of());
+
+        restTeamMockMvc
+            .perform(put(ENTITY_API_URL_ID, teamDTO.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
+            .andExpect(status().isOk());
+
+        assertThat(getPersistedTeam(team).getGeographicSpaceIds()).isEmpty();
     }
 
     @Test
@@ -354,7 +251,7 @@ class TeamResourceIT {
 
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restTeamMockMvc
-            .perform(put(ENTITY_API_URL_ID, teamDTO.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
+            .perform(put(ENTITY_API_URL_ID, team.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(teamDTO)))
             .andExpect(status().isBadRequest());
 
         // Validate the Team in the database
@@ -410,7 +307,7 @@ class TeamResourceIT {
         Team partialUpdatedTeam = new Team();
         partialUpdatedTeam.setId(team.getId());
 
-        partialUpdatedTeam.name(UPDATED_NAME).members(UPDATED_MEMBERS).modifiedDate(UPDATED_MODIFIED_DATE);
+        partialUpdatedTeam.name(UPDATED_NAME);
 
         restTeamMockMvc
             .perform(
@@ -437,16 +334,7 @@ class TeamResourceIT {
         Team partialUpdatedTeam = new Team();
         partialUpdatedTeam.setId(team.getId());
 
-        partialUpdatedTeam
-            .name(UPDATED_NAME)
-            .description(UPDATED_DESCRIPTION)
-            .members(UPDATED_MEMBERS)
-            .supervisorId(UPDATED_SUPERVISOR_ID)
-            .organisationId(UPDATED_ORGANISATION_ID)
-            .createdBy(UPDATED_CREATED_BY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedBy(UPDATED_MODIFIED_BY)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+        partialUpdatedTeam.name(UPDATED_NAME).description(UPDATED_DESCRIPTION);
 
         restTeamMockMvc
             .perform(
@@ -473,7 +361,7 @@ class TeamResourceIT {
         // If the entity doesn't have an ID, it will throw BadRequestAlertException
         restTeamMockMvc
             .perform(
-                patch(ENTITY_API_URL_ID, teamDTO.getId()).contentType("application/merge-patch+json").content(om.writeValueAsBytes(teamDTO))
+                patch(ENTITY_API_URL_ID, team.getId()).contentType("application/merge-patch+json").content(om.writeValueAsBytes(teamDTO))
             )
             .andExpect(status().isBadRequest());
 

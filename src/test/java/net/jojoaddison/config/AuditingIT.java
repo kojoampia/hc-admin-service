@@ -6,9 +6,10 @@ import java.time.Instant;
 import java.util.List;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.AuditLog;
-import net.jojoaddison.domain.Team;
+import net.jojoaddison.domain.DocumentItem;
+import net.jojoaddison.domain.enumeration.DocumentType;
 import net.jojoaddison.repository.AuditLogRepository;
-import net.jojoaddison.repository.TeamRepository;
+import net.jojoaddison.repository.DocumentItemRepository;
 import net.jojoaddison.security.SecurityUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,7 +25,10 @@ import org.springframework.security.test.context.support.WithMockUser;
  * The audit trail, which was configured-but-inert before: {@code AuditLog} was a full CRUD entity
  * that nothing in the application ever wrote to.
  *
- * <p>Team is the subject because it is an ordinary domain document — nothing here is specific to it.
+ * <p>DocumentItem is the subject because it is an ordinary domain document — nothing here is
+ * specific to it. It was Team until the console model was applied: the console entities carry no
+ * audit fields at all, so the subject has to be one of the entities that predate them. Any of
+ * Facility, Person, Photo, SystemCatalog and the rest would do equally well.
  *
  * <h2>Two identifiers, deliberately</h2>
  *
@@ -44,12 +48,12 @@ import org.springframework.security.test.context.support.WithMockUser;
 class AuditingIT {
 
     @Autowired
-    private TeamRepository teamRepository;
+    private DocumentItemRepository documentItemRepository;
 
     @Autowired
     private AuditLogRepository auditLogRepository;
 
-    private Team saved;
+    private DocumentItem saved;
 
     @BeforeEach
     void clearAuditLog() {
@@ -59,7 +63,7 @@ class AuditingIT {
     @AfterEach
     void cleanup() {
         if (saved != null) {
-            teamRepository.deleteById(saved.getId());
+            documentItemRepository.deleteById(saved.getId());
             saved = null;
         }
         auditLogRepository.deleteAll();
@@ -70,11 +74,13 @@ class AuditingIT {
      * client is what supplies them — which is precisely the limitation documented above, and the
      * reason the trustworthy record is the AuditLog row rather than these.
      */
-    private Team newTeam() {
+    private DocumentItem newDocumentItem() {
         Instant now = Instant.now();
-        return new Team()
-            .name("Night shift")
+        return new DocumentItem()
+            .name("Night shift rota")
             .description("Covers 22:00 to 06:00")
+            .documentType(DocumentType.CERTIFICATE)
+            .url("https://example.invalid/rota.pdf")
             .createdBy("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
             .createdDate(now)
             .modifiedBy("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11")
@@ -91,13 +97,13 @@ class AuditingIT {
      */
     @Test
     void clientSuppliedAttributionIsOverwrittenNotTrusted() {
-        Team forged = newTeam();
+        DocumentItem forged = newDocumentItem();
         forged.setCreatedBy("somebody-else");
         forged.setModifiedBy("somebody-else");
         forged.setCreatedDate(Instant.EPOCH);
         forged.setModifiedDate(Instant.EPOCH);
 
-        saved = teamRepository.save(forged);
+        saved = documentItemRepository.save(forged);
 
         assertThat(saved.getCreatedBy()).isEqualTo(Constants.SYSTEM);
         assertThat(saved.getModifiedBy()).isEqualTo(Constants.SYSTEM);
@@ -112,13 +118,13 @@ class AuditingIT {
      */
     @Test
     void updatingCannotRewriteProvenance() {
-        saved = teamRepository.save(newTeam());
+        saved = documentItemRepository.save(newDocumentItem());
         Instant originalCreated = saved.getCreatedDate();
 
         saved.setDescription("Covers 22:00 to 07:00");
         saved.setCreatedBy("somebody-else");
         saved.setCreatedDate(Instant.EPOCH);
-        saved = teamRepository.save(saved);
+        saved = documentItemRepository.save(saved);
 
         assertThat(saved.getCreatedBy()).isEqualTo(Constants.SYSTEM);
         assertThat(saved.getCreatedDate()).isEqualTo(originalCreated);
@@ -145,7 +151,7 @@ class AuditingIT {
             context.setAuthentication(new JwtAuthenticationToken(jwt, List.of()));
             SecurityContextHolder.setContext(context);
 
-            saved = teamRepository.save(newTeam());
+            saved = documentItemRepository.save(newDocumentItem());
 
             // The id, not "admin" — a login here would break every seeded reference.
             assertThat(saved.getCreatedBy()).isEqualTo(adminId);
@@ -164,7 +170,7 @@ class AuditingIT {
     void withoutAUserIdClaimTheAuditorIsSystem() {
         assertThat(SecurityUtils.getCurrentUserId()).isEmpty();
 
-        saved = teamRepository.save(newTeam());
+        saved = documentItemRepository.save(newDocumentItem());
 
         assertThat(saved.getCreatedBy()).isEqualTo(Constants.SYSTEM);
     }
@@ -173,21 +179,22 @@ class AuditingIT {
 
     @Test
     void savingADocumentWritesAnAuditLogEntry() {
-        saved = teamRepository.save(newTeam());
+        saved = documentItemRepository.save(newDocumentItem());
 
         List<AuditLog> entries = auditLogRepository.findAll();
         assertThat(entries).hasSize(1);
         assertThat(entries.getFirst().getActionType()).isEqualTo("SAVE");
         assertThat(entries.getFirst().getUserId()).isEqualTo("alice");
-        assertThat(entries.getFirst().getMetadata()).contains("team").contains(saved.getId());
+        // The collection name, as AuditLogCallback records it — "document_item", not the class name.
+        assertThat(entries.getFirst().getMetadata()).contains("document_item").contains(saved.getId());
     }
 
     @Test
     void deletingADocumentWritesAnAuditLogEntry() {
-        Team team = teamRepository.save(newTeam());
+        DocumentItem item = documentItemRepository.save(newDocumentItem());
         auditLogRepository.deleteAll();
 
-        teamRepository.deleteById(team.getId());
+        documentItemRepository.deleteById(item.getId());
 
         List<AuditLog> entries = auditLogRepository.findAll();
         assertThat(entries).hasSize(1);
@@ -222,7 +229,7 @@ class AuditingIT {
      */
     @Test
     void auditMetadataRecordsTheReferenceNotTheContents() {
-        saved = teamRepository.save(newTeam());
+        saved = documentItemRepository.save(newDocumentItem());
 
         String metadata = auditLogRepository.findAll().getFirst().getMetadata();
         assertThat(metadata).doesNotContain("Night shift").doesNotContain("Covers 22:00");

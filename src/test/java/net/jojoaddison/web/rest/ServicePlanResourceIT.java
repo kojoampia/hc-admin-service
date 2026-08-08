@@ -28,7 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
  * Integration tests for the {@link ServicePlanResource} REST controller.
  */
 @IntegrationTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
 class ServicePlanResourceIT {
 

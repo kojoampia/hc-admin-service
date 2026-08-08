@@ -11,13 +11,14 @@ import java.util.Set;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
-import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
  * A Vendor.
  */
-@Document(collection = "vendor")
+// Fully qualified: importing the annotation would shadow net.jojoaddison.domain.Document, which the
+// documents relationship below refers to by simple name. See the note on the Document entity.
+@org.springframework.data.mongodb.core.mapping.Document(collection = "vendor")
 @SuppressWarnings("common-java:DuplicatedBlocks")
 public class Vendor implements Serializable {
 

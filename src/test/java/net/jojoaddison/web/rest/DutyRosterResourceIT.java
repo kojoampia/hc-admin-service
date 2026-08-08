@@ -44,8 +44,8 @@ class DutyRosterResourceIT {
     private static final String DEFAULT_PROFESSIONAL_ID = "AAAAAAAAAA";
     private static final String UPDATED_PROFESSIONAL_ID = "BBBBBBBBBB";
 
-    private static final ShiftType DEFAULT_SHIFT = ShiftType.MORNING;
-    private static final ShiftType UPDATED_SHIFT = ShiftType.AFTERNOON;
+    private static final ShiftType DEFAULT_SHIFT = ShiftType.DAY;
+    private static final ShiftType UPDATED_SHIFT = ShiftType.EVENING;
 
     private static final String DEFAULT_NAME = "AAAAAAAAAA";
     private static final String UPDATED_NAME = "BBBBBBBBBB";
