@@ -30,10 +30,12 @@ import org.springframework.test.web.servlet.MockMvc;
  * off, the header is rebuilt from the raw request and the assertions below pass against the broken
  * behaviour. That is the whole reason this file exists separately.
  *
- * <p>{@code X-Forwarded-Prefix} is the half that is easy to lose: nginx sends {@code -Proto} and
- * {@code -Host} on its own, but the prefix has to be added by the gateway route, since only it knows
- * what it stripped. If someone removes that filter from the route, {@link #prefixIsRestored} fails
- * here rather than silently in production.
+ * <p><strong>This test cannot prove the fix works.</strong> It injects the headers directly, so it
+ * shows only that this service rebuilds URLs correctly once they arrive. Whether they arrive is a
+ * property of the gateway: Spring Cloud Gateway discards every {@code X-Forwarded-*} header unless
+ * {@code spring.cloud.gateway.server.webflux.trusted-proxies} matches its caller, and the container
+ * nginx must not overwrite {@code X-Forwarded-Proto} with its own scheme. Both were wrong when this
+ * test was first written, and it passed anyway. Verify the chain end to end, not just this.
  */
 @IntegrationTest
 @AutoConfigureMockMvc
