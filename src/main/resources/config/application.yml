@@ -178,9 +178,13 @@ server:
   # would 404 even if the scheme were right.
   #
   # `framework` registers Spring's ForwardedHeaderFilter, which honours X-Forwarded-Proto, -Host
-  # and -Prefix. nginx already sends the first two; the gateway sends the prefix (see its route
-  # config). Do not use `native` — that is for a servlet container doing its own handling, and
+  # and -Prefix. Do not use `native` — that is for a servlet container doing its own handling, and
   # this runs behind two proxies, not one.
+  #
+  # This alone is not enough, and the other half is not in this repository. The gateway only emits
+  # X-Forwarded-* when `spring.cloud.gateway.server.webflux.trusted-proxies` matches its caller;
+  # unset, it strips the headers and sends none, and this property then has nothing to read. If
+  # these links ever revert to naming the service's own address, check that first.
   forward-headers-strategy: framework
   servlet:
     session:
