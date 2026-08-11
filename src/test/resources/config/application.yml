@@ -78,6 +78,10 @@ spring:
 server:
   port: 10344
   address: localhost
+  # Mirrors the main config. This file replaces it wholesale for tests rather than layering over it,
+  # so a property only set there is simply absent here — which is how ForwardedHeadersIT can pass
+  # against a service that would not honour the headers in production. Keep the two in step.
+  forward-headers-strategy: framework
 
 # ===================================================================
 # JHipster specific properties

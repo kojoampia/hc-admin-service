@@ -167,6 +167,21 @@ spring:
       console-available: true
 
 server:
+  # Trust the proxy chain when building absolute URLs. Without this, PaginationUtil's `Link` headers
+  # are built from the request as this service sees it — which is plain HTTP, on an internal host,
+  # and stripped of the gateway's routing prefix. On https://admin.abofonsa.com that produced
+  #
+  #   <http://admin.abofonsa.com/api/profiles?page=-1&size=20>; rel="last"
+  #
+  # `http://` on an HTTPS page is mixed content and a browser blocks it, and `/api/...` is the
+  # gateway's own surface rather than `/services/hcadminservice/api/...`, so following the link
+  # would 404 even if the scheme were right.
+  #
+  # `framework` registers Spring's ForwardedHeaderFilter, which honours X-Forwarded-Proto, -Host
+  # and -Prefix. nginx already sends the first two; the gateway sends the prefix (see its route
+  # config). Do not use `native` — that is for a servlet container doing its own handling, and
+  # this runs behind two proxies, not one.
+  forward-headers-strategy: framework
   servlet:
     session:
       cookie:
