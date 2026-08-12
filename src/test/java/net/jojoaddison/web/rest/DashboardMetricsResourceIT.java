@@ -67,6 +67,7 @@ class DashboardMetricsResourceIT {
             "$.caseLoad",
             "$.sparklines",
             "$.capabilities",
+            "$.uptime",
         }
     )
     void servesEveryFieldTheClientReads(String path) throws Exception {
@@ -116,7 +117,21 @@ class DashboardMetricsResourceIT {
             .andExpect(jsonPath("$.messageVolume[0].count").exists());
     }
 
-    /** Capabilities are declared rather than counted, so they are present even on an empty database. */
+    /**
+     * Uptime is present but unmeasured here: no metrics store is configured in tests, so the
+     * percentage is null and the window still says what it would have measured. Null rather than
+     * zero, because 0% reads as a total outage rather than "not measured".
+     */
+    @Test
+    void uptimeIsReportedAsUnmeasuredWithoutAMetricsStack() throws Exception {
+        restMockMvc
+            .perform(get(ENDPOINT))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.uptime.percent").doesNotExist())
+            .andExpect(jsonPath("$.uptime.windowDays").value(7));
+    }
+
+    /** Capabilities are present even on an empty database, and none of them claims to be Live. */
     @Test
     void capabilitiesAreServedWithoutData() throws Exception {
         restMockMvc
@@ -125,6 +140,8 @@ class DashboardMetricsResourceIT {
             .andExpect(jsonPath("$.capabilities.length()").value(4))
             .andExpect(jsonPath("$.capabilities[0].name").exists())
             .andExpect(jsonPath("$.capabilities[0].icon").exists())
-            .andExpect(jsonPath("$.capabilities[0].status").exists());
+            .andExpect(jsonPath("$.capabilities[0].status").exists())
+            // Nothing is checkable without a metrics store, so nothing may claim it works.
+            .andExpect(jsonPath("$.capabilities[?(@.status == 'Live')]").isEmpty());
     }
 }

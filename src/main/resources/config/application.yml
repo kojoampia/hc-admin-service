@@ -166,6 +166,20 @@ spring:
     ansi:
       console-available: true
 
+# Reading the observability stack, for figures no document in Mongo can answer: uptime, whether Kafka
+# is carrying connections, whether the databases are healthy.
+#
+# BLANK BY DEFAULT, AND THAT IS DELIBERATE. Unset means the client is disabled and every one of those
+# figures reports as unknown — which is correct for dev, for CI, and for anyone running this without
+# a metrics stack. The deployment sets them (see hc-admin-ci's compose.yml); nothing else should need
+# to. A wrong URL here is a three-second timeout on a screen someone is waiting for, which is why the
+# client's timeouts are short and its failures are silent.
+observability:
+  mimir:
+    url: ${OBSERVABILITY_MIMIR_URL:}
+  grafana:
+    url: ${OBSERVABILITY_GRAFANA_URL:}
+
 server:
   # Trust the proxy chain when building absolute URLs. Without this, PaginationUtil's `Link` headers
   # are built from the request as this service sees it — which is plain HTTP, on an internal host,

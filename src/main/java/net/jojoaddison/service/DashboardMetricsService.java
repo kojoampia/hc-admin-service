@@ -9,6 +9,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.Message;
 import net.jojoaddison.domain.PlatformService;
@@ -36,18 +37,29 @@ import org.springframework.stereotype.Service;
 public class DashboardMetricsService {
 
     /**
-     * Declared platform capabilities, matching the prototype in {@code app/admin-demo.html}.
-     *
-     * <p>Constants on purpose. These state what the platform offers and at what release stage; they
-     * are not health probes, and nothing in the database describes them. Keeping them here rather
-     * than in the client means one place to change when a capability ships.
+     * The platform services whose reporting defines uptime. Same six the sync script catalogues in
+     * hc-admin-ci; kept as a pattern rather than a list because PromQL wants one.
      */
-    private static final List<DashboardMetricsDTO.PlatformCapability> CAPABILITIES = List.of(
-        new DashboardMetricsDTO.PlatformCapability("Realtime message notification", "bell", "Live"),
-        new DashboardMetricsDTO.PlatformCapability("Long term persistence storage", "save", "Healthy"),
-        new DashboardMetricsDTO.PlatformCapability("Metric visualization", "report", "Live"),
-        new DashboardMetricsDTO.PlatformCapability("AI & ML analysis", "star", "Beta")
-    );
+    private static final String PLATFORM_SERVICES = "hc-(admin|patient|professional)-(gateway|service)";
+
+    private static final int PLATFORM_SERVICE_COUNT = 6;
+
+    /**
+     * Days of uptime to report.
+     *
+     * <p>Not thirty. Mimir keeps 15 days, so a 30-day window would be computed from the days that
+     * exist and captioned as if it covered the rest. Seven sits inside retention with room for the
+     * store to have been restarted recently.
+     */
+    private static final int UPTIME_WINDOW_DAYS = 7;
+
+    /** Statuses. Deliberately the prototype's vocabulary, so the panel reads the same. */
+    private static final String LIVE = "Live";
+    private static final String OFFLINE = "Offline";
+    private static final String HEALTHY = "Healthy";
+    private static final String UNAVAILABLE = "Unavailable";
+    private static final String UNKNOWN = "Unknown";
+    private static final String BETA = "Beta";
 
     /** How many months of message volume the chart shows. */
     private static final int VOLUME_MONTHS = 6;
@@ -56,9 +68,11 @@ public class DashboardMetricsService {
     private static final int CASE_LOAD_ROWS = 8;
 
     private final MongoTemplate mongoTemplate;
+    private final ObservabilityClient observability;
 
-    public DashboardMetricsService(MongoTemplate mongoTemplate) {
+    public DashboardMetricsService(MongoTemplate mongoTemplate, ObservabilityClient observability) {
         this.mongoTemplate = mongoTemplate;
+        this.observability = observability;
     }
 
     public DashboardMetricsDTO metrics() {
@@ -75,7 +89,8 @@ public class DashboardMetricsService {
             accountMix(),
             caseLoad(),
             Map.of(),
-            CAPABILITIES
+            capabilities(),
+            uptime()
         );
     }
 
@@ -201,5 +216,88 @@ public class DashboardMetricsService {
 
     private long count(Class<?> type, Criteria criteria) {
         return mongoTemplate.count(criteria == null ? new Query() : new Query(criteria), type);
+    }
+
+    /**
+     * Portion of the window in which every catalogued service was reporting.
+     *
+     * <p>{@code or vector(0)} is the load-bearing part. A service that stops reporting produces no
+     * samples at all, and {@code avg_over_time} skips absent points rather than treating them as
+     * zero — so without it an outage would be averaged out of existence and a dead platform could
+     * report 100%. The fallback makes every gap count as nothing reporting, which is what an outage
+     * is.
+     *
+     * <p>{@code count by (job)} before {@code count} matters too: each service emits dozens of
+     * {@code jvm_memory_used_bytes} series, and counting those instead of jobs gives a number many
+     * times the service count. The first draft of this query returned 767%.
+     */
+    private DashboardMetricsDTO.Uptime uptime() {
+        String promql =
+            "avg_over_time((count(count by (job) (jvm_memory_used_bytes{job=~\"" +
+            PLATFORM_SERVICES +
+            "\"})) or vector(0))[" +
+            UPTIME_WINDOW_DAYS +
+            "d:5m]) / " +
+            PLATFORM_SERVICE_COUNT +
+            " * 100";
+        Double percent = observability.instant(promql).map(v -> Math.round(v * 100) / 100.0).orElse(null);
+        return new DashboardMetricsDTO.Uptime(percent, UPTIME_WINDOW_DAYS);
+    }
+
+    /**
+     * Three capabilities read from the running platform, one that has no signal.
+     *
+     * <p>Each returns Unknown rather than Live when the metrics store cannot be reached. That is the
+     * point of the change: a capability panel that claims "Live" while nothing is checked is
+     * decoration, and decoration on an operations screen is worse than an empty space.
+     */
+    private List<DashboardMetricsDTO.PlatformCapability> capabilities() {
+        return List.of(
+            new DashboardMetricsDTO.PlatformCapability("Realtime message notification", "bell", kafkaStatus()),
+            new DashboardMetricsDTO.PlatformCapability("Long term persistence storage", "save", databaseStatus()),
+            new DashboardMetricsDTO.PlatformCapability("Metric visualization", "report", grafanaStatus()),
+            // No signal exists for this one. Saying so is the honest option; the alternative is a
+            // badge that means nothing sitting beside three that mean something.
+            new DashboardMetricsDTO.PlatformCapability("AI & ML analysis", "star", BETA)
+        );
+    }
+
+    /**
+     * Kafka, via its clients rather than the broker.
+     *
+     * <p>Kafka is not a scrape target here, but every service that uses it reports
+     * {@code kafka_consumer_connection_count}. Connections open means a broker is accepting them,
+     * which is the question "is realtime notification working" actually asks — a broker that is
+     * running but unreachable from the services is not a working capability.
+     */
+    private String kafkaStatus() {
+        return observability
+            .instant("sum(kafka_consumer_connection_count)")
+            .map(connections -> connections > 0 ? LIVE : OFFLINE)
+            .orElse(UNKNOWN);
+    }
+
+    /**
+     * Every Health Connect database, or the capability is not healthy.
+     *
+     * <p>{@code min(up)} over the three stores: one exporter reporting 0 drops the whole capability,
+     * which is the intent — "long term persistence" is not partially true. Counted as well as
+     * min-ed, because a query matching zero series would otherwise look identical to one matching
+     * three healthy ones.
+     */
+    private String databaseStatus() {
+        long expected = 3;
+        Optional<Double> counted = observability.instant("count(up{job=\"mongodb\", database=~\"hc-.*\"})");
+        if (counted.isEmpty() || counted.get() < expected) {
+            return UNKNOWN;
+        }
+        return observability
+            .instant("min(up{job=\"mongodb\", database=~\"hc-.*\"})")
+            .map(min -> min >= 1 ? HEALTHY : UNAVAILABLE)
+            .orElse(UNKNOWN);
+    }
+
+    private String grafanaStatus() {
+        return observability.grafanaReady().map(ready -> ready ? LIVE : OFFLINE).orElse(UNKNOWN);
     }
 }

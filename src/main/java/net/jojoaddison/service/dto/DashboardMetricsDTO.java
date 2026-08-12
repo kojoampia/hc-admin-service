@@ -33,7 +33,8 @@ public record DashboardMetricsDTO(
     List<KeyCount> accountMix,
     List<CaseLoadRow> caseLoad,
     Map<String, List<Integer>> sparklines,
-    List<PlatformCapability> capabilities
+    List<PlatformCapability> capabilities,
+    Uptime uptime
 )
     implements Serializable {
     /**
@@ -65,14 +66,35 @@ public record DashboardMetricsDTO(
     public record CaseLoadRow(String id, String name, Integer cases, Integer visits) implements Serializable {}
 
     /**
-     * A declared platform capability and its status.
+     * Availability over a window, and the window it was measured over.
      *
-     * <p>These are <em>declared</em>, not probed. They describe what the platform offers, which is a
-     * property of the product rather than of any running process, and the prototype
-     * ({@code app/admin-demo.html}) carried them as four constants for the same reason. The status
-     * is a release stage — "Live", "Beta" — and must not be read as a health check. Runtime health
-     * lives in {@link DegradedService} and {@link PlatformServiceTotals}, which are counted from
-     * real records.
+     * <p>The two travel together on purpose. The prototype's card read "Uptime, 30 days" above a
+     * hardcoded 99.94%, and the console's replacement read "Services mapped" above a number that was
+     * just the service count again — a label and a figure that had never been derived from the same
+     * thing. Carrying the window with the percentage means the caption cannot drift from what was
+     * measured.
+     *
+     * <p>Thirty days is not available: Mimir's {@code compactor_blocks_retention_period} is 15 days.
+     * Asking for a window longer than retention returns a number computed from the days that exist
+     * and presented as if it covered the rest, which is the same failure with extra steps.
+     *
+     * @param percent portion of the window in which every catalogued service was reporting.
+     * @param windowDays the window actually measured — render this, do not assume it.
+     */
+    public record Uptime(Double percent, int windowDays) implements Serializable {}
+
+    /**
+     * A platform capability and its status.
+     *
+     * <p>These were four constants, copied from the prototype. They are now derived from the
+     * observability stack, because a panel that says "Live" whether or not the thing is running is
+     * decoration: realtime notification is Live only while Kafka is carrying connections, metric
+     * visualization only while Grafana answers its health endpoint, and persistence is Healthy only
+     * while every Health Connect database is up.
+     *
+     * <p>{@code status} is therefore a live reading for three of the four, and the fourth says so.
+     * "Unknown" is a real value here — it is what a capability reports when the metrics store cannot
+     * be reached, and it is deliberately not "Live".
      */
     public record PlatformCapability(String name, String icon, String status) implements Serializable {}
 }
