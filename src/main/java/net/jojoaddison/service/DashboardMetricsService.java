@@ -53,6 +53,9 @@ public class DashboardMetricsService {
      */
     private static final int UPTIME_WINDOW_DAYS = 7;
 
+    /** hc-admin, hc-patient, hc-professional. Fewer reporting means the answer is not known. */
+    private static final int EXPECTED_DATABASES = 3;
+
     /** Statuses. Deliberately the prototype's vocabulary, so the panel reads the same. */
     private static final String LIVE = "Live";
     private static final String OFFLINE = "Offline";
@@ -286,9 +289,10 @@ public class DashboardMetricsService {
      * three healthy ones.
      */
     private String databaseStatus() {
-        long expected = 3;
-        Optional<Double> counted = observability.instant("count(up{job=\"mongodb\", database=~\"hc-.*\"})");
-        if (counted.isEmpty() || counted.get() < expected) {
+        // orElse(0) rather than isEmpty()/get(): absent and "fewer than expected" lead to the same
+        // answer here, so collapsing them keeps the two cases from drifting apart later.
+        double counted = observability.instant("count(up{job=\"mongodb\", database=~\"hc-.*\"})").orElse(0d);
+        if (counted < EXPECTED_DATABASES) {
             return UNKNOWN;
         }
         return observability
