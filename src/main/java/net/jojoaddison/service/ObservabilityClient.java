@@ -1,5 +1,8 @@
 package net.jojoaddison.service;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Optional;
 import org.slf4j.Logger;
@@ -36,11 +39,14 @@ public class ObservabilityClient {
 
     private final RestClient mimir;
     private final RestClient grafana;
+    private final String mimirBaseUrl;
 
     public ObservabilityClient(
         @Value("${observability.mimir.url:}") String mimirUrl,
         @Value("${observability.grafana.url:}") String grafanaUrl
     ) {
+        this.mimirBaseUrl =
+            mimirUrl.stripTrailing().endsWith("/") ? mimirUrl.strip().substring(0, mimirUrl.strip().length() - 1) : mimirUrl.strip();
         this.mimir = mimirUrl.isBlank() ? null : client(mimirUrl);
         this.grafana = grafanaUrl.isBlank() ? null : client(grafanaUrl);
         if (this.mimir == null) {
@@ -72,11 +78,7 @@ public class ObservabilityClient {
             return Optional.empty();
         }
         try {
-            JsonNode body = mimir
-                .get()
-                .uri(uriBuilder -> uriBuilder.path("/prometheus/api/v1/query").queryParam("query", promql).build())
-                .retrieve()
-                .body(JsonNode.class);
+            JsonNode body = mimir.get().uri(queryUri(mimirBaseUrl, promql)).retrieve().body(JsonNode.class);
 
             JsonNode result = body == null ? null : body.path("data").path("result");
             if (result == null || !result.isArray() || result.isEmpty()) {
@@ -97,6 +99,26 @@ public class ObservabilityClient {
             LOG.debug("Mimir query failed [{}]: {}", promql, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    /**
+     * Builds the query URI by hand, as a fully-formed {@link URI}.
+     *
+     * <p>Not {@code uriBuilder.queryParam(...)}, and the reason cost a deploy to find. Spring treats
+     * <code>{...}</code> in a URI as a template variable, and PromQL label selectors are full of
+     * braces: {@code count(up{job="mongodb"})} has {@code {job="mongodb"}} read as a placeholder to
+     * expand. The query never reaches Mimir intact.
+     *
+     * <p>It fails silently and selectively, which is what made it confusing in production: the one
+     * query with no braces — {@code sum(kafka_consumer_connection_count)} — worked, so two
+     * capabilities reported Live while the two with label selectors reported Unknown. That reads
+     * like a Mimir problem rather than an encoding one.
+     *
+     * <p>Passing a {@code URI} object skips template expansion entirely; {@code RestClient} uses it
+     * verbatim.
+     */
+    static URI queryUri(String baseUrl, String promql) {
+        return URI.create(baseUrl + "/prometheus/api/v1/query?query=" + URLEncoder.encode(promql, StandardCharsets.UTF_8));
     }
 
     /**
