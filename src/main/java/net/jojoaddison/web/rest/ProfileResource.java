@@ -168,6 +168,30 @@ public class ProfileResource {
      * @param id the id of the profile to retrieve.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the profile, or with status {@code 404 (Not Found)}.
      */
+    /**
+     * {@code GET /api/profiles/by-account/:accountId} : the profile belonging to a gateway account.
+     *
+     * <p>Exists so the console can show the signed-in administrator their own detailed profile. The
+     * account itself lives in the gateway and carries only login, name, email and language;
+     * everything else about a person — title, date of birth, contact, address — is a Profile here,
+     * joined by {@code accountId}.
+     *
+     * <p>Placed above {@code /{id}} deliberately: {@code by-account} would otherwise be matched as
+     * an id and return 404 for a profile that exists.
+     *
+     * <p>A 404 is a normal answer, not an error. Most accounts have no profile — production has
+     * none at all — and the console reads the 404 as "offer to create one" rather than as a
+     * failure.
+     *
+     * @param accountId the gateway account id.
+     * @return {@code 200 OK} with the profile, or {@code 404} if that account has none.
+     */
+    @GetMapping("/by-account/{accountId}")
+    public ResponseEntity<Profile> getProfileByAccount(@PathVariable("accountId") String accountId) {
+        LOG.debug("REST request to get Profile for account : {}", accountId);
+        return ResponseUtil.wrapOrNotFound(profileRepository.findByAccount(accountId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Profile> getProfile(@PathVariable("id") String id) {
         LOG.debug("REST request to get Profile : {}", id);
