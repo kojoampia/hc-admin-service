@@ -1,10 +1,12 @@
 package net.jojoaddison.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.*;
 import java.io.Serializable;
 import java.time.Instant;
 import net.jojoaddison.domain.enumeration.FacilityType;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -42,6 +44,12 @@ public class Facility implements Serializable {
 
     @Field("photos")
     private String photos;
+
+    /** The vendor that operates this site. Null for a facility the network runs itself. */
+    @DBRef
+    @Field("vendor")
+    @JsonIgnoreProperties(value = { "documents", "facilities" }, allowSetters = true)
+    private Vendor vendor;
 
     @Field("created_by")
     private String createdBy;
@@ -136,6 +144,19 @@ public class Facility implements Serializable {
 
     public void setContactId(String contactId) {
         this.contactId = contactId;
+    }
+
+    public Vendor getVendor() {
+        return this.vendor;
+    }
+
+    public void setVendor(Vendor vendor) {
+        this.vendor = vendor;
+    }
+
+    public Facility vendor(Vendor vendor) {
+        this.setVendor(vendor);
+        return this;
     }
 
     public String getPhotos() {

@@ -79,9 +79,7 @@
         "id": "team-001",
         "name": "Admin Team",
         "description": "Core administration",
-        "geographicSpaceIds": [
-          "room-101"
-        ]
+        "geographicSpaceIds": ["room-101"]
       }
     ],
     "profiles": [],
@@ -611,7 +609,7 @@
         "foundedOn": "2019-03-14",
         "switchboard": "+233 30 273 1188",
         "email": "operations@abofonsa.care",
-        "deskHours": "Desk 07:00–19:00 GMT · Care line 24/7",
+        "deskHours": "Desk 07:00\u201319:00 GMT \u00b7 Care line 24/7",
         "address": {
           "id": "addr-org",
           "digitalAddress": "GA-184-7723"
@@ -644,7 +642,7 @@
       {
         "id": "angel-a2",
         "name": "Nana Frimpong",
-        "relationship": "Son · London",
+        "relationship": "Son \u00b7 London",
         "phone": "+44 7700 900412",
         "email": null,
         "country": null
@@ -652,7 +650,7 @@
       {
         "id": "angel-a3",
         "name": "Naa Osae",
-        "relationship": "Daughter · New York",
+        "relationship": "Daughter \u00b7 New York",
         "phone": "+1 917 555 0142",
         "email": null,
         "country": null
@@ -660,7 +658,7 @@
       {
         "id": "angel-a4",
         "name": "Kwame Serwaa",
-        "relationship": "Son · Berlin",
+        "relationship": "Son \u00b7 Berlin",
         "phone": "+49 170 5550118",
         "email": null,
         "country": null
@@ -668,7 +666,7 @@
       {
         "id": "angel-a5",
         "name": "Akua Asantewaa",
-        "relationship": "Granddaughter · New Jersey",
+        "relationship": "Granddaughter \u00b7 New Jersey",
         "phone": "+1 646 555 0177",
         "email": null,
         "country": null
@@ -684,7 +682,7 @@
       {
         "id": "angel-a7",
         "name": "Kojo Sarsah",
-        "relationship": "Brother · Amsterdam",
+        "relationship": "Brother \u00b7 Amsterdam",
         "phone": "+31 6 55501182",
         "email": null,
         "country": null
@@ -692,7 +690,7 @@
       {
         "id": "angel-a8",
         "name": "Grace Sam",
-        "relationship": "Daughter · Maryland",
+        "relationship": "Daughter \u00b7 Maryland",
         "phone": "+1 240 555 0166",
         "email": null,
         "country": null
@@ -708,7 +706,7 @@
       {
         "id": "angel-a10",
         "name": "Adwoa Ofosu",
-        "relationship": "Daughter · Manchester",
+        "relationship": "Daughter \u00b7 Manchester",
         "phone": "+44 7700 900733",
         "email": null,
         "country": null
@@ -716,7 +714,7 @@
       {
         "id": "angel-a11",
         "name": "Selorm Akator",
-        "relationship": "Son · Bronx",
+        "relationship": "Son \u00b7 Bronx",
         "phone": "+1 718 555 0193",
         "email": null,
         "country": null
@@ -1128,7 +1126,7 @@
         },
         "team": {
           "id": "team-2",
-          "name": "Home visits · North"
+          "name": "Home visits \u00b7 North"
         },
         "hub": {
           "id": "hub-1",
@@ -1155,7 +1153,7 @@
         },
         "team": {
           "id": "team-3",
-          "name": "Home visits · South"
+          "name": "Home visits \u00b7 South"
         },
         "hub": {
           "id": "hub-1",
@@ -1236,7 +1234,7 @@
         },
         "team": {
           "id": "team-2",
-          "name": "Home visits · North"
+          "name": "Home visits \u00b7 North"
         },
         "hub": {
           "id": "hub-2",
@@ -1263,7 +1261,7 @@
         },
         "team": {
           "id": "team-3",
-          "name": "Home visits · South"
+          "name": "Home visits \u00b7 South"
         },
         "hub": {
           "id": "hub-1",
@@ -1337,7 +1335,7 @@
       },
       {
         "id": "team-2",
-        "name": "Home visits · North",
+        "name": "Home visits \u00b7 North",
         "description": null,
         "supervisor": {
           "id": "p2",
@@ -1346,7 +1344,7 @@
       },
       {
         "id": "team-3",
-        "name": "Home visits · South",
+        "name": "Home visits \u00b7 South",
         "description": null,
         "supervisor": {
           "id": "p3",
@@ -1396,7 +1394,15 @@
         "contractRenewsOn": "2027-06-30",
         "orderCount": 302,
         "spendToDate": 156800,
-        "rating": 4.9
+        "rating": 4.9,
+        "facilities": [
+          {
+            "id": "fac-1"
+          },
+          {
+            "id": "fac-2"
+          }
+        ]
       },
       {
         "id": "v3",
@@ -1413,7 +1419,15 @@
         "contractRenewsOn": "2026-09-30",
         "orderCount": 511,
         "spendToDate": 233400,
-        "rating": 4.6
+        "rating": 4.6,
+        "facilities": [
+          {
+            "id": "fac-3"
+          },
+          {
+            "id": "fac-4"
+          }
+        ]
       },
       {
         "id": "v4",
@@ -1481,7 +1495,12 @@
         "contractRenewsOn": "2027-01-31",
         "orderCount": 73,
         "spendToDate": 41100,
-        "rating": 4.4
+        "rating": 4.4,
+        "facilities": [
+          {
+            "id": "fac-5"
+          }
+        ]
       },
       {
         "id": "v8",
@@ -1535,7 +1554,7 @@
         "sentAt": "2026-08-05T07:41:00Z",
         "fromAddress": "a.serwaa@mail.gh",
         "senderName": "Ama Serwaa",
-        "subject": "Service plan upgrade — Essential to Plus",
+        "subject": "Service plan upgrade \u2014 Essential to Plus",
         "body": "My son in Berlin would like to move my plan up so that the physiotherapy sessions are included. What is the difference in the monthly amount and when would it start?",
         "channel": "PATIENT_APP",
         "status": "NEW",
@@ -1557,7 +1576,7 @@
         "sentAt": "2026-08-04T15:03:00Z",
         "fromAddress": "k.owusu@abofonsa.care",
         "senderName": "Nurse Kwesi Owusu",
-        "subject": "Duty roster clash — Wednesday night",
+        "subject": "Duty roster clash \u2014 Wednesday night",
         "body": "I am rostered for the Wednesday night shift and the Thursday early shift back to back. That leaves under six hours between. Can one of them be reassigned?",
         "channel": "PROFESSIONAL_APP",
         "status": "READ",
@@ -1601,7 +1620,7 @@
         "sentAt": "2026-08-02T14:31:00Z",
         "fromAddress": "b.sarsah@mail.gh",
         "senderName": "Beatrice Sarsah",
-        "subject": "Registration — documents uploaded",
+        "subject": "Registration \u2014 documents uploaded",
         "body": "I have uploaded my Ghana Card and the referral letter from my GP. My brother in Amsterdam is the sponsor on the account. Is anything else needed before approval?",
         "channel": "PATIENT_APP",
         "status": "REPLIED",
@@ -1612,7 +1631,7 @@
         "sentAt": "2026-08-02T10:09:00Z",
         "fromAddress": "dispense@goldstarrx.gh",
         "senderName": "GoldStar Pharmacy",
-        "subject": "Delivery exception — Kumasi route",
+        "subject": "Delivery exception \u2014 Kumasi route",
         "body": "Three deliveries on the Nhyiaeso route were returned; the rider could not reach the recipients. We will retry Monday unless you advise otherwise.",
         "channel": "VENDOR_PORTAL",
         "status": "REPLIED",
@@ -1623,8 +1642,8 @@
         "sentAt": "2026-08-01T17:44:00Z",
         "fromAddress": "a.boateng@abofonsa.care",
         "senderName": "Dr. Ama Boateng",
-        "subject": "Case escalation — patient a5",
-        "body": "Yaa Asantewaa needs a cardiology review this month. Dr. Osae is on leave — can the referral route to an external partner instead?",
+        "subject": "Case escalation \u2014 patient a5",
+        "body": "Yaa Asantewaa needs a cardiology review this month. Dr. Osae is on leave \u2014 can the referral route to an external partner instead?",
         "channel": "PROFESSIONAL_APP",
         "status": "REPLIED",
         "priority": "HIGH"
@@ -1645,7 +1664,7 @@
         "sentAt": "2026-07-31T12:50:00Z",
         "fromAddress": "y.antwi@abofonsa.care",
         "senderName": "Yaw Antwi",
-        "subject": "Vehicle service due — response unit 2",
+        "subject": "Vehicle service due \u2014 response unit 2",
         "body": "Unit 2 is due its 20,000 km service next week. SwiftAmb can cover our calls for two days if we schedule it Tuesday and Wednesday.",
         "channel": "PROFESSIONAL_APP",
         "status": "REPLIED",
@@ -2960,7 +2979,7 @@
         "occurredAt": "2026-08-04T17:02:00Z",
         "actor": "Efua Mensah",
         "action": "suspended account",
-        "target": "p9 · Mensah Akoto",
+        "target": "p9 \u00b7 Mensah Akoto",
         "level": "WARN"
       },
       {
@@ -2968,7 +2987,7 @@
         "occurredAt": "2026-08-04T11:48:00Z",
         "actor": "System",
         "action": "flagged slow response",
-        "target": "5500 · hc-vendor-gw",
+        "target": "5500 \u00b7 hc-vendor-gw",
         "level": "WARN"
       },
       {
@@ -2976,7 +2995,7 @@
         "occurredAt": "2026-08-03T15:20:00Z",
         "actor": "Kwame Asare",
         "action": "published price update",
-        "target": "catalog · Diagnostics",
+        "target": "catalog \u00b7 Diagnostics",
         "level": "INFO"
       },
       {
@@ -2984,7 +3003,7 @@
         "occurredAt": "2026-08-02T09:14:00Z",
         "actor": "Efua Mensah",
         "action": "approved vendor",
-        "target": "v6 · Volta Nutrition",
+        "target": "v6 \u00b7 Volta Nutrition",
         "level": "INFO"
       },
       {
@@ -2992,7 +3011,7 @@
         "occurredAt": "2026-08-01T18:55:00Z",
         "actor": "System",
         "action": "nightly backup completed",
-        "target": "mongo · all shards",
+        "target": "mongo \u00b7 all shards",
         "level": "INFO"
       },
       {
@@ -3017,6 +3036,66 @@
         "createdDate": "2022-11-30T17:00:00Z",
         "modifiedBy": "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b11",
         "modifiedDate": "2022-11-30T17:00:00Z"
+      },
+      {
+        "id": "fac-1",
+        "name": "Ridge Diagnostics \u2014 Ridge",
+        "description": "Main laboratory and phlebotomy",
+        "type": "LAB",
+        "addressId": "addr-fac-1",
+        "contactId": "cont-fac-1",
+        "photos": "",
+        "vendor": {
+          "id": "v2"
+        }
+      },
+      {
+        "id": "fac-2",
+        "name": "Ridge Diagnostics \u2014 Osu draw station",
+        "description": "Sample collection only",
+        "type": "LAB",
+        "addressId": "addr-fac-2",
+        "contactId": "cont-fac-2",
+        "photos": "",
+        "vendor": {
+          "id": "v2"
+        }
+      },
+      {
+        "id": "fac-3",
+        "name": "GoldStar Pharmacy \u2014 Osu",
+        "description": "Dispensary and consultation room",
+        "type": "PHARMACY",
+        "addressId": "addr-fac-3",
+        "contactId": "cont-fac-3",
+        "photos": "",
+        "vendor": {
+          "id": "v3"
+        }
+      },
+      {
+        "id": "fac-4",
+        "name": "GoldStar Pharmacy \u2014 Airport City",
+        "description": "Dispensary",
+        "type": "PHARMACY",
+        "addressId": "addr-fac-4",
+        "contactId": "cont-fac-4",
+        "photos": "",
+        "vendor": {
+          "id": "v3"
+        }
+      },
+      {
+        "id": "fac-5",
+        "name": "Takoradi Physio \u2014 Beach Road",
+        "description": "Physiotherapy suite",
+        "type": "CLINIC",
+        "addressId": "addr-fac-5",
+        "contactId": "cont-fac-5",
+        "photos": "",
+        "vendor": {
+          "id": "v7"
+        }
       }
     ],
     "audits": [
