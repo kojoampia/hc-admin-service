@@ -120,6 +120,14 @@ spring:
           brokers: localhost:9092
       bindings:
         binding-out-0:
+          # The destination is the whole point of this binding and it was missing.
+          #
+          # Without it Spring publishes to a topic named after the binding — `binding-out-0` — while
+          # kafkaConsumer-in-0 reads `sse-topic`. Producer and consumer were pointed at different
+          # topics, so nothing published through this binding was ever delivered to a browser: the
+          # send succeeded, the topic was created, and the message sat in it unread. Both the
+          # /publish endpoint and the messageSentEvent go through here.
+          destination: sse-topic
           content-type: text/plain
           group: hc-admin-service
         kafkaConsumer-in-0:
