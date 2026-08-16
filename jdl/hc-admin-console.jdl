@@ -224,6 +224,11 @@ entity Message {
   sentAt Instant required
   fromAddress String required maxlength(120)
   senderName String required maxlength(80)
+  // Set on an outbound message, null on everything that arrived at the desk. A message is
+  // outbound exactly when toAddress is set — no direction flag to keep consistent with the
+  // addresses it would be describing.
+  toAddress String maxlength(120)
+  recipientName String maxlength(80)
   subject String required maxlength(160)
   body TextBlob required
   channel MessageChannel required
@@ -392,6 +397,14 @@ relationship OneToMany {
   Patient{careActivity} to CareActivity{patient required}
   Vendor{document} to Document{vendor}
   Vendor{facility} to Facility{vendor}
+  // A reply is its own message rather than an edit of the one it answers: it has its own body, its
+  // own time and its own author. Null for anything that starts a conversation.
+  Message{reply} to Message{parent}
+  // Who an outbound message went to, when this service knows them. Optional, because toAddress is
+  // the authoritative field and an address with no record behind it stays representable.
+  Vendor{message} to Message{vendor}
+  Patient{message} to Message{patient}
+  Professional{message} to Message{professional}
 }
 
 // ============================================================

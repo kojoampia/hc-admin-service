@@ -42,6 +42,23 @@ public class MessageDTO implements Serializable {
     @NotNull
     private Priority priority;
 
+    /** Set on an outbound message; null on everything that arrived at the desk. */
+    @Size(max = 120)
+    private String toAddress;
+
+    @Size(max = 80)
+    private String recipientName;
+
+    /** The message this one answers. Carried as an id so a reply does not drag a thread with it. */
+    private String parentId;
+
+    /** Who it went to, when this service knows them. The address above is the authoritative field. */
+    private String vendorId;
+
+    private String patientId;
+
+    private String professionalId;
+
     public String getId() {
         return id;
     }
@@ -112,6 +129,54 @@ public class MessageDTO implements Serializable {
 
     public void setPriority(Priority priority) {
         this.priority = priority;
+    }
+
+    public String getToAddress() {
+        return toAddress;
+    }
+
+    public void setToAddress(String toAddress) {
+        this.toAddress = toAddress;
+    }
+
+    public String getRecipientName() {
+        return recipientName;
+    }
+
+    public void setRecipientName(String recipientName) {
+        this.recipientName = recipientName;
+    }
+
+    public String getParentId() {
+        return parentId;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
+
+    public String getVendorId() {
+        return vendorId;
+    }
+
+    public void setVendorId(String vendorId) {
+        this.vendorId = vendorId;
+    }
+
+    public String getPatientId() {
+        return patientId;
+    }
+
+    public void setPatientId(String patientId) {
+        this.patientId = patientId;
+    }
+
+    public String getProfessionalId() {
+        return professionalId;
+    }
+
+    public void setProfessionalId(String professionalId) {
+        this.professionalId = professionalId;
     }
 
     @Override

@@ -77,6 +77,34 @@ public class MessageResource {
      * or with status {@code 500 (Internal Server Error)} if the messageDTO couldn't be updated.
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
+    /**
+     * {@code POST  /messages/send} : persist an outbound message and announce it.
+     *
+     * <p>Separate from {@code POST /messages} on purpose. Creating a message records something that
+     * arrived; sending one is an act with a consequence beyond the row, and a caller should have to
+     * say which it means rather than have every create fire a notification at somebody.
+     *
+     * @param messageDTO the message to send; it must name a recipient and must not carry an id.
+     * @return the {@link ResponseEntity} with status {@code 201 (Created)} and the saved message.
+     */
+    @PostMapping("/send")
+    public ResponseEntity<MessageDTO> sendMessage(@Valid @RequestBody MessageDTO messageDTO) throws URISyntaxException {
+        LOG.debug("REST request to send Message : {}", messageDTO);
+        if (messageDTO.getId() != null) {
+            throw new BadRequestAlertException("A new message cannot already have an ID", ENTITY_NAME, "idexists");
+        }
+        if (messageDTO.getToAddress() == null || messageDTO.getToAddress().isBlank()) {
+            // Without this the message is saved, the event publishes with a null routing key, and it
+            // broadcasts to everyone — a private reply delivered to every connected operator.
+            throw new BadRequestAlertException("A sent message must name a recipient", ENTITY_NAME, "torequired");
+        }
+        MessageDTO sent = messageService.send(messageDTO);
+        return ResponseEntity
+            .created(new URI("/api/messages/" + sent.getId()))
+            .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, sent.getId()))
+            .body(sent);
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<MessageDTO> updateMessage(
         @PathVariable(value = "id", required = false) final String id,
