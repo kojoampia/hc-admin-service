@@ -8,16 +8,20 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
-import java.util.stream.StreamSupport;
 import net.jojoaddison.domain.Angel;
 import net.jojoaddison.repository.AngelRepository;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
+import tech.jhipster.web.util.PaginationUtil;
 import tech.jhipster.web.util.ResponseUtil;
 
 /**
@@ -145,16 +149,20 @@ public class AngelResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Angels in body.
      */
     @GetMapping("")
-    public List<Angel> getAllAngels(@RequestParam(name = "filter", required = false) String filter) {
-        if ("patient-is-null".equals(filter)) {
-            LOG.debug("REST request to get all Angels where patient is null");
-            return StreamSupport
-                .stream(angelRepository.findAll().spliterator(), false)
-                .filter(angel -> angel.getPatient() == null)
-                .toList();
-        }
-        LOG.debug("REST request to get all Angels");
-        return angelRepository.findAll();
+    public ResponseEntity<List<Angel>> getAllAngels(
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable,
+        @RequestParam(name = "filter", required = false) String filter
+    ) {
+        LOG.debug("REST request to get a page of Angels");
+        // `patient-is-null` is the relationship picker asking for the angels not already attached to
+        // a patient. It used to read the whole collection and drop the attached ones in memory,
+        // which cannot be paged at all — the page would be a slice of an already-materialised list.
+        // As a query the database does the narrowing and the count is the count of the match.
+        Page<Angel> page = "patient-is-null".equals(filter)
+            ? angelRepository.findByPatientIsNull(pageable)
+            : angelRepository.findAll(pageable);
+        HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
+        return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
 
     /**
