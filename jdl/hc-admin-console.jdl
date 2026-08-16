@@ -40,6 +40,12 @@ enum AccountStatus { ACTIVE, PENDING, SUSPENDED, ON_LEAVE, UNDER_REVIEW }
 enum VerificationStatus { VERIFIED, PENDING, REJECTED }
 enum ProfessionalRole { CAREGIVER, PARAMEDIC, NURSE, DOCTOR }
 
+/** Kinds of site a vendor can operate. Matches
+    net.jojoaddison.domain.enumeration.FacilityType, which is the live shape —
+    admin-db.jdl still declares Facility.type as a String and has been wrong
+    since the enum was introduced. */
+enum FacilityType { HOSPITAL, HOSPICE, CLINIC, LAB, PHARMACY, OTHER }
+
 enum MessageChannel { PATIENT_APP, PROFESSIONAL_APP, VENDOR_PORTAL, EMAIL }
 enum MessageStatus { NEW, READ, REPLIED }
 enum Priority { HIGH, NORMAL, LOW }
@@ -114,6 +120,25 @@ entity Hub {
 // ============================================================
 // DIRECTORY  (wireframe: Patients, Professionals, Vendors)
 // ============================================================
+
+/** A place: a hospital, clinic, lab or pharmacy.
+
+    Defined here rather than in admin-db.jdl, which predates the console model
+    and still types `type` as a String. This is the shape the Java actually has.
+
+    A facility is not a vendor. The vendor is the party the network contracts
+    with; the facility is a site it operates, and one vendor may run several — a
+    pharmacy chain is one contract and many counters. addressId and contactId
+    remain plain string ids from the earlier model rather than references; they
+    are left alone deliberately, since nothing reads them yet. */
+entity Facility {
+  name String required
+  description String
+  type FacilityType required
+  addressId String required
+  contactId String required
+  photos String
+}
 
 /** Next of kin / diaspora sponsor. Called "Angel" throughout the
     Health Connect product language — keep the name. */
@@ -366,6 +391,7 @@ relationship OneToMany {
   Patient{document} to Document{patient}
   Patient{careActivity} to CareActivity{patient required}
   Vendor{document} to Document{vendor}
+  Vendor{facility} to Facility{vendor}
 }
 
 // ============================================================

@@ -88,6 +88,19 @@ public class Vendor implements Serializable {
     private Set<Document> documents = new HashSet<>();
 
     /**
+     * The sites this vendor operates.
+     *
+     * <p>A facility is a place — a hospital, clinic, lab or pharmacy — and a vendor is the party the
+     * network contracts with. They are not the same thing and one vendor may run several: a pharmacy
+     * chain is one contract and many counters. Modelled the same way as {@code documents}, by DBRef
+     * with the owning side here, so a facility can be reassigned without rewriting the vendor.
+     */
+    @DBRef
+    @Field("facility")
+    @JsonIgnoreProperties(value = { "vendor" }, allowSetters = true)
+    private Set<Facility> facilities = new HashSet<>();
+
+    /**
      * Hidden from the console's directory listings, but not deleted.
      *
      * <p>Nullable on purpose, and absent on every document written before this field existed. The
@@ -310,6 +323,37 @@ public class Vendor implements Serializable {
     public Vendor removeDocument(Document document) {
         this.documents.remove(document);
         document.setVendor(null);
+        return this;
+    }
+
+    public Set<Facility> getFacilities() {
+        return this.facilities;
+    }
+
+    public void setFacilities(Set<Facility> facilities) {
+        if (this.facilities != null) {
+            this.facilities.forEach(i -> i.setVendor(null));
+        }
+        if (facilities != null) {
+            facilities.forEach(i -> i.setVendor(this));
+        }
+        this.facilities = facilities;
+    }
+
+    public Vendor facilities(Set<Facility> facilities) {
+        this.setFacilities(facilities);
+        return this;
+    }
+
+    public Vendor addFacility(Facility facility) {
+        this.facilities.add(facility);
+        facility.setVendor(this);
+        return this;
+    }
+
+    public Vendor removeFacility(Facility facility) {
+        this.facilities.remove(facility);
+        facility.setVendor(null);
         return this;
     }
 

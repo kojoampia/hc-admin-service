@@ -98,7 +98,10 @@ class DevelopmentDataInitializerTest {
     void shouldPopulateTestProfileCollectionsThatCarryRecords() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getFacilities()).hasSize(1);
+        // Five sites across three vendors, plus the one decommissioned wing that predates the
+        // console model. The five exist so the vendor record's facilities card has something to
+        // render — a relation seeded empty is a card nobody can tell is broken.
+        assertThat(test.getFacilities()).hasSize(6);
         assertThat(test.getAudits()).hasSize(1);
         assertThat(test.getPricingPlans()).hasSize(1);
     }
@@ -119,6 +122,12 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getPatients()).hasSize(12);
         assertThat(test.getProfessionals()).hasSize(9);
         assertThat(test.getVendors()).hasSize(9);
+        // The relation itself, not just the two collections. Both sides are DBRefs and only the
+        // vendor's array is the owning one, so a seed that sets `vendor` on the facility and
+        // nothing on the vendor writes two documents that agree in the file and disagree in Mongo:
+        // the facility knows its vendor, the vendor lists no sites, and the record renders empty.
+        assertThat(test.getVendors().stream().filter(vendor -> !vendor.getFacilities().isEmpty()).count()).isEqualTo(3);
+        assertThat(test.getFacilities().stream().filter(facility -> facility.getVendor() != null).count()).isEqualTo(5);
         assertThat(test.getAngels()).hasSize(12);
         assertThat(test.getMessages()).hasSize(12);
         assertThat(test.getTasks()).hasSize(13);
