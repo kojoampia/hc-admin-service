@@ -150,6 +150,56 @@ class MessageResourceIT {
         insertedMessage = returnedMessage;
     }
 
+    /**
+     * Sending persists, and it is a separate act from creating.
+     *
+     * <p>`POST /messages` records something that arrived; `POST /messages/send` records something
+     * going out and announces it. Keeping them apart is what stops every create firing a
+     * notification at somebody.
+     */
+    @Test
+    void sendMessagePersistsIt() throws Exception {
+        long databaseSizeBeforeCreate = getRepositoryCount();
+        message.setToAddress("orders@kaneshiemed.gh");
+        message.setRecipientName("Kaneshie Medical Supplies");
+        MessageDTO messageDTO = messageMapper.toDto(message);
+
+        var returnedMessageDTO = om.readValue(
+            restMessageMockMvc
+                .perform(post(ENTITY_API_URL + "/send").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO)))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString(),
+            MessageDTO.class
+        );
+
+        assertIncrementedRepositoryCount(databaseSizeBeforeCreate);
+        assertThat(returnedMessageDTO.getToAddress()).isEqualTo("orders@kaneshiemed.gh");
+        assertThat(returnedMessageDTO.getRecipientName()).isEqualTo("Kaneshie Medical Supplies");
+        insertedMessage = messageMapper.toEntity(returnedMessageDTO);
+    }
+
+    /**
+     * Refused rather than broadcast.
+     *
+     * <p>The recipient is the event's routing key. Without it the message saves, the event
+     * publishes with a null key, and the consumer falls back to broadcast — delivering a private
+     * reply to every connected operator. That failure is silent, which is why this is a 400.
+     */
+    @Test
+    void sendMessageRequiresARecipient() throws Exception {
+        long databaseSizeBeforeCreate = getRepositoryCount();
+        message.setToAddress(null);
+        MessageDTO messageDTO = messageMapper.toDto(message);
+
+        restMessageMockMvc
+            .perform(post(ENTITY_API_URL + "/send").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO)))
+            .andExpect(status().isBadRequest());
+
+        assertSameRepositoryCount(databaseSizeBeforeCreate);
+    }
+
     @Test
     void createMessageWithExistingId() throws Exception {
         // Create the Message with an existing ID

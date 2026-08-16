@@ -1,5 +1,6 @@
 package net.jojoaddison.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.validation.constraints.*;
 import java.io.Serial;
 import java.io.Serializable;
@@ -8,6 +9,7 @@ import net.jojoaddison.domain.enumeration.MessageChannel;
 import net.jojoaddison.domain.enumeration.MessageStatus;
 import net.jojoaddison.domain.enumeration.Priority;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -57,6 +59,58 @@ public class Message implements Serializable {
     @NotNull
     @Field("priority")
     private Priority priority;
+
+    /**
+     * Where an outbound message went. Null on everything that arrived at the desk.
+     *
+     * <p>Every field above assumes a message arriving: `fromAddress` and `senderName` describe the
+     * patient, professional or vendor who wrote in. Composing one reverses that, and rather than
+     * overload the same two fields with a direction flag, the outbound pair sits beside the inbound
+     * one. A message is outbound exactly when this is set — no separate enum to keep consistent
+     * with the addresses it would be describing.
+     */
+    @Size(max = 120)
+    @Field("to_address")
+    private String toAddress;
+
+    @Size(max = 80)
+    @Field("recipient_name")
+    private String recipientName;
+
+    /**
+     * The message this one answers, for a reply.
+     *
+     * <p>A reply is its own message rather than an edit of the one it answers: it has its own body,
+     * its own time and its own author, and the desk showed none of that while "Send reply" merely
+     * flipped a status and discarded the text. Null for anything that starts a conversation.
+     */
+    @DBRef
+    @Field("parent")
+    @JsonIgnoreProperties(value = { "parent", "vendor", "patient", "professional" }, allowSetters = true)
+    private Message parent;
+
+    /**
+     * Who it went to, when that is somebody this service knows.
+     *
+     * <p>Optional and mutually exclusive in practice: {@code toAddress} is what delivery and the
+     * Kafka event use, and these exist so the desk can link a message back to the record it concerns.
+     * An address with no record behind it stays perfectly representable, which is the reason the
+     * address is the authoritative field rather than the reference.
+     */
+    @DBRef
+    @Field("vendor")
+    @JsonIgnoreProperties(value = { "documents", "facilities" }, allowSetters = true)
+    private Vendor vendor;
+
+    @DBRef
+    @Field("patient")
+    @JsonIgnoreProperties(value = { "profile", "angel", "plan", "clinicalLead", "hub", "documents", "careActivities" }, allowSetters = true)
+    private Patient patient;
+
+    @DBRef
+    @Field("professional")
+    @JsonIgnoreProperties(value = { "profile", "team", "hub", "assignments" }, allowSetters = true)
+    private Professional professional;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -175,6 +229,84 @@ public class Message implements Serializable {
 
     public void setPriority(Priority priority) {
         this.priority = priority;
+    }
+
+    public String getToAddress() {
+        return this.toAddress;
+    }
+
+    public Message toAddress(String toAddress) {
+        this.setToAddress(toAddress);
+        return this;
+    }
+
+    public void setToAddress(String toAddress) {
+        this.toAddress = toAddress;
+    }
+
+    public String getRecipientName() {
+        return this.recipientName;
+    }
+
+    public Message recipientName(String recipientName) {
+        this.setRecipientName(recipientName);
+        return this;
+    }
+
+    public void setRecipientName(String recipientName) {
+        this.recipientName = recipientName;
+    }
+
+    public Message getParent() {
+        return this.parent;
+    }
+
+    public void setParent(Message parent) {
+        this.parent = parent;
+    }
+
+    public Message parent(Message parent) {
+        this.setParent(parent);
+        return this;
+    }
+
+    public Vendor getVendor() {
+        return this.vendor;
+    }
+
+    public void setVendor(Vendor vendor) {
+        this.vendor = vendor;
+    }
+
+    public Message vendor(Vendor vendor) {
+        this.setVendor(vendor);
+        return this;
+    }
+
+    public Patient getPatient() {
+        return this.patient;
+    }
+
+    public void setPatient(Patient patient) {
+        this.patient = patient;
+    }
+
+    public Message patient(Patient patient) {
+        this.setPatient(patient);
+        return this;
+    }
+
+    public Professional getProfessional() {
+        return this.professional;
+    }
+
+    public void setProfessional(Professional professional) {
+        this.professional = professional;
+    }
+
+    public Message professional(Professional professional) {
+        this.setProfessional(professional);
+        return this;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here

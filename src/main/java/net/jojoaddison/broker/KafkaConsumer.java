@@ -2,6 +2,9 @@ package net.jojoaddison.broker;
 
 import static org.springframework.web.servlet.mvc.method.annotation.SseEmitter.event;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.Collection;
@@ -10,6 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import net.jojoaddison.service.dto.MessageSentEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -47,6 +51,12 @@ public class KafkaConsumer implements Consumer<String> {
     /** One entry per principal, holding every connection that principal currently has open. */
     private final Map<String, Collection<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
+    private final ObjectMapper objectMapper;
+
+    public KafkaConsumer(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
     public SseEmitter register(String key) {
         log.debug("Registering sse client for {}", key);
         SseEmitter emitter = new SseEmitter(EMITTER_TIMEOUT.toMillis());
@@ -78,21 +88,69 @@ public class KafkaConsumer implements Consumer<String> {
         }
     }
 
+    /**
+     * Deliver an inbound event, to one recipient when it names one and to everybody otherwise.
+     *
+     * <p>Broadcast was the only behaviour this had, and it was right for what used it: the audit
+     * trail is the same stream for every operator watching. A sent message is not — it names a
+     * recipient, and delivering somebody's private reply to every connected console is not a
+     * notification, it is a disclosure.
+     *
+     * <p>The fallback is deliberate rather than defensive. Anything that is not a recognisable
+     * {@code messageSentEvent}, or that names a recipient nobody here is connected as, keeps the
+     * old behaviour — so the audit trail continues to work and a vendor's notification, whose
+     * recipient is a user of another service entirely, does not silently vanish from this one.
+     */
     @Override
     public void accept(String input) {
         log.debug("Got message from kafka stream: {}", input);
-        emitters.forEach((key, registered) ->
-            registered.forEach(emitter -> {
-                try {
-                    emitter.send(event().data(input, MediaType.APPLICATION_JSON));
-                } catch (IOException | IllegalStateException e) {
-                    // The client is gone, or the response is already committed. Drop it rather than
-                    // retry — leaving it registered means throwing on every future message too.
-                    log.debug("dropping unreachable sse client for {}", key);
-                    remove(key, emitter);
-                }
-            })
-        );
+        String recipient = recipientOf(input);
+        if (recipient != null && emitters.containsKey(recipient)) {
+            deliver(recipient, input);
+            return;
+        }
+        emitters.keySet().forEach(key -> deliver(key, input));
+    }
+
+    /**
+     * The {@code toAddress} of a {@code messageSentEvent}, or null for anything else.
+     *
+     * <p>Parsed rather than pattern-matched, and failure is not an error: this stream carries the
+     * audit trail and whatever else is published to the topic, most of which is not JSON at all.
+     *
+     * <p>Package-private so the routing decision can be tested directly. Spring's
+     * {@code ResponseBodyEmitter.Handler} is not public, so what an emitter was actually sent cannot
+     * be observed from a test — the decision is the part worth asserting, and it is all of the new
+     * behaviour.
+     */
+    String recipientOf(String input) {
+        try {
+            JsonNode node = objectMapper.readTree(input);
+            if (!node.isObject() || !MessageSentEvent.TYPE.equals(node.path("eventType").asText(null))) {
+                return null;
+            }
+            String toAddress = node.path("toAddress").asText(null);
+            return toAddress == null || toAddress.isBlank() ? null : toAddress;
+        } catch (JsonProcessingException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private void deliver(String key, String input) {
+        Collection<SseEmitter> registered = emitters.get(key);
+        if (registered == null) {
+            return;
+        }
+        registered.forEach(emitter -> {
+            try {
+                emitter.send(event().data(input, MediaType.APPLICATION_JSON));
+            } catch (IOException | IllegalStateException e) {
+                // The client is gone, or the response is already committed. Drop it rather than
+                // retry — leaving it registered means throwing on every future message too.
+                log.debug("dropping unreachable sse client for {}", key);
+                remove(key, emitter);
+            }
+        });
     }
 
     /** Visible for tests: how many connections this principal currently holds. */

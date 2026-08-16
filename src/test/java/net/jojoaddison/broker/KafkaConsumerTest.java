@@ -2,6 +2,8 @@ package net.jojoaddison.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,7 +19,7 @@ class KafkaConsumerTest {
 
     @Test
     void aSecondConnectionForTheSamePrincipalDoesNotEvictTheFirst() {
-        KafkaConsumer consumer = new KafkaConsumer();
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
 
         SseEmitter first = consumer.register("admin");
         SseEmitter second = consumer.register("admin");
@@ -36,7 +38,7 @@ class KafkaConsumerTest {
 
     @Test
     void unregisteringDropsThePrincipalEntirely() {
-        KafkaConsumer consumer = new KafkaConsumer();
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
         consumer.register("admin");
         consumer.register("admin");
 
@@ -47,7 +49,7 @@ class KafkaConsumerTest {
 
     @Test
     void unregisteringAnUnknownPrincipalIsANoOp() {
-        KafkaConsumer consumer = new KafkaConsumer();
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
 
         consumer.unregister("nobody");
 
@@ -61,7 +63,7 @@ class KafkaConsumerTest {
      */
     @Test
     void concurrentRegistrationAndBroadcastDoNotLoseClients() throws Exception {
-        KafkaConsumer consumer = new KafkaConsumer();
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
         int clients = 200;
         ExecutorService pool = Executors.newFixedThreadPool(8);
         CountDownLatch start = new CountDownLatch(1);
@@ -101,5 +103,52 @@ class KafkaConsumerTest {
         for (int i = 0; i < clients; i++) {
             assertThat(consumer.connectionCount("client-" + i)).isEqualTo(1);
         }
+    }
+
+    /**
+     * A sent event routes to the address it names; everything else routes to everybody.
+     *
+     * <p>Broadcast was the only behaviour here, and for the audit trail it is correct — every
+     * operator watches the same stream. A message is not that: delivering one operator's private
+     * reply to every connected console is a disclosure, not a notification.
+     *
+     * <p>What an emitter was actually sent cannot be observed from a test — Spring's
+     * {@code ResponseBodyEmitter.Handler} is package-private — so the assertion is on the decision
+     * the fan-out makes, which is the whole of the new behaviour.
+     */
+    @Test
+    void shouldRouteASentEventToItsRecipient() {
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
+
+        assertThat(consumer.recipientOf("{\"eventType\":\"messageSentEvent\",\"id\":\"m99\",\"toAddress\":\"desk@abofonsa.care\"}"))
+            .isEqualTo("desk@abofonsa.care");
+    }
+
+    /**
+     * The audit trail publishes to this same topic and names no recipient. If routing swallowed it
+     * the live trail would go quiet and nothing would report why, so anything unrecognisable has to
+     * fall back to the broadcast this always did.
+     */
+    @Test
+    void shouldNotRouteAnythingThatIsNotASentEvent() {
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
+
+        assertThat(consumer.recipientOf("{\"type\":\"Security\",\"message\":\"an audit row\"}")).isNull();
+        assertThat(consumer.recipientOf("not json at all")).isNull();
+        assertThat(consumer.recipientOf("[1,2,3]")).isNull();
+        // A sent event with no recipient must broadcast rather than route to the empty string.
+        assertThat(consumer.recipientOf("{\"eventType\":\"messageSentEvent\",\"toAddress\":\"\"}")).isNull();
+        assertThat(consumer.recipientOf("{\"eventType\":\"messageSentEvent\"}")).isNull();
+    }
+
+    /** A recipient nobody is connected as must not throw, and must leave connections intact. */
+    @Test
+    void shouldSurviveASentEventForSomebodyConnectedElsewhere() {
+        KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
+        consumer.register("operator");
+
+        consumer.accept("{\"eventType\":\"messageSentEvent\",\"id\":\"m1\",\"toAddress\":\"orders@kaneshiemed.gh\"}");
+
+        assertThat(consumer.connectionCount("operator")).isEqualTo(1);
     }
 }

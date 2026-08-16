@@ -1,12 +1,16 @@
 package net.jojoaddison.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import net.jojoaddison.domain.Message;
 import net.jojoaddison.repository.MessageRepository;
 import net.jojoaddison.service.dto.MessageDTO;
+import net.jojoaddison.service.dto.MessageSentEvent;
 import net.jojoaddison.service.mapper.MessageMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -19,13 +23,27 @@ public class MessageService {
 
     private static final Logger LOG = LoggerFactory.getLogger(MessageService.class);
 
+    /** Matches the binding HcAdminServiceKafkaResource publishes on. */
+    private static final String PRODUCER_BINDING_NAME = "binding-out-0";
+
     private final MessageRepository messageRepository;
 
     private final MessageMapper messageMapper;
 
-    public MessageService(MessageRepository messageRepository, MessageMapper messageMapper) {
+    private final StreamBridge streamBridge;
+
+    private final ObjectMapper objectMapper;
+
+    public MessageService(
+        MessageRepository messageRepository,
+        MessageMapper messageMapper,
+        StreamBridge streamBridge,
+        ObjectMapper objectMapper
+    ) {
         this.messageRepository = messageRepository;
         this.messageMapper = messageMapper;
+        this.streamBridge = streamBridge;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -34,6 +52,31 @@ public class MessageService {
      * @param messageDTO the entity to save.
      * @return the persisted entity.
      */
+    /**
+     * Persist an outbound message, then announce it.
+     *
+     * <p>In that order, and the order is the point: the event carries an id, and a recipient that
+     * acts on it fetches the message by that id. Publishing first means a notification can arrive
+     * for a row that does not exist yet, which reads to the recipient as a message that vanished.
+     *
+     * <p>A failure to publish does not fail the send. The message is saved and readable on the desk;
+     * losing the notification costs the recipient a live nudge, and unwinding a persisted message
+     * because the bus was briefly down would cost them the message itself.
+     */
+    public MessageDTO send(MessageDTO messageDTO) {
+        MessageDTO saved = save(messageDTO);
+        publishSent(saved);
+        return saved;
+    }
+
+    private void publishSent(MessageDTO saved) {
+        try {
+            streamBridge.send(PRODUCER_BINDING_NAME, objectMapper.writeValueAsString(MessageSentEvent.of(saved)));
+        } catch (JsonProcessingException | RuntimeException e) {
+            LOG.warn("Message {} was saved but its sent event could not be published", saved.getId(), e);
+        }
+    }
+
     public MessageDTO save(MessageDTO messageDTO) {
         LOG.debug("Request to save Message : {}", messageDTO);
         Message message = messageMapper.toEntity(messageDTO);
