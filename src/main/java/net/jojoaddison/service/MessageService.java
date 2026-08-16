@@ -4,7 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Optional;
 import net.jojoaddison.domain.Message;
+import net.jojoaddison.domain.enumeration.MessageStatus;
+import net.jojoaddison.domain.enumeration.Priority;
 import net.jojoaddison.repository.MessageRepository;
+import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.service.dto.MessageDTO;
 import net.jojoaddison.service.dto.MessageSentEvent;
 import net.jojoaddison.service.mapper.MessageMapper;
@@ -13,6 +16,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
 /**
@@ -34,16 +38,20 @@ public class MessageService {
 
     private final ObjectMapper objectMapper;
 
+    private final MongoTemplate mongoTemplate;
+
     public MessageService(
         MessageRepository messageRepository,
         MessageMapper messageMapper,
         StreamBridge streamBridge,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        MongoTemplate mongoTemplate
     ) {
         this.messageRepository = messageRepository;
         this.messageMapper = messageMapper;
         this.streamBridge = streamBridge;
         this.objectMapper = objectMapper;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -75,6 +83,23 @@ public class MessageService {
         } catch (JsonProcessingException | RuntimeException e) {
             LOG.warn("Message {} was saved but its sent event could not be published", saved.getId(), e);
         }
+    }
+
+    /**
+     * The desk's list, filtered by the three things it can filter on.
+     *
+     * <p>All three were already being sent and silently dropped: the desk's status chips, its
+     * priority chips and its search box. The status counters above the table read X-Total-Count
+     * from a one-row query per status, so with the filter ignored every tile showed the collection
+     * total — New 12, Read 12, Replied 12, against twelve messages.
+     */
+    public Page<MessageDTO> findAll(Pageable pageable, String status, String priority, String subjectContains) {
+        NamedFilters.Builder filters = NamedFilters
+            .builder()
+            .equals("status", status == null ? null : MessageStatus.valueOf(status))
+            .equals("priority", priority == null ? null : Priority.valueOf(priority))
+            .contains("subject", subjectContains);
+        return NamedFilters.page(mongoTemplate, Message.class, filters, pageable).map(messageMapper::toDto);
     }
 
     public MessageDTO save(MessageDTO messageDTO) {

@@ -172,9 +172,16 @@ public class MessageResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of messages in body.
      */
     @GetMapping("")
-    public ResponseEntity<List<MessageDTO>> getAllMessages(@org.springdoc.core.annotations.ParameterObject Pageable pageable) {
+    public ResponseEntity<List<MessageDTO>> getAllMessages(
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable,
+        // Declared by name, because Spring silently ignores a request parameter no handler declares
+        // — which is precisely how these three came to be sent by the desk and dropped here.
+        @RequestParam(name = "status.equals", required = false) String statusEquals,
+        @RequestParam(name = "priority.equals", required = false) String priorityEquals,
+        @RequestParam(name = "subject.contains", required = false) String subjectContains
+    ) {
         LOG.debug("REST request to get a page of Messages");
-        Page<MessageDTO> page = messageService.findAll(pageable);
+        Page<MessageDTO> page = messageService.findAll(pageable, statusEquals, priorityEquals, subjectContains);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }

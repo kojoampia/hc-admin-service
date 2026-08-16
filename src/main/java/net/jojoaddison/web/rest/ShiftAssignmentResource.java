@@ -10,12 +10,14 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.ShiftAssignment;
 import net.jojoaddison.repository.ShiftAssignmentRepository;
+import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,8 +42,12 @@ public class ShiftAssignmentResource {
 
     private final ShiftAssignmentRepository shiftAssignmentRepository;
 
-    public ShiftAssignmentResource(ShiftAssignmentRepository shiftAssignmentRepository) {
+    /** For the named filters below, which need more than one optional predicate combined. */
+    private final MongoTemplate mongoTemplate;
+
+    public ShiftAssignmentResource(ShiftAssignmentRepository shiftAssignmentRepository, MongoTemplate mongoTemplate) {
         this.shiftAssignmentRepository = shiftAssignmentRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -154,11 +160,28 @@ public class ShiftAssignmentResource {
     @GetMapping("")
     public ResponseEntity<List<ShiftAssignment>> getAllShiftAssignments(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
-        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload
+        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload,
+        // The roster asks for one week, the professional record for one professional. Both were
+        // dropped: the roster reads 500 rows to render seven columns, and the record filtered the
+        // whole collection in the browser.
+        //
+        // The paths below are `week.id` and not `week.$id`. A DBRef is stored as { $ref, $id }, so
+        // `$id` is the right *field* — but writing it literally bypasses Spring Data's query mapper,
+        // which is also what converts the String id to the ObjectId actually stored. Written that way
+        // it matches nothing, and an empty roster is indistinguishable from a quiet week. Given the
+        // property path, the mapper rewrites the field to `week.$id` and converts the value with it.
+        @RequestParam(name = "weekId.equals", required = false) String weekIdEquals,
+        @RequestParam(name = "professionalId.equals", required = false) String professionalIdEquals
     ) {
         LOG.debug("REST request to get a page of ShiftAssignments");
         Page<ShiftAssignment> page;
-        if (eagerload) {
+        NamedFilters.Builder filters = NamedFilters
+            .builder()
+            .equals("week.id", weekIdEquals)
+            .equals("professional.id", professionalIdEquals);
+        if (!filters.isEmpty()) {
+            page = NamedFilters.page(mongoTemplate, ShiftAssignment.class, filters, pageable);
+        } else if (eagerload) {
             page = shiftAssignmentRepository.findAllWithEagerRelationships(pageable);
         } else {
             page = shiftAssignmentRepository.findAll(pageable);
