@@ -9,13 +9,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.Task;
+import net.jojoaddison.domain.enumeration.TaskState;
 import net.jojoaddison.repository.TaskRepository;
+import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,8 +43,12 @@ public class TaskResource {
 
     private final TaskRepository taskRepository;
 
-    public TaskResource(TaskRepository taskRepository) {
+    /** For the named filters below, which need more than one optional predicate combined. */
+    private final MongoTemplate mongoTemplate;
+
+    public TaskResource(TaskRepository taskRepository, MongoTemplate mongoTemplate) {
         this.taskRepository = taskRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -148,11 +155,17 @@ public class TaskResource {
     @GetMapping("")
     public ResponseEntity<List<Task>> getAllTasks(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
-        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload
+        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload,
+        // The board's columns and the shell's open-task badge both send this and it was dropped
+        // here, so the badge counted every task ever created rather than the open ones.
+        @RequestParam(name = "state.in", required = false) List<TaskState> stateIn
     ) {
         LOG.debug("REST request to get a page of Tasks");
         Page<Task> page;
-        if (eagerload) {
+        if (stateIn != null && !stateIn.isEmpty()) {
+            NamedFilters.Builder filters = NamedFilters.builder().in("state", stateIn);
+            page = NamedFilters.page(mongoTemplate, Task.class, filters, pageable);
+        } else if (eagerload) {
             page = taskRepository.findAllWithEagerRelationships(pageable);
         } else {
             page = taskRepository.findAll(pageable);

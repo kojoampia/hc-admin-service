@@ -9,13 +9,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.Vendor;
+import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.repository.VendorRepository;
+import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,8 +43,12 @@ public class VendorResource {
 
     private final VendorRepository vendorRepository;
 
-    public VendorResource(VendorRepository vendorRepository) {
+    /** For the named filters above, which need more than one optional predicate combined. */
+    private final MongoTemplate mongoTemplate;
+
+    public VendorResource(VendorRepository vendorRepository, MongoTemplate mongoTemplate) {
         this.vendorRepository = vendorRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -163,7 +170,10 @@ public class VendorResource {
     public ResponseEntity<List<Vendor>> getAllVendors(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
         @RequestParam(name = "isArchived.equals", required = false) Boolean isArchivedEquals,
-        @RequestParam(name = "isArchived.notEquals", required = false) Boolean isArchivedNotEquals
+        @RequestParam(name = "isArchived.notEquals", required = false) Boolean isArchivedNotEquals,
+        // The directory tiles filter on these and read their counts from X-Total-Count. Undeclared,
+        // Spring drops them and every tile reads the collection total.
+        @RequestParam(name = "status.equals", required = false) AccountStatus statusEquals
     ) {
         LOG.debug("REST request to get a page of Vendors");
         // The two operators the console sends, and only those. This is not a criteria framework:
@@ -171,13 +181,22 @@ public class VendorResource {
         // boolean would be a much larger surface than the screen that needs it.
         Boolean archived = resolveArchivedFilter(isArchivedEquals, isArchivedNotEquals);
 
+        NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals);
+        // Archived stays `$ne: true` rather than `is(false)`: a document written before the field
+        // existed does not carry it, and `is_archived: false` matches none of them.
+        if (archived != null) {
+            if (archived) {
+                filters.equals("is_archived", true);
+            } else {
+                filters.notEquals("is_archived", true);
+            }
+        }
+
         Page<Vendor> page;
-        if (archived == null) {
+        if (filters.isEmpty()) {
             page = vendorRepository.findAll(pageable);
-        } else if (archived) {
-            page = vendorRepository.findArchived(pageable);
         } else {
-            page = vendorRepository.findNotArchived(pageable);
+            page = NamedFilters.page(mongoTemplate, Vendor.class, filters, pageable);
         }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
