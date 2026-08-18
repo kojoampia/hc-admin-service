@@ -1,5 +1,6 @@
 package net.jojoaddison.web.rest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -138,6 +139,16 @@ class ProfessionalSelfIT {
         return profileRepository.save(profile);
     }
 
+    /**
+     * Links exactly as production and the seeded dataset do: {@code Professional.profile} is set,
+     * and {@code Profile.professional} is deliberately left null.
+     *
+     * <p><b>This fixture used to set both sides, and that is what let a broken feature ship.</b> The
+     * resolver read the {@code Profile.professional} back-reference; nothing anywhere populates it,
+     * so every caller got 404 in production while this suite stayed green — the test had encoded the
+     * assumption instead of checking it. Do not "fix" a failure here by setting the back-reference
+     * again: if a test needs it set, the resolver is reading the wrong direction.
+     */
     private Professional professional(ProfessionalRole role, String licence, Profile profile) {
         Professional professional = new Professional()
             .role(role)
@@ -146,11 +157,7 @@ class ProfessionalSelfIT {
             .status(AccountStatus.ACTIVE)
             .joinedOn(LocalDate.of(2021, 6, 11));
         professional.setProfile(profile);
-        professional = professionalRepository.save(professional);
-        // The link is followed profile -> professional, so it has to exist in that direction too.
-        profile.setProfessional(professional);
-        profileRepository.save(profile);
-        return professional;
+        return professionalRepository.save(professional);
     }
 
     private static WageRate rate(ProfessionalRole role, int amount, LocalDate validFrom) {
@@ -264,6 +271,19 @@ class ProfessionalSelfIT {
             .andExpect(jsonPath("$[2].payable").value(false))
             .andExpect(jsonPath("$[3].date").value("2026-08-20"))
             .andExpect(jsonPath("$[3].payable").value(false));
+    }
+
+    /**
+     * A regression guard for the direction of the identity link, asserted on the data rather than
+     * through the API, because the API cannot tell the two apart: reading the unpopulated
+     * back-reference produces exactly the same 404 as a caller who genuinely has no record.
+     */
+    @Test
+    void theIdentityLinkIsStoredOnTheProfessionalAndNotOnTheProfile() {
+        Profile stored = profileRepository.findByAccount("ama").orElseThrow();
+
+        assertThat(stored.getProfessional()).isNull();
+        assertThat(professionalRepository.findByProfile(stored)).map(Professional::getId).hasValue(ama.getId());
     }
 
     /** A roster read must not leak either, and there is likewise no id on it to try. */

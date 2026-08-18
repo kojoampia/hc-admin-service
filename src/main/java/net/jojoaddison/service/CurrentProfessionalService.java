@@ -2,7 +2,7 @@ package net.jojoaddison.service;
 
 import java.util.Optional;
 import net.jojoaddison.domain.Professional;
-import net.jojoaddison.domain.Profile;
+import net.jojoaddison.repository.ProfessionalRepository;
 import net.jojoaddison.repository.ProfileRepository;
 import net.jojoaddison.security.SecurityUtils;
 import org.slf4j.Logger;
@@ -27,6 +27,15 @@ import org.springframework.stereotype.Service;
  * exposes no user id. If a {@code uid} claim is ever added, both sides move together or the link
  * breaks in a way that presents as "this clinician has no roster" rather than as an error.
  *
+ * <p><b>The second hop goes {@code Professional -> Profile}, not the reverse.</b> {@code Profile}
+ * declares a {@code professional} back-reference and reading it is one line shorter, but nothing
+ * writes it: every {@code Professional} carries {@code profile}, and no {@code Profile} in the
+ * seeded dataset or in production carries {@code professional}. This originally read the
+ * back-reference and answered 404 for every caller — see {@link
+ * ProfessionalRepository#findByProfile}, and note what that cost: the integration test set both
+ * sides of the link in its fixture, so it encoded the assumption instead of testing it and passed
+ * throughout.
+ *
  * <p>An unlinked caller is {@link Optional#empty()}, never an exception and never a fallback to
  * some other professional. A signed-in user with no profile, or a profile with no professional
  * record, is an ordinary state during onboarding — the applicant holds an account before anyone has
@@ -39,8 +48,11 @@ public class CurrentProfessionalService {
 
     private final ProfileRepository profileRepository;
 
-    public CurrentProfessionalService(ProfileRepository profileRepository) {
+    private final ProfessionalRepository professionalRepository;
+
+    public CurrentProfessionalService(ProfileRepository profileRepository, ProfessionalRepository professionalRepository) {
         this.profileRepository = profileRepository;
+        this.professionalRepository = professionalRepository;
     }
 
     /**
@@ -54,7 +66,7 @@ public class CurrentProfessionalService {
     }
 
     private Optional<Professional> professionalFor(String login) {
-        Optional<Professional> professional = profileRepository.findByAccount(login).map(Profile::getProfessional);
+        Optional<Professional> professional = profileRepository.findByAccount(login).flatMap(professionalRepository::findByProfile);
         if (professional.isEmpty()) {
             // Logged at debug and not at warn: this is the normal state for every account that is
             // not a clinician, and for a clinician still being onboarded.
