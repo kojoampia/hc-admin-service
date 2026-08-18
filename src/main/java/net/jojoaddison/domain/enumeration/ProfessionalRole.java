@@ -6,6 +6,7 @@ package net.jojoaddison.domain.enumeration;
 public enum ProfessionalRole {
     CAREGIVER,
     PARAMEDIC,
+    THERAPIST,
     NURSE,
     DOCTOR,
 }
