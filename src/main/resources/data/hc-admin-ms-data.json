@@ -287,7 +287,7 @@
     "personProfiles": [
       {
         "id": "profile-p1",
-        "accountId": "cred-p1",
+        "accountId": "doctor",
         "title": "DR",
         "firstName": "Ama",
         "middleName": null,
@@ -302,7 +302,7 @@
       },
       {
         "id": "profile-p2",
-        "accountId": "cred-p2",
+        "accountId": "nurse",
         "title": null,
         "firstName": "Kwesi",
         "middleName": null,
@@ -317,7 +317,7 @@
       },
       {
         "id": "profile-p3",
-        "accountId": "cred-p3",
+        "accountId": "carer",
         "title": null,
         "firstName": "Akosua",
         "middleName": null,
@@ -332,7 +332,7 @@
       },
       {
         "id": "profile-p4",
-        "accountId": "cred-p4",
+        "accountId": "paramedic",
         "title": null,
         "firstName": "Yaw",
         "middleName": null,

@@ -10,6 +10,8 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Map;
 import java.util.stream.Collectors;
+import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.DutyRole;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
@@ -145,6 +147,85 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getTeams()).hasSize(4);
         assertThat(test.getHubs()).hasSize(2);
         assertThat(test.getOrganisations()).hasSize(1);
+    }
+
+    /**
+     * <b>Some seeded professionals have to be reachable by a real login, or the self-service
+     * earnings endpoint cannot be exercised at all.</b>
+     *
+     * <p>{@code /api/professionals/me/earnings} resolves its caller as login → {@code
+     * Profile.account_id} → the professional holding that profile. Every seeded {@code account_id}
+     * used to be a placeholder — {@code cred-p1} and friends, matching no login on any gateway — so
+     * the endpoint answered 404 for every account in existence, and nothing distinguished that from
+     * the resolver being broken. It <em>was</em> broken, reading a back-reference nothing populates,
+     * and this dataset could not have told anyone.
+     *
+     * <p>The four below are hc-professional's seeded clinical logins, each matched to a professional
+     * of the corresponding role. They belong to that stack's gateway rather than this one's, which
+     * is the point: {@code account_id} holds a platform login, and the three stacks share one
+     * identity space through a common signing key.
+     *
+     * <p>Five professionals are deliberately left on placeholder ids. "This account has no
+     * professional record" is a real state — every applicant mid-onboarding is in it — and it has to
+     * stay reachable in the seed rather than becoming a case nobody can produce.
+     */
+    @Test
+    void shouldLinkSomeProfessionalsToRealClinicalLogins() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        // Joined through personProfiles by id, not read off professional.getProfile(). In the seed
+        // file the nested profile on a professional is a partial object — id and name only — and
+        // carries no accountId at all; the full document lives in personProfiles, and at runtime the
+        // DBRef resolves to that. Reading the nested copy yields null and says nothing.
+        Map<String, String> accountIdByProfileId = test
+            .getPersonProfiles()
+            .stream()
+            .filter(profile -> profile.getAccountId() != null)
+            .collect(Collectors.toMap(Profile::getId, Profile::getAccountId));
+
+        Map<String, ProfessionalRole> loginToRole = test
+            .getProfessionals()
+            .stream()
+            .filter(professional -> professional.getProfile() != null)
+            .filter(professional -> accountIdByProfileId.containsKey(professional.getProfile().getId()))
+            .filter(professional -> !accountIdByProfileId.get(professional.getProfile().getId()).startsWith("cred-"))
+            .collect(Collectors.toMap(professional -> accountIdByProfileId.get(professional.getProfile().getId()), Professional::getRole));
+
+        // Role-matched, not merely linked: a `nurse` login pointing at a DOCTOR would be valued at
+        // the doctor's rate, and the mistake would look exactly like a working feature.
+        assertThat(loginToRole)
+            .containsEntry("doctor", ProfessionalRole.DOCTOR)
+            .containsEntry("nurse", ProfessionalRole.NURSE)
+            .containsEntry("paramedic", ProfessionalRole.PARAMEDIC)
+            .containsEntry("carer", ProfessionalRole.CAREGIVER);
+
+        // The unlinked ones, kept on purpose.
+        assertThat(
+            test
+                .getProfessionals()
+                .stream()
+                .filter(professional -> professional.getProfile() != null)
+                .map(professional -> accountIdByProfileId.get(professional.getProfile().getId()))
+                .filter(accountId -> accountId != null && accountId.startsWith("cred-"))
+                .count()
+        )
+            .isEqualTo(5);
+    }
+
+    /**
+     * The link has to be stored on the PROFESSIONAL, which is the direction the resolver reads.
+     *
+     * <p>{@code Profile} declares a {@code professional} back-reference and this seed leaves it
+     * null, exactly as production does. A dataset that populated both sides would let a resolver
+     * reading either one pass — which is how a version that read the unpopulated side shipped and
+     * answered 404 for every caller.
+     */
+    @Test
+    void shouldStoreTheAccountLinkOnTheProfessionalAndNotOnTheProfile() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getProfessionals()).allSatisfy(professional -> assertThat(professional.getProfile()).isNotNull());
+        assertThat(test.getPersonProfiles()).allSatisfy(profile -> assertThat(profile.getProfessional()).isNull());
     }
 
     /**
