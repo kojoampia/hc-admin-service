@@ -43,6 +43,23 @@ public class SecurityConfiguration {
                     // — the narrower gate — ever runs.
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/duty-rosters/patient/**"))
                         .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR, AuthoritiesConstants.PATIENT)
+                    // A professional reading their OWN roster and earnings. Like the patient rule
+                    // above, this has to precede the blanket rules below: a clinician holds none of
+                    // the authorities those require, so the request would be rejected here before
+                    // ProfessionalSelfResource was ever reached.
+                    //
+                    // Authentication alone is the whole gate, on purpose. These endpoints take no
+                    // subject — ProfessionalSelfResource resolves the caller from the token, and no
+                    // path variable or parameter can name anyone else — so identity is the security
+                    // boundary and an authority check would constrain nothing further. Naming the
+                    // nine clinical authorities here instead would copy hc-professional's authority
+                    // list into a fourth repo, which is exactly the duplication that breaks silently
+                    // when it is edited in only some of the places it appears.
+                    //
+                    // Narrower than it looks: this opens /api/professionals/me/**, not
+                    // /api/professionals/**. The id-addressed earnings endpoint stays admin-gated by
+                    // the rule below, and that is what stops a clinician reading a colleague's pay.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/professionals/me/**")).authenticated()
                     // The read/write split. Everything else under /api is admin data: operators read
                     // it, only admins change it. Authentication alone is deliberately not enough —
                     // a bare ROLE_USER reaches nothing here.

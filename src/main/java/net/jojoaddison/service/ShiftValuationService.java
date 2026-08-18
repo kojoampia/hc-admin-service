@@ -15,8 +15,10 @@ import net.jojoaddison.domain.enumeration.EarningsGranularity;
 import net.jojoaddison.domain.enumeration.ShiftType;
 import net.jojoaddison.service.dto.EarningsBucketDTO;
 import net.jojoaddison.service.dto.ProfessionalEarningsDTO;
+import net.jojoaddison.service.dto.ProfessionalShiftDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -88,6 +90,37 @@ public class ShiftValuationService {
      */
     public LocalDate lastPayableDate() {
         return LocalDate.now(clock).minusDays(1);
+    }
+
+    /**
+     * Every rostered row for a professional in a window, payable or not, oldest first.
+     *
+     * <p>The counterpart to {@link #payableShifts}, and deliberately not a variant of it: this one
+     * keeps the {@code OFF} days and the future dates, because it answers "what is my schedule"
+     * rather than "what am I owed". Each row carries the payable flag so that the single rule
+     * deciding it stays here — see {@link ProfessionalShiftDTO#payable()}.
+     *
+     * <p>Matched on the entity for the same reason as {@link #payableShifts}: {@code professional}
+     * is a {@code @DBRef}, and the query shapes that address it by raw id return an empty list
+     * rather than failing.
+     */
+    public List<ProfessionalShiftDTO> shiftsFor(Professional professional, LocalDate from, LocalDate to) {
+        Query query = new Query(Criteria.where("professional").is(professional).and("shiftDate").gte(from).lte(to));
+        query.fields().include("shiftDate").include("shift");
+        query.with(Sort.by(Sort.Direction.ASC, "shiftDate"));
+
+        LocalDate cutoff = lastPayableDate();
+        return mongoTemplate
+            .find(query, ShiftAssignment.class)
+            .stream()
+            .map(shift ->
+                new ProfessionalShiftDTO(
+                    shift.getShiftDate(),
+                    shift.getShift(),
+                    shift.getShift() != ShiftType.OFF && !shift.getShiftDate().isAfter(cutoff)
+                )
+            )
+            .toList();
     }
 
     /**
