@@ -38,7 +38,7 @@ enum IdType { GHANA_CARD, PASSPORT, VOTER_ID, DRIVERS_LICENCE }
 
 enum AccountStatus { ACTIVE, PENDING, SUSPENDED, ON_LEAVE, UNDER_REVIEW }
 enum VerificationStatus { VERIFIED, PENDING, REJECTED }
-enum ProfessionalRole { CAREGIVER, PARAMEDIC, NURSE, DOCTOR }
+enum ProfessionalRole { CAREGIVER, PARAMEDIC, THERAPIST, NURSE, DOCTOR }
 
 /** Kinds of site a vendor can operate. Matches
     net.jojoaddison.domain.enumeration.FacilityType, which is the live shape —
@@ -264,6 +264,19 @@ entity ShiftAssignment {
   shift ShiftType required
 }
 
+/** What one shift pays a professional of a given role, from a given date.
+    Effective-dated and never edited in place: a rise is a new row with a later
+    validFrom, and a shift is valued at the rate in force on its own shiftDate,
+    so raising a price never restates a total that has already been paid. */
+entity WageRate {
+  id String
+  role ProfessionalRole required
+  amount BigDecimal required min(0)
+  currency String required minlength(3) maxlength(3)
+  validFrom LocalDate required
+  note String maxlength(200)
+}
+
 // ============================================================
 // CATALOGUE  (wireframe: Service, Catalog; PDF: Category, Activity)
 // ============================================================
@@ -416,14 +429,15 @@ relationship OneToMany {
 // token (core/parsing/lexer/option-tokens.js), and `pagination` fails to
 // parse. The visitor rewrites paginate -> pagination internally anyway.
 paginate Patient, Professional, Vendor, Message, Task, Document,
-         CareActivity, ServiceActivity, AuditEntry, ShiftAssignment
+         CareActivity, ServiceActivity, AuditEntry, ShiftAssignment,
+         WageRate
          with pagination
 
 readOnly PlatformService, AuditEntry
 
 // Group the generated entity folders to mirror the sidebar sections.
 clientRootFolder Patient, Professional, Vendor, Angel, Profile, Address with directory
-clientRootFolder Message, Task, RosterWeek, ShiftAssignment with operations
+clientRootFolder Message, Task, RosterWeek, ShiftAssignment, WageRate with operations
 clientRootFolder ServicePlan, PlanFeature, Category, ServiceActivity with catalogue
 clientRootFolder Organisation, Hub, Team, UserOption,
                  PlatformService, AuditEntry, Document, CareActivity with platform
