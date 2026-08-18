@@ -35,6 +35,7 @@ import net.jojoaddison.domain.Task;
 import net.jojoaddison.domain.Team;
 import net.jojoaddison.domain.UserOption;
 import net.jojoaddison.domain.Vendor;
+import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.repository.AddressRepository;
 import net.jojoaddison.repository.AngelRepository;
 import net.jojoaddison.repository.AuditEntryRepository;
@@ -65,6 +66,7 @@ import net.jojoaddison.repository.TaskRepository;
 import net.jojoaddison.repository.TeamRepository;
 import net.jojoaddison.repository.UserOptionRepository;
 import net.jojoaddison.repository.VendorRepository;
+import net.jojoaddison.repository.WageRateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -112,6 +114,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
     private final UserOptionRepository userOptionRepository;
     private final PlatformServiceRepository platformServiceRepository;
     private final AuditEntryRepository auditEntryRepository;
+    private final WageRateRepository wageRateRepository;
     private final ContactRepository contactRepository;
     private final FacilityRepository facilityRepository;
     private final AuditLogRepository auditLogRepository;
@@ -155,7 +158,8 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         DocumentRepository documentRepository,
         UserOptionRepository userOptionRepository,
         PlatformServiceRepository platformServiceRepository,
-        AuditEntryRepository auditEntryRepository
+        AuditEntryRepository auditEntryRepository,
+        WageRateRepository wageRateRepository
     ) {
         this.mapper = mapper;
         this.environment = environment;
@@ -189,6 +193,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         this.userOptionRepository = userOptionRepository;
         this.platformServiceRepository = platformServiceRepository;
         this.auditEntryRepository = auditEntryRepository;
+        this.wageRateRepository = wageRateRepository;
     }
 
     @Override
@@ -242,6 +247,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             save("userOptions", userOptionRepository, profileData.getUserOptions());
             save("platformServices", platformServiceRepository, profileData.getPlatformServices());
             save("auditEntries", auditEntryRepository, profileData.getAuditEntries());
+            save("wageRates", wageRateRepository, profileData.getWageRates());
         } catch (RuntimeException e) {
             log.error("Failed to persist {} seed data", profile, e);
         }
@@ -306,6 +312,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         private List<UserOption> userOptions = new ArrayList<>();
         private List<PlatformService> platformServices = new ArrayList<>();
         private List<AuditEntry> auditEntries = new ArrayList<>();
+        private List<WageRate> wageRates = new ArrayList<>();
 
         public List<Address> getAddresses() {
             return addresses;
@@ -545,6 +552,14 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
 
         public void setAuditEntries(List<AuditEntry> auditEntries) {
             this.auditEntries = nullSafe(auditEntries);
+        }
+
+        public List<WageRate> getWageRates() {
+            return wageRates;
+        }
+
+        public void setWageRates(List<WageRate> wageRates) {
+            this.wageRates = nullSafe(wageRates);
         }
 
         private static <T> List<T> nullSafe(List<T> value) {

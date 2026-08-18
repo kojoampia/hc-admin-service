@@ -7,8 +7,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.InputStream;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Map;
+import java.util.stream.Collectors;
+import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.DutyRole;
+import net.jojoaddison.domain.enumeration.ProfessionalRole;
 import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.domain.enumeration.ShiftType;
 import org.junit.jupiter.api.Test;
@@ -131,7 +135,8 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getAngels()).hasSize(12);
         assertThat(test.getMessages()).hasSize(12);
         assertThat(test.getTasks()).hasSize(13);
-        assertThat(test.getShiftAssignments()).hasSize(39);
+        assertThat(test.getRosterWeeks()).hasSize(15);
+        assertThat(test.getShiftAssignments()).hasSize(921);
         assertThat(test.getServicePlans()).hasSize(3);
         assertThat(test.getPlanFeatures()).hasSize(18);
         assertThat(test.getPlatformServices()).hasSize(13);
@@ -140,6 +145,50 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getTeams()).hasSize(4);
         assertThat(test.getHubs()).hasSize(2);
         assertThat(test.getOrganisations()).hasSize(1);
+    }
+
+    /**
+     * Every role a professional can hold has to be priced, or the console shows a wage bill with a
+     * hole in it that reads exactly like a professional who earned nothing.
+     */
+    @Test
+    void shouldPriceEveryProfessionalRoleUnderTest() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getWageRates().stream().map(WageRate::getRole).distinct()).containsExactlyInAnyOrder(ProfessionalRole.values());
+    }
+
+    /**
+     * <b>At least one role has to carry a superseded rate.</b> A seed with one row per role reads
+     * identically whether rates are effective-dated or simply editable in place — the distinction
+     * that the whole model turns on is invisible until a rate has history behind it, and the
+     * console's history view has nothing to show.
+     */
+    @Test
+    void shouldSeedARateThatHasBeenSuperseded() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<ProfessionalRole, Long> perRole = test
+            .getWageRates()
+            .stream()
+            .collect(Collectors.groupingBy(WageRate::getRole, Collectors.counting()));
+
+        assertThat(perRole).containsEntry(ProfessionalRole.DOCTOR, 2L).containsEntry(ProfessionalRole.NURSE, 2L);
+        assertThat(test.getWageRates().stream().map(WageRate::getValidFrom).distinct()).hasSizeGreaterThan(1);
+    }
+
+    /**
+     * The seeded roster has to reach back far enough to draw. A single week produces one point on a
+     * monthly chart, which is a chart nobody can read — and would have looked like a working
+     * feature.
+     */
+    @Test
+    void shouldSeedEnoughRosterToDrawAMonthlySeries() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getShiftAssignments().stream().map(shift -> YearMonth.from(shift.getShiftDate())).distinct())
+            .hasSizeGreaterThanOrEqualTo(4);
+        assertThat(test.getShiftAssignments().stream().filter(shift -> shift.getShift() != ShiftType.OFF)).hasSize(654);
     }
 
     /**
