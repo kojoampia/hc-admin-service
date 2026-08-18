@@ -22,6 +22,10 @@ import net.jojoaddison.domain.enumeration.ProfessionalRole;
  *     non-zero value here is the difference between "earned nothing" and "we never set a price" —
  *     the console needs to say which.
  * @param currency the currency the rates were denominated in, or null when nothing was priced.
+ * @param archived whether the professional has been archived out of the directory. Reported rather
+ *     than filtered on: archiving removes somebody from the lists you browse, and says nothing
+ *     about whether work already done was done. The wage bill has to include them and the screen
+ *     has to be able to mark the row.
  */
 public record ProfessionalEarningsDTO(
     String professionalId,
@@ -34,6 +38,7 @@ public record ProfessionalEarningsDTO(
     BigDecimal totalAccrued,
     long unpricedShifts,
     String currency,
+    boolean archived,
     List<EarningsBucketDTO> buckets
 )
     implements Serializable {}

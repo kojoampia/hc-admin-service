@@ -119,6 +119,7 @@ public class ShiftValuationService {
                 BigDecimal.ZERO,
                 0L,
                 currentCurrencyFor(professional),
+                Boolean.TRUE.equals(professional.getIsArchived()),
                 List.of()
             );
         }
@@ -168,6 +169,7 @@ public class ShiftValuationService {
             total,
             unpriced,
             currency == null ? currentCurrencyFor(professional) : currency,
+            Boolean.TRUE.equals(professional.getIsArchived()),
             buckets
         );
     }

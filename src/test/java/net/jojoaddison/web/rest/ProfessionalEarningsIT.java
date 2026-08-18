@@ -317,6 +317,43 @@ class ProfessionalEarningsIT {
     }
 
     /**
+     * <b>An archived professional still appears in the wage bill.</b>
+     *
+     * Archiving is a directory action — it takes somebody out of the lists you browse — and says
+     * nothing about whether work already done was done. Reusing the directory's {@code
+     * findNotArchived} here silently drops every shift they worked out of the payroll total, and
+     * nothing on the report says a row is missing: it simply adds up to less. Caught against the
+     * seeded data, where the one archived professional had 72 payable shifts behind them.
+     */
+    @Test
+    void anArchivedProfessionalIsStillInTheWageBill() throws Exception {
+        Professional archived = new Professional()
+            .role(ProfessionalRole.NURSE)
+            .licenceNumber("NMC/GH/19-0002")
+            .verification(VerificationStatus.VERIFIED)
+            .status(AccountStatus.ACTIVE)
+            .joinedOn(LocalDate.of(2020, 2, 2))
+            .isArchived(true);
+        professionalRepository.save(archived);
+
+        ShiftAssignment worked = new ShiftAssignment().dayIndex(0).shiftDate(TODAY.minusDays(2)).shift(ShiftType.DAY);
+        worked.setProfessional(archived);
+        shiftAssignmentRepository.save(worked);
+
+        restMockMvc
+            .perform(get("/api/professionals/earnings?granularity=MONTHLY&size=50"))
+            .andExpect(status().isOk())
+            .andExpect(
+                jsonPath("$[?(@.professionalId == '" + archived.getId() + "')].totalAccrued").value(org.hamcrest.Matchers.hasItem(300))
+            )
+            // ...and is marked as archived, so the row can be told apart rather than read as an
+            // ordinary active professional.
+            .andExpect(
+                jsonPath("$[?(@.professionalId == '" + archived.getId() + "')].archived").value(org.hamcrest.Matchers.hasItem(true))
+            );
+    }
+
+    /**
      * {@code /earnings} is a literal path segment and {@code /{id}} is a template. The list endpoint
      * has to win, or it resolves as a professional whose id is the word "earnings" and 404s.
      */

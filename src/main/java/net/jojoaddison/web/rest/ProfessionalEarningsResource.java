@@ -89,7 +89,15 @@ public class ProfessionalEarningsResource {
         @RequestParam(name = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         LOG.debug("REST request to get a page of Professional earnings by {} from {} to {}", granularity, from, to);
-        Page<Professional> professionals = professionalRepository.findNotArchived(pageable);
+        // Everyone, including archived professionals — deliberately not findNotArchived, which is
+        // what the directory listings use.
+        //
+        // Archiving is a directory action: it takes someone out of the lists you browse. It is not
+        // a statement that work already done was not done, and a wage bill is a record of work. The
+        // seeded data makes the size of the mistake plain: p4 is archived and has 72 payable shifts
+        // behind them, so filtering here dropped 21,600 GHS out of the payroll total with nothing on
+        // screen to say a row was missing — the report simply added up to less.
+        Page<Professional> professionals = professionalRepository.findAll(pageable);
         Page<ProfessionalEarningsDTO> page = professionals.map(professional ->
             shiftValuationService.earningsFor(professional, granularity, from, to)
         );
