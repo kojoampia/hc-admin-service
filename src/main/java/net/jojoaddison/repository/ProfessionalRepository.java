@@ -3,6 +3,7 @@ package net.jojoaddison.repository;
 import java.util.List;
 import java.util.Optional;
 import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.Profile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -39,4 +40,23 @@ public interface ProfessionalRepository extends MongoRepository<Professional, St
 
     @Query("{ 'is_archived': { '$ne': true } }")
     Page<Professional> findNotArchived(Pageable pageable);
+
+    /**
+     * The professional belonging to a profile.
+     *
+     * <p><b>This is the direction the link is actually stored in.</b> {@code Profile} also declares
+     * a {@code professional} back-reference, and reading that is the obvious way to answer this
+     * question — but nothing populates it. Every {@code Professional} carries {@code profile}; no
+     * {@code Profile} carries {@code professional}. Following the back-reference compiles, passes a
+     * test that sets both sides, and returns empty against every real document.
+     *
+     * <p>Derived rather than a raw {@code @Query}, and this is the one method here where that is
+     * the safer choice: {@code profile} is a {@code @DBRef}, so the value to match is a reference
+     * document rather than the id string inside it. A derived method takes the entity and lets the
+     * mapping context write that reference exactly as the converter stored it. A hand-written
+     * {@code { 'profile': ?0 }} would interpolate the id and match nothing — silently, as an empty
+     * result rather than an error. Same hazard, same reasoning, as
+     * {@code ShiftValuationService.payableShifts}.
+     */
+    Optional<Professional> findByProfile(Profile profile);
 }
