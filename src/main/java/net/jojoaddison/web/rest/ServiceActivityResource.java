@@ -10,12 +10,14 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.ServiceActivity;
 import net.jojoaddison.repository.ServiceActivityRepository;
+import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,8 +42,11 @@ public class ServiceActivityResource {
 
     private final ServiceActivityRepository serviceActivityRepository;
 
-    public ServiceActivityResource(ServiceActivityRepository serviceActivityRepository) {
+    private final MongoTemplate mongoTemplate;
+
+    public ServiceActivityResource(ServiceActivityRepository serviceActivityRepository, MongoTemplate mongoTemplate) {
         this.serviceActivityRepository = serviceActivityRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -151,16 +156,30 @@ public class ServiceActivityResource {
      *
      * @param pageable the pagination information.
      * @param eagerload flag to eager load entities from relationships (This is applicable for many-to-many).
+     * @param categoryIdEquals restrict to one category; the catalogue screen's activities table.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Service Activities in body.
      */
     @GetMapping("")
     public ResponseEntity<List<ServiceActivity>> getAllServiceActivities(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
-        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload
+        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload,
+        // The catalogue screen opens one category at a time. Without this the table would have to
+        // read every activity in the catalogue and discard the ones belonging to other categories —
+        // the client-side filtering that breaks silently the moment the collection exceeds one page,
+        // which is the failure `CLAUDE.md` already documents for pagination.
+        //
+        // The path is `category.id`, not `category.$id`. A DBRef is stored as { $ref, $id }, so `$id`
+        // is the right *field* — but writing it literally bypasses Spring Data's query mapper, which
+        // is also what converts the id to the type actually stored. Written that way it matches
+        // nothing, and an empty category is indistinguishable from one nobody has filled in.
+        @RequestParam(name = "categoryId.equals", required = false) String categoryIdEquals
     ) {
         LOG.debug("REST request to get a page of ServiceActivities");
         Page<ServiceActivity> page;
-        if (eagerload) {
+        NamedFilters.Builder filters = NamedFilters.builder().equals("category.id", categoryIdEquals);
+        if (!filters.isEmpty()) {
+            page = NamedFilters.page(mongoTemplate, ServiceActivity.class, filters, pageable);
+        } else if (eagerload) {
             page = serviceActivityRepository.findAllWithEagerRelationships(pageable);
         } else {
             page = serviceActivityRepository.findAll(pageable);
