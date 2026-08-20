@@ -12,6 +12,8 @@ import net.jojoaddison.domain.Vendor;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.repository.VendorRepository;
 import net.jojoaddison.repository.support.NamedFilters;
+import net.jojoaddison.service.VendorSummaryService;
+import net.jojoaddison.service.dto.VendorSummaryDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +48,12 @@ public class VendorResource {
     /** For the named filters above, which need more than one optional predicate combined. */
     private final MongoTemplate mongoTemplate;
 
-    public VendorResource(VendorRepository vendorRepository, MongoTemplate mongoTemplate) {
+    private final VendorSummaryService vendorSummaryService;
+
+    public VendorResource(VendorRepository vendorRepository, MongoTemplate mongoTemplate, VendorSummaryService vendorSummaryService) {
         this.vendorRepository = vendorRepository;
         this.mongoTemplate = mongoTemplate;
+        this.vendorSummaryService = vendorSummaryService;
     }
 
     /**
@@ -200,6 +205,30 @@ public class VendorResource {
         }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
+     * {@code GET  /vendors/summary} : the four figures above the console's vendor directory.
+     *
+     * <p>Declared before {@code /{id}} for readability only — the two cannot collide. Spring's
+     * {@code PathPattern} matching prefers a literal segment over a variable one regardless of
+     * declaration order, so {@code /api/vendors/summary} reaches this handler and never arrives at
+     * {@link #getVendor(String)} as a vendor whose id is the word "summary".
+     *
+     * <p>Read-only, so there is no {@code POST}/{@code PUT} shape to keep, and no new authorisation
+     * rule: the blanket {@code GET /api/**} rule in {@code SecurityConfiguration} is admin-or-
+     * operator, which is right for a directory operators are expected to work in.
+     *
+     * <p>It is also outside {@code PaginationIT}'s sweep by construction — that matches
+     * {@code /api/[a-z0-9-]+}, a single segment, so a computed sub-path is not mistaken for a list
+     * endpoint that has forgotten to paginate.
+     *
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the summary in body.
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<VendorSummaryDTO> getVendorSummary() {
+        LOG.debug("REST request to get the vendor directory summary");
+        return ResponseEntity.ok(vendorSummaryService.summary());
     }
 
     /**
