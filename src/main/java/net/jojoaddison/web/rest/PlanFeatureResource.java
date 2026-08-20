@@ -10,12 +10,14 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.PlanFeature;
 import net.jojoaddison.repository.PlanFeatureRepository;
+import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -40,8 +42,11 @@ public class PlanFeatureResource {
 
     private final PlanFeatureRepository planFeatureRepository;
 
-    public PlanFeatureResource(PlanFeatureRepository planFeatureRepository) {
+    private final MongoTemplate mongoTemplate;
+
+    public PlanFeatureResource(PlanFeatureRepository planFeatureRepository, MongoTemplate mongoTemplate) {
         this.planFeatureRepository = planFeatureRepository;
+        this.mongoTemplate = mongoTemplate;
     }
 
     /**
@@ -146,14 +151,32 @@ public class PlanFeatureResource {
      * {@code GET  /plan-features} : get all the Plan Features.
      *
      * @param eagerload flag to eager load entities from relationships (This is applicable for many-to-many).
+     * @param planIdEquals restrict to one plan; the plan board's feature list, one card at a time.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Plan Features in body.
      */
     @GetMapping("")
     public ResponseEntity<List<PlanFeature>> getAllPlanFeatures(
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
-        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload
+        @RequestParam(name = "eagerload", required = false, defaultValue = "true") boolean eagerload,
+        // The plan board draws a feature list per card. Reading them unfiltered happens to work
+        // today — eighteen features fit inside the default page of twenty — and stops working
+        // silently at the nineteenth, dropping a bullet off a card with nothing reporting it. That
+        // is the same trap `CLAUDE.md` records for the generated relationship loaders, which is why
+        // this filters server-side rather than asking for a page and grouping in the browser.
+        //
+        // `plan.id`, not `plan.$id`: see ServiceActivityResource#getAllServiceActivities.
+        @RequestParam(name = "planId.equals", required = false) String planIdEquals
     ) {
         LOG.debug("REST request to get a page of PlanFeatures");
+        NamedFilters.Builder filters = NamedFilters.builder().equals("plan.id", planIdEquals);
+        if (!filters.isEmpty()) {
+            Page<PlanFeature> filtered = NamedFilters.page(mongoTemplate, PlanFeature.class, filters, pageable);
+            HttpHeaders filteredHeaders = PaginationUtil.generatePaginationHttpHeaders(
+                ServletUriComponentsBuilder.fromCurrentRequest(),
+                filtered
+            );
+            return ResponseEntity.ok().headers(filteredHeaders).body(filtered.getContent());
+        }
         Page<PlanFeature> page = eagerload
             ? planFeatureRepository.findAllWithEagerRelationships(pageable)
             : planFeatureRepository.findAll(pageable);

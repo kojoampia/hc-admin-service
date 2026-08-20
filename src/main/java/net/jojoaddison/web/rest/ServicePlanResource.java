@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.repository.ServicePlanRepository;
+import net.jojoaddison.service.ServicePlanSummaryService;
+import net.jojoaddison.service.dto.ServicePlanSummaryDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +42,11 @@ public class ServicePlanResource {
 
     private final ServicePlanRepository servicePlanRepository;
 
-    public ServicePlanResource(ServicePlanRepository servicePlanRepository) {
+    private final ServicePlanSummaryService servicePlanSummaryService;
+
+    public ServicePlanResource(ServicePlanRepository servicePlanRepository, ServicePlanSummaryService servicePlanSummaryService) {
         this.servicePlanRepository = servicePlanRepository;
+        this.servicePlanSummaryService = servicePlanSummaryService;
     }
 
     /**
@@ -159,6 +164,30 @@ public class ServicePlanResource {
         Page<ServicePlan> page = servicePlanRepository.findAll(pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
+     * {@code GET  /service-plans/summary} : the plan mix beneath the console's plan board.
+     *
+     * <p>Declared before {@code /{id}} for readability only — the two cannot collide. Spring's
+     * {@code PathPattern} matching prefers a literal segment over a variable one regardless of
+     * declaration order, so {@code /api/service-plans/summary} reaches this handler and never
+     * arrives at {@link #getServicePlan(String)} as a plan whose id is the word "summary".
+     *
+     * <p>Read-only, so there is no {@code POST}/{@code PUT} shape to keep, and no new authorisation
+     * rule: the blanket {@code GET /api/**} rule in {@code SecurityConfiguration} is admin-or-
+     * operator, which is right for a catalogue screen operators work in.
+     *
+     * <p>It is also outside {@code PaginationIT}'s sweep by construction — that matches
+     * {@code /api/[a-z0-9-]+}, a single segment, so a computed sub-path is not mistaken for a list
+     * endpoint that has forgotten to paginate.
+     *
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the plan mix in body.
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<ServicePlanSummaryDTO> getServicePlanSummary() {
+        LOG.debug("REST request to get the service plan mix");
+        return ResponseEntity.ok(servicePlanSummaryService.summary());
     }
 
     /**

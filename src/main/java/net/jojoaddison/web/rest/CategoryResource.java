@@ -10,6 +10,8 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.Category;
 import net.jojoaddison.repository.CategoryRepository;
+import net.jojoaddison.service.CategorySummaryService;
+import net.jojoaddison.service.dto.CategorySummaryDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +42,11 @@ public class CategoryResource {
 
     private final CategoryRepository categoryRepository;
 
-    public CategoryResource(CategoryRepository categoryRepository) {
+    private final CategorySummaryService categorySummaryService;
+
+    public CategoryResource(CategoryRepository categoryRepository, CategorySummaryService categorySummaryService) {
         this.categoryRepository = categoryRepository;
+        this.categorySummaryService = categorySummaryService;
     }
 
     /**
@@ -154,6 +159,30 @@ public class CategoryResource {
         Page<Category> page = categoryRepository.findAll(pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
+     * {@code GET  /categories/summary} : how many activities sit under each category.
+     *
+     * <p>Declared before {@code /{id}} for readability only — the two cannot collide. Spring's
+     * {@code PathPattern} matching prefers a literal segment over a variable one regardless of
+     * declaration order, so {@code /api/categories/summary} reaches this handler and never arrives
+     * at {@link #getCategory(String)} as a category whose id is the word "summary".
+     *
+     * <p>Read-only, so there is no {@code POST}/{@code PUT} shape to keep, and no new authorisation
+     * rule: the blanket {@code GET /api/**} rule in {@code SecurityConfiguration} is admin-or-
+     * operator.
+     *
+     * <p>It is also outside {@code PaginationIT}'s sweep by construction — that matches
+     * {@code /api/[a-z0-9-]+}, a single segment, so a computed sub-path is not mistaken for a list
+     * endpoint that has forgotten to paginate.
+     *
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the counts in body.
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<CategorySummaryDTO> getCategorySummary() {
+        LOG.debug("REST request to get the catalogue category summary");
+        return ResponseEntity.ok(categorySummaryService.summary());
     }
 
     /**
