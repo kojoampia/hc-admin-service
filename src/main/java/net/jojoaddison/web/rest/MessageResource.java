@@ -7,6 +7,9 @@ import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import net.jojoaddison.domain.enumeration.MessageChannel;
+import net.jojoaddison.domain.enumeration.MessageStatus;
+import net.jojoaddison.domain.enumeration.Priority;
 import net.jojoaddison.repository.MessageRepository;
 import net.jojoaddison.service.MessageService;
 import net.jojoaddison.service.dto.MessageDTO;
@@ -176,12 +179,18 @@ public class MessageResource {
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
         // Declared by name, because Spring silently ignores a request parameter no handler declares
         // — which is precisely how these three came to be sent by the desk and dropped here.
-        @RequestParam(name = "status.equals", required = false) String statusEquals,
-        @RequestParam(name = "priority.equals", required = false) String priorityEquals,
-        @RequestParam(name = "subject.contains", required = false) String subjectContains
+        //
+        // Declared as the enums rather than as Strings, which is what the directories do: Spring's
+        // converter rejects a value the enum does not hold and the caller gets 400. Parsed in the
+        // service instead, the same mistake surfaced as a 500 — the client's error reported as ours.
+        @RequestParam(name = "status.equals", required = false) MessageStatus statusEquals,
+        @RequestParam(name = "priority.equals", required = false) Priority priorityEquals,
+        @RequestParam(name = "subject.contains", required = false) String subjectContains,
+        // Item 19: the desk filtered on priority alone while channel and status were both columns.
+        @RequestParam(name = "channel.equals", required = false) MessageChannel channelEquals
     ) {
         LOG.debug("REST request to get a page of Messages");
-        Page<MessageDTO> page = messageService.findAll(pageable, statusEquals, priorityEquals, subjectContains);
+        Page<MessageDTO> page = messageService.findAll(pageable, statusEquals, priorityEquals, subjectContains, channelEquals);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }
