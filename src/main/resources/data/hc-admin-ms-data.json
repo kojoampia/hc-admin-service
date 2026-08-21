@@ -1622,7 +1622,8 @@
         "body": "I am rostered for the Wednesday night shift and the Thursday early shift back to back. That leaves under six hours between. Can one of them be reassigned?",
         "channel": "PROFESSIONAL_APP",
         "status": "READ",
-        "priority": "HIGH"
+        "priority": "HIGH",
+        "readAt": "2026-08-04T17:03:00Z"
       },
       {
         "id": "m5",
@@ -1633,7 +1634,8 @@
         "body": "Please change my next-of-kin number. My sister Esi has a new line: 024 111 2093. The old MTN number is no longer in use.",
         "channel": "PATIENT_APP",
         "status": "READ",
-        "priority": "NORMAL"
+        "priority": "NORMAL",
+        "readAt": "2026-08-04T13:47:00Z"
       },
       {
         "id": "m6",
@@ -1644,7 +1646,8 @@
         "body": "Please find our revised schedule effective 01 September. Panel pricing is unchanged; home phlebotomy call-out rises by 8 cedis.",
         "channel": "VENDOR_PORTAL",
         "status": "READ",
-        "priority": "NORMAL"
+        "priority": "NORMAL",
+        "readAt": "2026-08-03T18:22:00Z"
       },
       {
         "id": "m7",
@@ -1655,7 +1658,8 @@
         "body": "Yaw and his team reached the house in under twenty minutes on Sunday. My daughter in Maryland was on the call the whole time. Please pass on our thanks.",
         "channel": "PATIENT_APP",
         "status": "REPLIED",
-        "priority": "LOW"
+        "priority": "LOW",
+        "readAt": "2026-08-03T14:58:00Z"
       },
       {
         "id": "m8",
@@ -1666,7 +1670,8 @@
         "body": "I have uploaded my Ghana Card and the referral letter from my GP. My brother in Amsterdam is the sponsor on the account. Is anything else needed before approval?",
         "channel": "PATIENT_APP",
         "status": "REPLIED",
-        "priority": "NORMAL"
+        "priority": "NORMAL",
+        "readAt": "2026-08-02T19:31:00Z"
       },
       {
         "id": "m9",
@@ -1677,7 +1682,8 @@
         "body": "Three deliveries on the Nhyiaeso route were returned; the rider could not reach the recipients. We will retry Monday unless you advise otherwise.",
         "channel": "VENDOR_PORTAL",
         "status": "REPLIED",
-        "priority": "NORMAL"
+        "priority": "NORMAL",
+        "readAt": "2026-08-02T15:09:00Z"
       },
       {
         "id": "m10",
@@ -1688,7 +1694,8 @@
         "body": "Yaa Asantewaa needs a cardiology review this month. Dr. Osae is on leave — can the referral route to an external partner instead?",
         "channel": "PROFESSIONAL_APP",
         "status": "REPLIED",
-        "priority": "HIGH"
+        "priority": "HIGH",
+        "readAt": "2026-08-01T22:44:00Z"
       },
       {
         "id": "m11",
@@ -1699,7 +1706,8 @@
         "body": "Please make sure the monthly care summary reaches Nana in London by the first week. Last month it arrived late and he chased me about it.",
         "channel": "PATIENT_APP",
         "status": "REPLIED",
-        "priority": "LOW"
+        "priority": "LOW",
+        "readAt": "2026-08-01T13:15:00Z"
       },
       {
         "id": "m12",
@@ -1710,7 +1718,8 @@
         "body": "Unit 2 is due its 20,000 km service next week. SwiftAmb can cover our calls for two days if we schedule it Tuesday and Wednesday.",
         "channel": "PROFESSIONAL_APP",
         "status": "REPLIED",
-        "priority": "NORMAL"
+        "priority": "NORMAL",
+        "readAt": "2026-07-31T17:50:00Z"
       }
     ],
     "tasks": [
@@ -1721,7 +1730,7 @@
         "priority": "HIGH",
         "dueOn": "2026-08-07",
         "tag": "Onboarding",
-        "createdAt": null,
+        "createdAt": "2026-07-29T09:00:00Z",
         "owner": {
           "id": "p1",
           "licenceNumber": "MDC/RN/23-4471"
@@ -1735,7 +1744,7 @@
         "priority": "HIGH",
         "dueOn": "2026-08-06",
         "tag": "Accounts",
-        "createdAt": null,
+        "createdAt": "2026-07-28T09:00:00Z",
         "owner": {
           "id": "p2",
           "licenceNumber": "NMC/GH/19-8820"
@@ -1749,7 +1758,7 @@
         "priority": "HIGH",
         "dueOn": "2026-08-06",
         "tag": "Roster",
-        "createdAt": null,
+        "createdAt": "2026-07-28T09:00:00Z",
         "owner": {
           "id": "p2",
           "licenceNumber": "NMC/GH/19-8820"
@@ -1763,7 +1772,7 @@
         "priority": "NORMAL",
         "dueOn": "2026-08-20",
         "tag": "Vendors",
-        "createdAt": null,
+        "createdAt": "2026-08-11T09:00:00Z",
         "owner": {
           "id": "p4",
           "licenceNumber": "AMB/GH/21-3092"
@@ -1777,7 +1786,7 @@
         "priority": "LOW",
         "dueOn": "2026-08-25",
         "tag": "Catalog",
-        "createdAt": null,
+        "createdAt": "2026-08-16T09:00:00Z",
         "owner": {
           "id": "p3",
           "licenceNumber": "CG/ABF/22-114"
@@ -1791,7 +1800,7 @@
         "priority": "HIGH",
         "dueOn": "2026-08-05",
         "tag": "Reports",
-        "createdAt": null,
+        "createdAt": "2026-07-27T09:00:00Z",
         "owner": {
           "id": "p1",
           "licenceNumber": "MDC/RN/23-4471"
@@ -1805,7 +1814,7 @@
         "priority": "HIGH",
         "dueOn": "2026-08-08",
         "tag": "Clinical",
-        "createdAt": null,
+        "createdAt": "2026-07-30T09:00:00Z",
         "owner": {
           "id": "p1",
           "licenceNumber": "MDC/RN/23-4471"
@@ -1819,7 +1828,7 @@
         "priority": "NORMAL",
         "dueOn": "2026-08-12",
         "tag": "Roster",
-        "createdAt": null,
+        "createdAt": "2026-08-03T09:00:00Z",
         "owner": {
           "id": "p6",
           "licenceNumber": "NMC/GH/22-4410"
@@ -1833,7 +1842,7 @@
         "priority": "NORMAL",
         "dueOn": "2026-08-15",
         "tag": "Plans",
-        "createdAt": null,
+        "createdAt": "2026-08-06T09:00:00Z",
         "owner": {
           "id": "p4",
           "licenceNumber": "AMB/GH/21-3092"
@@ -1847,12 +1856,13 @@
         "priority": "HIGH",
         "dueOn": "2026-07-28",
         "tag": "Accounts",
-        "createdAt": null,
+        "createdAt": "2026-07-19T09:00:00Z",
         "owner": {
           "id": "p1",
           "licenceNumber": "MDC/RN/23-4471"
         },
-        "sourceMessage": null
+        "sourceMessage": null,
+        "closedAt": "2026-07-27T16:00:00Z"
       },
       {
         "id": "t11",
@@ -1861,12 +1871,13 @@
         "priority": "NORMAL",
         "dueOn": "2026-07-24",
         "tag": "Vendors",
-        "createdAt": null,
+        "createdAt": "2026-07-15T09:00:00Z",
         "owner": {
           "id": "p3",
           "licenceNumber": "CG/ABF/22-114"
         },
-        "sourceMessage": null
+        "sourceMessage": null,
+        "closedAt": "2026-07-23T16:00:00Z"
       },
       {
         "id": "t12",
@@ -1875,12 +1886,13 @@
         "priority": "NORMAL",
         "dueOn": "2026-08-02",
         "tag": "Comms",
-        "createdAt": null,
+        "createdAt": "2026-07-24T09:00:00Z",
         "owner": {
           "id": "p2",
           "licenceNumber": "NMC/GH/19-8820"
         },
-        "sourceMessage": null
+        "sourceMessage": null,
+        "closedAt": "2026-08-01T16:00:00Z"
       },
       {
         "id": "t13",
@@ -1889,12 +1901,13 @@
         "priority": "HIGH",
         "dueOn": "2026-07-19",
         "tag": "Platform",
-        "createdAt": null,
+        "createdAt": "2026-07-10T09:00:00Z",
         "owner": {
           "id": "p4",
           "licenceNumber": "AMB/GH/21-3092"
         },
-        "sourceMessage": null
+        "sourceMessage": null,
+        "closedAt": "2026-07-18T16:00:00Z"
       }
     ],
     "rosterWeeks": [

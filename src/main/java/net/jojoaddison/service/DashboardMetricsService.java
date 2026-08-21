@@ -1,6 +1,7 @@
 package net.jojoaddison.service;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -113,6 +114,7 @@ public class DashboardMetricsService {
             accountMix(network),
             caseLoad(),
             sparklines(),
+            deltas(),
             capabilities(),
             uptime()
         );
@@ -273,29 +275,92 @@ public class DashboardMetricsService {
      * whose last point disagreed with the figure beside it would be worse than no line at all. The
      * final point is therefore the same count the tile renders, and {@code SparklinesIT} asserts it.
      *
-     * <p><b>Two of the four tiles get a series and two do not, and that is a property of the data
-     * rather than a shortcut.</b> Patients and professionals both carry {@code joined_on}, so their
-     * running total at any past month end is a fact this collection can answer.
+     * <p><b>Two of them are totals and two are backlogs, and they are counted differently.</b>
+     * Patients and professionals both carry {@code joined_on}, so their running total at any past
+     * month end is a fact — a line that only rises. Unread messages and open tasks are backlogs:
+     * what was outstanding <em>at</em> that month end, which rises and falls.
      *
-     * <p>Unread messages and open tasks cannot be. Both are <em>backlogs</em>, not totals: the tile
-     * counts what is still open now, and reconstructing that for a past month needs to know when
-     * each one stopped being open. Nothing records it — {@code Message} has {@code sent_at} but no
-     * read time, {@code Task} has {@code due_on} but no closed time, and the seed populates neither
-     * {@code created_at} nor the audited {@code modified_date} on either. Inflow could be counted
-     * and would draw a plausible line, but "messages that arrived" is a different quantity from
-     * "messages still unread", and the screen already charts the former beside these tiles.
-     *
-     * <p>So they are absent, and the client already renders no line for a missing key. <b>Do not
-     * fill them in with a series derived from something else</b> — a wrong trend under a right
-     * number is exactly the fabricated-figure failure the in-browser mock was deleted for. Giving
-     * them a real one means giving the domain a read time and a closed time first.
+     * <p>The two backlogs had no series at all until item 14, and the reason is worth keeping.
+     * Reconstructing a backlog needs to know when each item stopped being one, and nothing recorded
+     * it — no read time on a message, no closed time on a task. Inflow could have been counted and
+     * would have drawn a plausible line, but "messages that arrived" is a different quantity from
+     * "messages still unread", and a wrong trend under a right number is the fabricated-figure
+     * failure the in-browser mock was deleted for. So the fix was a domain change first:
+     * {@code Message.readAt} and {@code Task.closedAt}, stamped server-side by their lifecycle
+     * callbacks. <b>These two series are only as honest as those fields</b> — anything written
+     * before they existed carries null and counts as never having left the backlog.
      */
     private Map<String, List<Integer>> sparklines() {
         return Map.of(
             "patients",
             cumulativeByMonth(net.jojoaddison.domain.Patient.class),
             "professionals",
-            cumulativeByMonth(Professional.class)
+            cumulativeByMonth(Professional.class),
+            "messages",
+            backlogByMonth(Message.class, "sent_at", "read_at"),
+            "tasks",
+            backlogByMonth(net.jojoaddison.domain.Task.class, "created_at", "closed_at")
+        );
+    }
+
+    /**
+     * What was still outstanding at the end of each of the last six months.
+     *
+     * <p>Open at a month end means: it had arrived by then, and it had not yet left — either it has
+     * still not left, or it left afterwards. Both halves matter. Counting only "no closing time"
+     * would draw today's backlog as a flat line across six months; counting only what arrived would
+     * be the inflow chart that already sits beside these tiles.
+     *
+     * <p>The final bucket ends after today, so its value is the current backlog — the same number
+     * the tile above prints, which is the property {@code SparklinesIT} asserts for every series.
+     *
+     * @param openedField when it entered the backlog ({@code sent_at}, {@code created_at})
+     * @param closedField when it left, null while it has not ({@code read_at}, {@code closed_at})
+     */
+    private List<Integer> backlogByMonth(Class<?> collection, String openedField, String closedField) {
+        YearMonth thisMonth = YearMonth.now(clock);
+        List<Integer> series = new ArrayList<>(VOLUME_MONTHS);
+        for (int back = VOLUME_MONTHS - 1; back >= 0; back--) {
+            Instant monthEnd = thisMonth.minusMonths(back).atEndOfMonth().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+            Criteria stillOpenThen = new Criteria()
+                .andOperator(
+                    Criteria.where(openedField).lt(monthEnd),
+                    new Criteria().orOperator(Criteria.where(closedField).is(null), Criteria.where(closedField).gte(monthEnd))
+                );
+            series.add((int) count(collection, stillOpenThen));
+        }
+        return series;
+    }
+
+    /**
+     * The figure under each KPI tile: item 14's "notes are copy, not measurements".
+     *
+     * <p>Every one is a count over the last seven days, and each is <b>the measurement its own
+     * template names</b> rather than a generic delta the copy is free to reinterpret. The demo says
+     * "+2 verified" under professionals; nothing here records when a professional was verified, so
+     * this counts who joined instead and the string says so. Inventing a verification date to match
+     * a caption would be the same failure in a different field.
+     *
+     * <ul>
+     *   <li>{@code patients}, {@code professionals} — joined in the last seven days.
+     *   <li>{@code messages} — arrived in the last seven days. Inflow, and labelled as inflow: the
+     *       tile counts unread, and "3 arrived" beside "12 unread" is two honest numbers.
+     *   <li>{@code tasks} — closed in the last seven days, which needs {@code closed_at} and is the
+     *       second thing that field bought.
+     * </ul>
+     */
+    private Map<String, Long> deltas() {
+        LocalDate weekAgoDate = LocalDate.now(clock).minusDays(7);
+        Instant weekAgo = weekAgoDate.atStartOfDay(ZoneOffset.UTC).toInstant();
+        return Map.of(
+            "patients",
+            count(net.jojoaddison.domain.Patient.class, Criteria.where("joined_on").gte(weekAgoDate)),
+            "professionals",
+            count(Professional.class, Criteria.where("joined_on").gte(weekAgoDate)),
+            "messages",
+            count(Message.class, Criteria.where("sent_at").gte(weekAgo)),
+            "tasks",
+            count(net.jojoaddison.domain.Task.class, Criteria.where("closed_at").gte(weekAgo))
         );
     }
 

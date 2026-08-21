@@ -40,6 +40,18 @@ public record DashboardMetricsDTO(
     List<KeyCount> accountMix,
     List<CaseLoadRow> caseLoad,
     Map<String, List<Integer>> sparklines,
+    /**
+     * What each KPI tile's note says, as numbers rather than as copy.
+     *
+     * <p>Item 14: the notes were i18n literals — "▲ +3 this week" under a patient count of 12,
+     * "+2 verified" under 9 professionals, on the demo and on the console alike, and neither could
+     * ever change. The strings are format templates now and these are what fills them.
+     *
+     * <p>Keyed the same as {@link #sparklines()}, and each one is the measurement its template
+     * names — not a generic "delta" whose meaning the copy is free to reinterpret. See
+     * {@code DashboardMetricsService.deltas()} for what each counts.
+     */
+    Map<String, Long> deltas,
     List<PlatformCapability> capabilities,
     Uptime uptime
 )

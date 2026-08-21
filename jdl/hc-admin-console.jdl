@@ -234,6 +234,11 @@ entity Message {
   channel MessageChannel required
   status MessageStatus required
   priority Priority required
+  // When this stopped being unread — stamped by MessageLifecycleCallback the first time status
+  // leaves NEW, cleared if it goes back. The desk's tile counts a backlog, and a backlog's value at
+  // a past month end is unknowable without it: item 14, and the reason two KPI sparklines were
+  // deliberately absent until now.
+  readAt Instant
 }
 
 entity Task {
@@ -244,6 +249,8 @@ entity Task {
   dueOn LocalDate
   tag String maxlength(40)
   createdAt Instant
+  // When this stopped being open. Same reasoning as Message.readAt, and stamped the same way.
+  closedAt Instant
 }
 
 /** PDF: Roster (Name, Description, Patient, Date) — modelled as a

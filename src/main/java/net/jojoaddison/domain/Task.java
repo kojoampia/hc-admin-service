@@ -49,6 +49,16 @@ public class Task implements Serializable {
     @Field("created_at")
     private Instant createdAt;
 
+    /**
+     * When this task stopped being open, or {@code null} while it still is.
+     *
+     * <p>Stamped by {@code TaskLifecycleCallback} the first time {@code state} becomes {@code DONE},
+     * and cleared when a task is re-opened. Same reasoning as {@code Message.readAt}: the open-task
+     * tile counts a backlog, and a backlog has no history unless something records the leaving.
+     */
+    @Field("closed_at")
+    private Instant closedAt;
+
     @DBRef
     @Field("owner")
     @JsonIgnoreProperties(value = { "profile", "assignments", "team", "hub" }, allowSetters = true)
@@ -149,6 +159,19 @@ public class Task implements Serializable {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getClosedAt() {
+        return this.closedAt;
+    }
+
+    public Task closedAt(Instant closedAt) {
+        this.setClosedAt(closedAt);
+        return this;
+    }
+
+    public void setClosedAt(Instant closedAt) {
+        this.closedAt = closedAt;
     }
 
     public Professional getOwner() {
