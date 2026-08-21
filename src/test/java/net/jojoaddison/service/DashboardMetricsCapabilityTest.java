@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,7 +35,7 @@ class DashboardMetricsCapabilityTest {
         // No roster week, which is production's state and keeps this test about capabilities.
         CurrentRosterWeekService rosterWeek = mock(CurrentRosterWeekService.class);
         when(rosterWeek.inForce()).thenReturn(Optional.empty());
-        return new DashboardMetricsService(mongo, observability, rosterWeek).metrics();
+        return new DashboardMetricsService(mongo, observability, rosterWeek, Clock.systemUTC()).metrics();
     }
 
     private static String statusOf(DashboardMetricsDTO metrics, String capability) {

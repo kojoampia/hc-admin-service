@@ -17,9 +17,15 @@ import java.util.Map;
  *
  * <p><strong>Nothing here is invented.</strong> Every number is counted from a collection, and the
  * fields with no source in the domain model are returned empty rather than filled with something
- * plausible — that was the mock's failure mode and it is not worth repeating. {@code sparklines} is
- * the honest example: there is no time series anywhere in this service, so it is an empty map, and
- * the client already treats a missing key as "no trend line".
+ * plausible — that was the mock's failure mode and it is not worth repeating.
+ *
+ * <p>{@code sparklines} is the worked example, and it is now <em>partly</em> populated rather than
+ * an empty map, which is the more useful shape of the same rule. Patients and professionals carry
+ * {@code joined_on}, so their running total at any past month end is a fact and each gets a series.
+ * Unread messages and open tasks are backlogs whose history nothing records — no read time on a
+ * message, no closed time on a task — so those two keys are absent and the client draws no line for
+ * them. Two real series and two honest gaps, rather than four lines of which half are guesses. See
+ * {@code DashboardMetricsService.sparklines()}.
  */
 public record DashboardMetricsDTO(
     NetworkTotals network,
