@@ -216,13 +216,17 @@ class NamedFilterIT {
     }
 
     private Message message(String subject, MessageStatus status, Priority priority) {
+        return message(subject, status, priority, MessageChannel.EMAIL);
+    }
+
+    private Message message(String subject, MessageStatus status, Priority priority, MessageChannel channel) {
         return messageRepository.save(
             new Message()
                 .subject(subject)
                 .fromAddress("sender@abofonsa.care")
                 .senderName("A sender")
                 .sentAt(Instant.parse("2026-08-01T09:00:00Z"))
-                .channel(MessageChannel.EMAIL)
+                .channel(channel)
                 .status(status)
                 .priority(priority)
         );
@@ -250,6 +254,44 @@ class NamedFilterIT {
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$.[0].subject").value("Urgent"));
+    }
+
+    /**
+     * Item 19: the desk's Filter control offers channel, and {@code channel} is a column it shows.
+     *
+     * <p>Sent without the handler declaring it, this would return the whole collection and read as a
+     * filter that found everything — the failure the three parameters above were added to end.
+     */
+    @Test
+    void shouldFilterMessagesByChannel() throws Exception {
+        message("Emailed", MessageStatus.NEW, Priority.NORMAL, MessageChannel.EMAIL);
+        message("From the patient app", MessageStatus.NEW, Priority.NORMAL, MessageChannel.PATIENT_APP);
+
+        restMockMvc
+            .perform(get("/api/messages?channel.equals=PATIENT_APP"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$.[0].subject").value("From the patient app"));
+    }
+
+    /** Two named filters at once are one query, not the first one applied and the second dropped. */
+    @Test
+    void shouldCombineTheChannelAndStatusFilters() throws Exception {
+        message("Patient app, unread", MessageStatus.NEW, Priority.NORMAL, MessageChannel.PATIENT_APP);
+        message("Patient app, answered", MessageStatus.REPLIED, Priority.NORMAL, MessageChannel.PATIENT_APP);
+        message("Emailed and unread", MessageStatus.NEW, Priority.NORMAL, MessageChannel.EMAIL);
+
+        restMockMvc
+            .perform(get("/api/messages?channel.equals=PATIENT_APP&status.equals=NEW"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$.[0].subject").value("Patient app, unread"));
+    }
+
+    /** A channel the enum does not hold is a bad request, not an empty page that looks like none. */
+    @Test
+    void shouldRejectAChannelThatIsNotOne() throws Exception {
+        restMockMvc.perform(get("/api/messages?channel.equals=CARRIER_PIGEON")).andExpect(status().isBadRequest());
     }
 
     /** The desk's search box. Case-insensitive, because nobody types a subject line back exactly. */
