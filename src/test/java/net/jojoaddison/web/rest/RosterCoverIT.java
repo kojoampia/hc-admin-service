@@ -246,6 +246,45 @@ class RosterCoverIT {
     }
 
     /**
+     * <b>One cell filled twice is one cell.</b>
+     *
+     * <p>Nothing stops two assignments existing for the same professional on the same day, and the
+     * quality stack had exactly that: a stray {@code DAY} beside the seeded {@code EVENING} for p1
+     * on the Monday, left behind by a click on the grid. The grid resolves each cell with
+     * {@code find} and takes the first match, so it renders a full week as 49 of 49; counting
+     * documents made it 50 of 49 and put <b>102% on the dashboard</b>.
+     *
+     * <p>That was caught by loading the page against real data, not by this suite — the fixtures
+     * here were all built one-document-per-cell, so every one of them agreed with the wrong
+     * arithmetic. It is the same failure the whole finding is about, arrived at from a third
+     * direction: two readings of one roster.
+     *
+     * <p>Asserted as a value rather than as a clamp. A {@code Math.min} would also keep the number
+     * under 100 and would leave the numerator wrong, so the OFF count below is the real check —
+     * the duplicate is a {@code DAY} shadowing an {@code OFF}, and only a by-cell count can tell
+     * whether the day was counted once and, if so, which of the two won.
+     */
+    @Test
+    void aCellFilledTwiceIsStillOneCell() throws Exception {
+        Professional ama = professionalRepository.save(professional(AccountStatus.ACTIVE, "MDC/RN/23-4471"));
+
+        for (int day = 0; day < 7; day++) {
+            assign(ama, day, ShiftType.OFF);
+        }
+        // The stray, exactly as the quality stack had it: same professional, same day, second row.
+        assign(ama, 0, ShiftType.DAY);
+
+        restMockMvc
+            .perform(get(METRICS))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.roster.coverPercent").value(100))
+            .andExpect(jsonPath("$.roster.unassignedSlots").value(0))
+            // Seven OFF days, one of them shadowed by a stray DAY. The first row for the cell wins,
+            // so the week is still all OFF and nothing was worked.
+            .andExpect(jsonPath("$.roster.shiftsThisWeek").value(0));
+    }
+
+    /**
      * Assignments belonging to another week are not this week's cover.
      *
      * <p>The link is the {@code RosterWeek} DBRef, not the shift date — which is what the dashboard

@@ -4,6 +4,7 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -181,14 +182,28 @@ public class DashboardMetricsService {
             ShiftAssignment.class
         );
 
-        List<ShiftAssignment> planned = assignments
-            .stream()
-            .filter(a -> a.getProfessional() != null && rosterable.contains(a.getProfessional().getId()))
-            .toList();
+        // <b>By cell, not by document.</b> Nothing stops two assignments existing for one
+        // professional on one day, and the quality stack had exactly that — a stray `DAY` beside the
+        // seeded `EVENING` for p1 on Monday, left by a click on the grid. The grid resolves a cell
+        // with `find`, so the first match wins and it renders 49 filled of 49; counting documents
+        // gave 50 of 49 and put <b>102%</b> on the dashboard. Two readings of one roster is the
+        // defect this method exists to close, so the numerator has to be what the grid draws.
+        //
+        // Keyed on (professional, dayIndex) rather than deduplicated by id: it is one cell that has
+        // been filled twice, and a Set of cells cannot exceed the capacity computed from the same
+        // two dimensions. Over-100% stops being possible rather than being clamped away.
+        Map<String, ShiftAssignment> planned = new LinkedHashMap<>();
+        for (ShiftAssignment assignment : assignments) {
+            Professional professional = assignment.getProfessional();
+            if (professional == null || !rosterable.contains(professional.getId()) || assignment.getDayIndex() == null) {
+                continue;
+            }
+            planned.putIfAbsent(professional.getId() + "|" + assignment.getDayIndex(), assignment);
+        }
 
         long capacity = (long) rosterable.size() * DAYS_IN_WEEK;
         long unassigned = Math.max(0, capacity - planned.size());
-        long worked = planned.stream().filter(a -> a.getShift() != ShiftType.OFF).count();
+        long worked = planned.values().stream().filter(a -> a.getShift() != ShiftType.OFF).count();
 
         // 0% for an empty grid. An uncovered roster is not a fully covered one, and dividing by zero
         // should not be resolved by whichever default reads better on a card.
