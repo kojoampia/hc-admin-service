@@ -626,7 +626,7 @@
       },
       {
         "id": "profile-me",
-        "accountId": "cred-me",
+        "accountId": "admin",
         "title": "MRS",
         "firstName": "Efua",
         "middleName": null,

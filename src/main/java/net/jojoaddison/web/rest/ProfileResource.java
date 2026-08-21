@@ -169,27 +169,37 @@ public class ProfileResource {
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the profile, or with status {@code 404 (Not Found)}.
      */
     /**
-     * {@code GET /api/profiles/by-account/:accountId} : the profile belonging to a gateway account.
+     * {@code GET /api/profiles/by-account/:login} : the profile belonging to a gateway account.
      *
      * <p>Exists so the console can show the signed-in administrator their own detailed profile. The
      * account itself lives in the gateway and carries only login, name, email and language;
      * everything else about a person — title, date of birth, contact, address — is a Profile here,
-     * joined by {@code accountId}.
+     * joined by {@code account_id}.
+     *
+     * <p><b>The value is the gateway LOGIN, not the gateway user id.</b> That is the whole of the
+     * contract and it is worth stating on the route, because the two are both opaque strings and a
+     * lookup by the wrong one is indistinguishable from an account that has no profile: this
+     * endpoint answers 404 either way. The console asked with the user id
+     * ({@code a0eebc99-…-a11}) for eight days and its account screen showed an empty create form to
+     * an administrator whose profile was sitting in the collection — nothing errored, nothing was
+     * logged above debug. See {@link net.jojoaddison.service.CurrentProfessionalService}, which
+     * reads the same field from the token subject, and hc-professional's {@code OnboardingService},
+     * which writes it the same way. All three move together or none of them work.
      *
      * <p>Placed above {@code /{id}} deliberately: {@code by-account} would otherwise be matched as
      * an id and return 404 for a profile that exists.
      *
      * <p>A 404 is a normal answer, not an error. Most accounts have no profile — production has
      * none at all — and the console reads the 404 as "offer to create one" rather than as a
-     * failure.
+     * failure. Which is also why a wrong key here is so quiet.
      *
-     * @param accountId the gateway account id.
+     * @param login the gateway login, as carried by {@code Profile.account_id} and by the JWT subject.
      * @return {@code 200 OK} with the profile, or {@code 404} if that account has none.
      */
-    @GetMapping("/by-account/{accountId}")
-    public ResponseEntity<Profile> getProfileByAccount(@PathVariable("accountId") String accountId) {
-        LOG.debug("REST request to get Profile for account : {}", accountId);
-        return ResponseUtil.wrapOrNotFound(profileRepository.findByAccount(accountId));
+    @GetMapping("/by-account/{login}")
+    public ResponseEntity<Profile> getProfileByAccount(@PathVariable("login") String login) {
+        LOG.debug("REST request to get Profile for account : {}", login);
+        return ResponseUtil.wrapOrNotFound(profileRepository.findByAccount(login));
     }
 
     @GetMapping("/{id}")

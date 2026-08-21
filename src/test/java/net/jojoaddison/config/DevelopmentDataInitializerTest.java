@@ -213,6 +213,39 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
+     * <b>The signed-in administrator has to have a profile, reachable by the login they sign in
+     * with.</b>
+     *
+     * <p>{@code profile-me} — Efua Mensah, the persona the demo greets by name — is in this fixture
+     * for exactly one screen: {@code /account}, which asks {@code GET
+     * /api/profiles/by-account/{login}} for the caller's own record. It was linked to
+     * {@code cred-me}, an id carried over from the in-browser mock's Credential collection and
+     * matching no login on any gateway, so the screen 404ed and offered to create a profile that was
+     * already sitting three collections away.
+     *
+     * <p>The second assertion is the one that matters and it is deliberately about shape rather than
+     * about a value. {@code account_id} holds a <b>login</b>; a UUID there is the gateway user id,
+     * which is the specific wrong identifier the console sent for eight days. Both are opaque
+     * strings, the lookup is an equality match, and the answer to either is the same 404 — so no
+     * assertion about a working link can catch the wrong kind of link, only an assertion about the
+     * kind.
+     */
+    @Test
+    void shouldLinkTheAdministratorProfileToTheLoginTheySignInWith() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getPersonProfiles())
+            .filteredOn(profile -> "admin".equals(profile.getAccountId()))
+            .singleElement()
+            .satisfies(profile -> assertThat(profile.getFirstName()).isEqualTo("Efua"));
+
+        assertThat(test.getPersonProfiles())
+            .extracting(Profile::getAccountId)
+            .filteredOn(java.util.Objects::nonNull)
+            .noneMatch(accountId -> accountId.matches("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
+    }
+
+    /**
      * The link has to be stored on the PROFESSIONAL, which is the direction the resolver reads.
      *
      * <p>{@code Profile} declares a {@code professional} back-reference and this seed leaves it
