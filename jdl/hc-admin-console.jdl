@@ -358,6 +358,10 @@ entity PlatformService {
   plane String required maxlength(40)
   health ServiceHealth required
   responseMs Integer min(0)
+  // Set by the probe endpoint, never by a client. Absent means "never probed": the value beside it
+  // is whatever was last written by hand or by the seed, and the screen says so rather than
+  // presenting a fixture as a measurement.
+  lastProbedAt Instant
 }
 
 entity AuditEntry {

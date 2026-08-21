@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.PlatformService;
 import net.jojoaddison.repository.PlatformServiceRepository;
+import net.jojoaddison.service.PlatformProbeService;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +40,11 @@ public class PlatformServiceResource {
 
     private final PlatformServiceRepository platformServiceRepository;
 
-    public PlatformServiceResource(PlatformServiceRepository platformServiceRepository) {
+    private final PlatformProbeService platformProbeService;
+
+    public PlatformServiceResource(PlatformServiceRepository platformServiceRepository, PlatformProbeService platformProbeService) {
         this.platformServiceRepository = platformServiceRepository;
+        this.platformProbeService = platformProbeService;
     }
 
     /**
@@ -127,6 +131,29 @@ public class PlatformServiceResource {
         LOG.debug("REST request to get PlatformService : {}", id);
         Optional<PlatformService> platformService = platformServiceRepository.findById(id);
         return ResponseUtil.wrapOrNotFound(platformService);
+    }
+
+    /**
+     * {@code POST  /platform-services/:id/probe} : re-check one service now and store what it said.
+     *
+     * <p>Item 22: the screen had no buttons at all, so a service that recovered could not be
+     * re-checked from the console — the row kept its last written health until somebody edited the
+     * document.
+     *
+     * <p><b>Deliberately not readable by an operator.</b> It writes {@code health},
+     * {@code responseMs} and {@code lastProbedAt}, so the read/write split puts it behind
+     * {@code ROLE_ADMIN} through the blanket non-GET rule in {@code SecurityConfiguration}, with no
+     * carve-out here. An operator watching a service recover is plausibly the person who wants this
+     * button, and that is an argument for changing the split deliberately rather than for opening a
+     * write endpoint inside a screen — the console hides the button for anyone who cannot use it.
+     *
+     * @param id the id of the platformService to probe.
+     * @return the updated service, or {@code 404} if there is no service with that id.
+     */
+    @PostMapping("/{id}/probe")
+    public ResponseEntity<PlatformService> probePlatformService(@PathVariable("id") String id) {
+        LOG.debug("REST request to probe PlatformService : {}", id);
+        return ResponseUtil.wrapOrNotFound(platformProbeService.probe(id));
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {
