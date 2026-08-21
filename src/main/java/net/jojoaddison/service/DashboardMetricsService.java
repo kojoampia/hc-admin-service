@@ -1,5 +1,7 @@
 package net.jojoaddison.service;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -78,15 +80,18 @@ public class DashboardMetricsService {
     private final MongoTemplate mongoTemplate;
     private final ObservabilityClient observability;
     private final CurrentRosterWeekService currentRosterWeek;
+    private final Clock clock;
 
     public DashboardMetricsService(
         MongoTemplate mongoTemplate,
         ObservabilityClient observability,
-        CurrentRosterWeekService currentRosterWeek
+        CurrentRosterWeekService currentRosterWeek,
+        Clock clock
     ) {
         this.mongoTemplate = mongoTemplate;
         this.observability = observability;
         this.currentRosterWeek = currentRosterWeek;
+        this.clock = clock;
     }
 
     public DashboardMetricsDTO metrics() {
@@ -102,7 +107,7 @@ public class DashboardMetricsService {
             messageVolume(),
             accountMix(),
             caseLoad(),
-            Map.of(),
+            sparklines(),
             capabilities(),
             uptime()
         );
@@ -241,7 +246,7 @@ public class DashboardMetricsService {
      * compresses the gap and draws a trend that did not happen.
      */
     private List<DashboardMetricsDTO.MonthCount> messageVolume() {
-        YearMonth thisMonth = YearMonth.now(ZoneOffset.UTC);
+        YearMonth thisMonth = YearMonth.now(clock);
         List<DashboardMetricsDTO.MonthCount> volume = new ArrayList<>(VOLUME_MONTHS);
         for (int back = VOLUME_MONTHS - 1; back >= 0; back--) {
             YearMonth month = thisMonth.minusMonths(back);
@@ -252,6 +257,65 @@ public class DashboardMetricsService {
             volume.add(new DashboardMetricsDTO.MonthCount(month.toString(), count(Message.class, window)));
         }
         return volume;
+    }
+
+    /**
+     * The trend line inside each KPI tile.
+     *
+     * <p>A sparkline here means one thing: <b>the tile's own number, over the last six months,
+     * ending at the number printed above it.</b> The prototype's four series are literals that each
+     * end at their tile's value — {@code [98,102,105,109,112,116]} under a count of 116 — and a line
+     * whose last point disagreed with the figure beside it would be worse than no line at all. The
+     * final point is therefore the same count the tile renders, and {@code SparklinesIT} asserts it.
+     *
+     * <p><b>Two of the four tiles get a series and two do not, and that is a property of the data
+     * rather than a shortcut.</b> Patients and professionals both carry {@code joined_on}, so their
+     * running total at any past month end is a fact this collection can answer.
+     *
+     * <p>Unread messages and open tasks cannot be. Both are <em>backlogs</em>, not totals: the tile
+     * counts what is still open now, and reconstructing that for a past month needs to know when
+     * each one stopped being open. Nothing records it — {@code Message} has {@code sent_at} but no
+     * read time, {@code Task} has {@code due_on} but no closed time, and the seed populates neither
+     * {@code created_at} nor the audited {@code modified_date} on either. Inflow could be counted
+     * and would draw a plausible line, but "messages that arrived" is a different quantity from
+     * "messages still unread", and the screen already charts the former beside these tiles.
+     *
+     * <p>So they are absent, and the client already renders no line for a missing key. <b>Do not
+     * fill them in with a series derived from something else</b> — a wrong trend under a right
+     * number is exactly the fabricated-figure failure the in-browser mock was deleted for. Giving
+     * them a real one means giving the domain a read time and a closed time first.
+     */
+    private Map<String, List<Integer>> sparklines() {
+        return Map.of(
+            "patients",
+            cumulativeByMonth(net.jojoaddison.domain.Patient.class),
+            "professionals",
+            cumulativeByMonth(Professional.class)
+        );
+    }
+
+    /**
+     * How a collection's total reached its current size, at the end of each of the last six months.
+     *
+     * <p>Counted with a query per month rather than by loading the collection and bucketing it here:
+     * six counts is cheaper than every document, and it keeps this method the same shape as
+     * {@link #messageVolume()} beside it.
+     *
+     * <p>Everything is counted, archived included, because the tiles above these lines render
+     * {@code network} and not {@code loaded}. Excluding archived records here would leave the last
+     * point below the number it sits under.
+     */
+    private List<Integer> cumulativeByMonth(Class<?> collection) {
+        YearMonth thisMonth = YearMonth.now(clock);
+        List<Integer> series = new ArrayList<>(VOLUME_MONTHS);
+        for (int back = VOLUME_MONTHS - 1; back >= 0; back--) {
+            // Everything joined on or before the last day of that month — so the series is a running
+            // total, not a per-month intake. The final bucket ends after today, which is what makes
+            // the last point the current count.
+            LocalDate monthEnd = thisMonth.minusMonths(back).atEndOfMonth();
+            series.add((int) count(collection, Criteria.where("joined_on").lte(monthEnd)));
+        }
+        return series;
     }
 
     /** Professionals by role. Roles with nobody in them are omitted rather than shown as zero slices. */
