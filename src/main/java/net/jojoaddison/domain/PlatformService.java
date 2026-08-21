@@ -3,6 +3,7 @@ package net.jojoaddison.domain;
 import jakarta.validation.constraints.*;
 import java.io.Serial;
 import java.io.Serializable;
+import java.time.Instant;
 import net.jojoaddison.domain.enumeration.ServiceHealth;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -49,6 +50,16 @@ public class PlatformService implements Serializable {
     @Min(value = 0)
     @Field("response_ms")
     private Integer responseMs;
+
+    /**
+     * When the probe last measured this service, or {@code null} if it never has.
+     *
+     * <p>Written only by {@code POST /api/platform-services/{id}/probe}. Its absence is the point:
+     * {@code health} and {@code responseMs} arrive from the seed or from an operator's hand, and
+     * without a timestamp beside them a fixture and a measurement look identical on the screen.
+     */
+    @Field("last_probed_at")
+    private Instant lastProbedAt;
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -143,6 +154,19 @@ public class PlatformService implements Serializable {
         this.responseMs = responseMs;
     }
 
+    public Instant getLastProbedAt() {
+        return this.lastProbedAt;
+    }
+
+    public PlatformService lastProbedAt(Instant lastProbedAt) {
+        this.setLastProbedAt(lastProbedAt);
+        return this;
+    }
+
+    public void setLastProbedAt(Instant lastProbedAt) {
+        this.lastProbedAt = lastProbedAt;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -173,6 +197,7 @@ public class PlatformService implements Serializable {
             ", plane='" + getPlane() + "'" +
             ", health='" + getHealth() + "'" +
             ", responseMs=" + getResponseMs() +
+            ", lastProbedAt='" + getLastProbedAt() + "'" +
             "}";
     }
 }

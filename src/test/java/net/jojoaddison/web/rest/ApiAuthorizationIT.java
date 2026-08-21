@@ -129,6 +129,20 @@ class ApiAuthorizationIT {
         mvc.perform(get(ENTITY_PATH).with(as(AuthoritiesConstants.OPERATOR, AuthoritiesConstants.USER))).andExpect(status().isOk());
     }
 
+    /**
+     * The probe endpoint, which is a write on a screen that is otherwise all reads.
+     *
+     * <p>Asserted separately from the CRUD paths above because it does not look like a write: it is
+     * a button on a monitoring page called "re-run", and the argument for letting an operator press
+     * it is a good one. It is a POST that stores health, response time and a timestamp, so the
+     * read/write split covers it through the blanket rule and the answer is 403 — a 404 here would
+     * mean the path had stopped existing and the assertion had stopped meaning anything.
+     */
+    @Test
+    void operatorCannotProbeAPlatformService() throws Exception {
+        mvc.perform(post("/api/platform-services/any-id/probe").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
+    }
+
     // --- ROLE_ADMIN: everything -------------------------------------------------------------------
 
     @Test
