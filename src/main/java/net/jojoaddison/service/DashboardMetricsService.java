@@ -1,7 +1,5 @@
 package net.jojoaddison.service;
 
-import java.time.DayOfWeek;
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -9,13 +7,16 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.Message;
 import net.jojoaddison.domain.PlatformService;
 import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.RosterWeek;
 import net.jojoaddison.domain.ShiftAssignment;
+import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.ServiceHealth;
+import net.jojoaddison.domain.enumeration.ShiftType;
 import net.jojoaddison.service.dto.DashboardMetricsDTO;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -64,6 +65,9 @@ public class DashboardMetricsService {
     private static final String UNKNOWN = "Unknown";
     private static final String BETA = "Beta";
 
+    /** A roster week is seven columns wide, on both sides of this contract. */
+    private static final int DAYS_IN_WEEK = 7;
+
     /** How many months of message volume the chart shows. */
     private static final int VOLUME_MONTHS = 6;
 
@@ -72,10 +76,16 @@ public class DashboardMetricsService {
 
     private final MongoTemplate mongoTemplate;
     private final ObservabilityClient observability;
+    private final CurrentRosterWeekService currentRosterWeek;
 
-    public DashboardMetricsService(MongoTemplate mongoTemplate, ObservabilityClient observability) {
+    public DashboardMetricsService(
+        MongoTemplate mongoTemplate,
+        ObservabilityClient observability,
+        CurrentRosterWeekService currentRosterWeek
+    ) {
         this.mongoTemplate = mongoTemplate;
         this.observability = observability;
+        this.currentRosterWeek = currentRosterWeek;
     }
 
     public DashboardMetricsDTO metrics() {
@@ -113,27 +123,84 @@ public class DashboardMetricsService {
         );
     }
 
+    /**
+     * The roster figures, computed the way the duty-roster grid computes them.
+     *
+     * <p><b>This has to match {@code console/duty-roster} exactly, because the two sit one click
+     * apart</b> and the hero sentence quotes one of these numbers. It did not: the hero said "roster
+     * cover at 0% for the week" while the grid said 80%, and the reason is the definition of an
+     * unassigned slot.
+     *
+     * <p><b>An unassigned slot is the absence of a ShiftAssignment, not a document with no
+     * professional on it.</b> Cycling a grid cell past OFF deletes the assignment — that is what
+     * makes the count a subtraction — so nothing in this collection ever carries a null professional.
+     * The old formula counted those, found none by construction, and divided by the documents it did
+     * find: it could return 100% for any week with an assignment in it and 0% for a week with none,
+     * and no third value existed. The 0% in the gap analysis was not missing data, it was the only
+     * other number the arithmetic could produce.
+     *
+     * <p>So capacity comes from the grid's own shape — a row per rosterable professional, seven days
+     * — and coverage is how much of that grid has been planned:
+     *
+     * <ul>
+     *   <li><b>capacity</b> = rosterable professionals × 7. Rosterable excludes {@code PENDING}
+     *       applicants, which is what the grid excludes; the generated seed rosters them anyway, so
+     *       counting their assignments would push a full week past 100%.</li>
+     *   <li><b>unassigned</b> = capacity − planned. A subtraction, for the reason above.</li>
+     *   <li><b>rosteredStaff</b> = the grid's row count, not "professionals who happen to have a
+     *       shift". Somebody with a completely empty week is precisely who needs rostering, and
+     *       counting only the assigned would hide them.</li>
+     *   <li><b>shiftsThisWeek</b> = planned minus OFF. OFF is planned, but it is not a shift — the
+     *       same rule that decides what a shift is worth in {@code ShiftValuationService}.</li>
+     * </ul>
+     *
+     * <p>The week is {@link CurrentRosterWeekService#inForce()}, which is also what the grid asks
+     * for, rather than the Monday-to-Sunday window this used to derive from {@code shift_date}. Two
+     * independently computed weeks is the same class of defect one level up.
+     */
     private DashboardMetricsDTO.RosterSummary roster() {
-        LocalDate monday = LocalDate.now(ZoneOffset.UTC).with(DayOfWeek.MONDAY);
-        LocalDate sunday = monday.plusDays(6);
-        Criteria week = Criteria.where("shift_date").gte(monday).lte(sunday);
+        RosterWeek inForce = currentRosterWeek.inForce().orElse(null);
+        if (inForce == null) {
+            // No roster at all — production's normal state. Zero, and no week to name.
+            return new DashboardMetricsDTO.RosterSummary(0, 0L, 0L, 0L, null, null);
+        }
 
-        List<ShiftAssignment> assignments = mongoTemplate.find(new Query(week), ShiftAssignment.class);
-        long total = assignments.size();
-        long unassigned = assignments.stream().filter(a -> a.getProfessional() == null).count();
-        long staff = assignments
+        Set<String> rosterable = mongoTemplate
+            .find(new Query(Criteria.where("status").ne(AccountStatus.PENDING.name())), Professional.class)
             .stream()
-            .map(ShiftAssignment::getProfessional)
-            .filter(Objects::nonNull)
             .map(Professional::getId)
             .filter(Objects::nonNull)
-            .distinct()
-            .count();
+            .collect(Collectors.toSet());
 
-        // 0% for an empty week. An uncovered roster is not a fully covered one, and dividing by zero
+        // `week.id`, not `week.$id`: a DBRef stores { $ref, $id }, so `$id` is the real field, but
+        // writing it literally bypasses the query mapper that converts the String to what is stored
+        // and matches nothing. Same note as ShiftAssignmentResource's filter, and the same symptom —
+        // an empty roster that reads exactly like a quiet week.
+        List<ShiftAssignment> assignments = mongoTemplate.find(
+            new Query(Criteria.where("week.id").is(inForce.getId())),
+            ShiftAssignment.class
+        );
+
+        List<ShiftAssignment> planned = assignments
+            .stream()
+            .filter(a -> a.getProfessional() != null && rosterable.contains(a.getProfessional().getId()))
+            .toList();
+
+        long capacity = (long) rosterable.size() * DAYS_IN_WEEK;
+        long unassigned = Math.max(0, capacity - planned.size());
+        long worked = planned.stream().filter(a -> a.getShift() != ShiftType.OFF).count();
+
+        // 0% for an empty grid. An uncovered roster is not a fully covered one, and dividing by zero
         // should not be resolved by whichever default reads better on a card.
-        int coverPercent = total == 0 ? 0 : (int) Math.round(((double) (total - unassigned) / total) * 100);
-        return new DashboardMetricsDTO.RosterSummary(coverPercent, unassigned, staff, total);
+        int coverPercent = capacity == 0 ? 0 : (int) Math.round(((double) planned.size() / capacity) * 100);
+        return new DashboardMetricsDTO.RosterSummary(
+            coverPercent,
+            unassigned,
+            (long) rosterable.size(),
+            worked,
+            inForce.getLabel(),
+            inForce.getStartDate()
+        );
     }
 
     private List<DashboardMetricsDTO.DegradedService> degradedServices() {

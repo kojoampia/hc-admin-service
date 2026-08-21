@@ -1,6 +1,7 @@
 package net.jojoaddison.service.dto;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -46,13 +47,28 @@ public record DashboardMetricsDTO(
     public record NetworkTotals(long patients, long professionals, long vendors) implements Serializable {}
 
     /**
-     * Derived from the current ISO week's shift assignments.
+     * The roster week in force, counted the way the duty-roster grid counts it.
      *
-     * <p>{@code coverPercent} is assigned slots over total slots for the week, rounded. With no
-     * assignments at all it is 0 rather than 100 — an empty roster is uncovered, not perfectly
-     * covered, and the rounding convention should not be the thing that decides which.
+     * <p>{@code coverPercent} is planned slots over the grid's capacity — rosterable professionals
+     * times seven — rounded. With nothing planned it is 0 rather than 100: an empty roster is
+     * uncovered, not perfectly covered, and the rounding convention should not be the thing that
+     * decides which. {@code shiftsThisWeek} excludes OFF, which is planned but is not a shift. See
+     * {@code DashboardMetricsService.roster()} for the full contract and for what these meant before.
+     *
+     * <p><b>{@code weekLabel} and {@code weekStartDate} say which week, and exist so that nothing
+     * downstream has to assume.</b> The hero sentence read "for the week" with no week named, which
+     * is exactly how a figure for one week can sit beside a grid showing another and look
+     * reconciled. Both are null when there is no roster week at all — production's normal state.
      */
-    public record RosterSummary(int coverPercent, long unassignedSlots, long rosteredStaff, long shiftsThisWeek) implements Serializable {}
+    public record RosterSummary(
+        int coverPercent,
+        long unassignedSlots,
+        long rosteredStaff,
+        long shiftsThisWeek,
+        String weekLabel,
+        LocalDate weekStartDate
+    )
+        implements Serializable {}
 
     /** A platform service whose recorded health is not {@code HEALTHY}. */
     public record DegradedService(String id, String name, String host, Integer port) implements Serializable {}

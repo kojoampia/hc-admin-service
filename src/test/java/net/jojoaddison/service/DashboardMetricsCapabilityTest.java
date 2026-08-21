@@ -31,7 +31,10 @@ class DashboardMetricsCapabilityTest {
         MongoTemplate mongo = mock(MongoTemplate.class);
         when(mongo.count(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.<Class<?>>any())).thenReturn(0L);
         when(mongo.find(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.<Class<?>>any())).thenReturn(List.of());
-        return new DashboardMetricsService(mongo, observability).metrics();
+        // No roster week, which is production's state and keeps this test about capabilities.
+        CurrentRosterWeekService rosterWeek = mock(CurrentRosterWeekService.class);
+        when(rosterWeek.inForce()).thenReturn(Optional.empty());
+        return new DashboardMetricsService(mongo, observability, rosterWeek).metrics();
     }
 
     private static String statusOf(DashboardMetricsDTO metrics, String capability) {

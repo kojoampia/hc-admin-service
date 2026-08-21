@@ -21,10 +21,18 @@ import org.springframework.test.web.servlet.MockMvc;
  * Looking up a person by the account they sign in with.
  *
  * <p>The gateway's account carries login, name, email and language and nothing else; everything
- * else about a person lives here as a Profile, joined by {@code accountId}. Without this the console
+ * else about a person lives here as a Profile, joined by {@code account_id}. Without this the console
  * can show an administrator their credentials but never their own details.
  *
  * <p>Two behaviours are worth pinning, and neither is about the happy path.
+ *
+ * <p><b>The fixture below is a login, and that is deliberate.</b> It read
+ * {@code 6a6bf0c12c8c301d3aa8cb2e} — an id-shaped string — which passes just as well, because the
+ * lookup is an equality match and does not care what kind of identifier it is given. That is
+ * precisely why it could not catch the console addressing this route with the gateway user id: no
+ * test here disagreed with it, and the endpoint's answer to a wrong key is the same 404 it gives an
+ * account that simply has no profile. A fixture that names the contract is the only guard this file
+ * can offer.
  */
 @IntegrationTest
 @AutoConfigureMockMvc(addFilters = false)
@@ -32,7 +40,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class ProfileByAccountIT {
 
     private static final String ENDPOINT = "/api/profiles/by-account/";
-    private static final String ACCOUNT_ID = "6a6bf0c12c8c301d3aa8cb2e";
+    private static final String LOGIN = "efua.mensah";
 
     @Autowired
     private MockMvc restMockMvc;
@@ -50,9 +58,9 @@ class ProfileByAccountIT {
      * console cannot quietly create a stub profile for an account — whoever creates one has to
      * supply a date of birth, a sex, an ID type and number, a mobile number and an email.
      */
-    private static Profile profileFor(String accountId, String firstName, String lastName) {
+    private static Profile profileFor(String login, String firstName, String lastName) {
         return new Profile()
-            .accountId(accountId)
+            .accountId(login)
             .firstName(firstName)
             .lastName(lastName)
             .dateOfBirth(LocalDate.of(1985, 4, 12))
@@ -65,14 +73,14 @@ class ProfileByAccountIT {
 
     @Test
     void findsTheProfileLinkedToAnAccount() throws Exception {
-        profileRepository.save(profileFor(ACCOUNT_ID, "Ama", "Mensah"));
+        profileRepository.save(profileFor(LOGIN, "Ama", "Mensah"));
         profileRepository.save(profileFor("someone-else", "Kofi", "Boateng"));
 
         restMockMvc
-            .perform(get(ENDPOINT + ACCOUNT_ID))
+            .perform(get(ENDPOINT + LOGIN))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.firstName").value("Ama"))
-            .andExpect(jsonPath("$.accountId").value(ACCOUNT_ID));
+            .andExpect(jsonPath("$.accountId").value(LOGIN));
     }
 
     /**
@@ -97,11 +105,11 @@ class ProfileByAccountIT {
      */
     @Test
     void isNotShadowedByTheIdRoute() throws Exception {
-        Profile stored = profileRepository.save(profileFor(ACCOUNT_ID, "Ama", "Mensah"));
+        Profile stored = profileRepository.save(profileFor(LOGIN, "Ama", "Mensah"));
 
         // The id route still works for a real id...
         restMockMvc.perform(get("/api/profiles/" + stored.getId())).andExpect(status().isOk());
         // ...and the account route is not being read as an id.
-        restMockMvc.perform(get(ENDPOINT + ACCOUNT_ID)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(stored.getId()));
+        restMockMvc.perform(get(ENDPOINT + LOGIN)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(stored.getId()));
     }
 }

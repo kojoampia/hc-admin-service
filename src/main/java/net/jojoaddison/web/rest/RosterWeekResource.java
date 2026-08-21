@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.RosterWeek;
 import net.jojoaddison.repository.RosterWeekRepository;
+import net.jojoaddison.service.CurrentRosterWeekService;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,8 +41,11 @@ public class RosterWeekResource {
 
     private final RosterWeekRepository rosterWeekRepository;
 
-    public RosterWeekResource(RosterWeekRepository rosterWeekRepository) {
+    private final CurrentRosterWeekService currentRosterWeekService;
+
+    public RosterWeekResource(RosterWeekRepository rosterWeekRepository, CurrentRosterWeekService currentRosterWeekService) {
         this.rosterWeekRepository = rosterWeekRepository;
+        this.currentRosterWeekService = currentRosterWeekService;
     }
 
     /**
@@ -155,6 +159,28 @@ public class RosterWeekResource {
         Page<RosterWeek> page = rosterWeekRepository.findAll(pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
+     * {@code GET /api/roster-weeks/current} : the roster week in force today.
+     *
+     * <p>The console has two screens that state figures for "the week" — the dashboard hero and the
+     * duty-roster grid — and they sit one click apart. This endpoint exists so they cannot answer
+     * with different weeks: both ask here, and the rule lives in one place. See {@link
+     * CurrentRosterWeekService} for what the rule is and why it is not simply "the latest week".
+     *
+     * <p>Declared above {@code /{id}} deliberately. Both match a single path segment, so ordering is
+     * the only thing keeping them apart, and reshuffled the other way this becomes a lookup for a
+     * week whose id is the literal string "current" — a 404 for a record that exists. The same trap
+     * caught {@code /api/profiles/by-account}, and there is a test for it here too.
+     *
+     * @return {@code 200 OK} with the week, or {@code 404} when no roster week exists at all —
+     *     production's normal state, and a "no roster" screen rather than an error.
+     */
+    @GetMapping("/current")
+    public ResponseEntity<RosterWeek> getCurrentRosterWeek() {
+        LOG.debug("REST request to get the roster week in force");
+        return ResponseUtil.wrapOrNotFound(currentRosterWeekService.inForce());
     }
 
     /**
