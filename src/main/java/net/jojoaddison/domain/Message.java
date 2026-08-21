@@ -61,6 +61,21 @@ public class Message implements Serializable {
     private Priority priority;
 
     /**
+     * When this message stopped being unread, or {@code null} while it still is.
+     *
+     * <p>Stamped by {@code MessageLifecycleCallback} the first time {@code status} leaves
+     * {@code NEW}, and cleared if it goes back. Never sent by a client: the desk marks a message
+     * read by changing its status, and a second field the caller could set independently would let
+     * the two disagree.
+     *
+     * <p>It exists because the dashboard's unread tile counts a <em>backlog</em>. What that backlog
+     * was at the end of a past month is unanswerable without knowing when each message left it —
+     * which is why that tile had no sparkline at all until item 14.
+     */
+    @Field("read_at")
+    private Instant readAt;
+
+    /**
      * Where an outbound message went. Null on everything that arrived at the desk.
      *
      * <p>Every field above assumes a message arriving: `fromAddress` and `senderName` describe the
@@ -229,6 +244,19 @@ public class Message implements Serializable {
 
     public void setPriority(Priority priority) {
         this.priority = priority;
+    }
+
+    public Instant getReadAt() {
+        return this.readAt;
+    }
+
+    public Message readAt(Instant readAt) {
+        this.setReadAt(readAt);
+        return this;
+    }
+
+    public void setReadAt(Instant readAt) {
+        this.readAt = readAt;
     }
 
     public String getToAddress() {
