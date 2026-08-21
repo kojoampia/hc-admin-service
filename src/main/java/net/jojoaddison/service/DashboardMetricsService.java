@@ -95,8 +95,13 @@ public class DashboardMetricsService {
     }
 
     public DashboardMetricsDTO metrics() {
+        // Counted once and passed to both the payload and the account-mix chart. The chart is a
+        // breakdown of exactly this number, so deriving it from the same object is what stops the
+        // two disagreeing — the tiles say 12 patients and a chart beside them saying 10 is the
+        // failure this dashboard has already had with roster cover.
+        DashboardMetricsDTO.NetworkTotals network = networkTotals(false);
         return new DashboardMetricsDTO(
-            networkTotals(false),
+            network,
             networkTotals(true),
             count(Message.class, Criteria.where("status").is("NEW")),
             count(net.jojoaddison.domain.Task.class, Criteria.where("state").in("TODO", "DOING")),
@@ -105,7 +110,7 @@ public class DashboardMetricsService {
             degradedServices(),
             platformServiceTotals(),
             messageVolume(),
-            accountMix(),
+            accountMix(network),
             caseLoad(),
             sparklines(),
             capabilities(),
@@ -318,18 +323,30 @@ public class DashboardMetricsService {
         return series;
     }
 
-    /** Professionals by role. Roles with nobody in them are omitted rather than shown as zero slices. */
-    private List<DashboardMetricsDTO.KeyCount> accountMix() {
-        return mongoTemplate
-            .find(new Query(Criteria.where("role").exists(true)), Professional.class)
-            .stream()
-            .filter(p -> p.getRole() != null)
-            .collect(Collectors.groupingBy(p -> p.getRole().name(), Collectors.counting()))
-            .entrySet()
-            .stream()
-            .map(e -> new DashboardMetricsDTO.KeyCount(e.getKey(), e.getValue()))
-            .sorted(Comparator.comparingLong(DashboardMetricsDTO.KeyCount::value).reversed())
-            .toList();
+    /**
+     * Who holds an account on the platform: patients, professionals, vendors.
+     *
+     * <p>This grouped on {@code ProfessionalRole} until 2026-08-21 — nurses, paramedics, caregivers
+     * — which is a breakdown of one of the three tiles above it rather than of the network, and it
+     * answered a question the caption was not asking. Item 10 of {@code admin-gaps.md}; the roles
+     * chart comes off the dashboard rather than moving, because the professional directory already
+     * carries role tiles that filter, which is the better home for that question.
+     *
+     * <p><b>Derived from the same {@code NetworkTotals} the payload carries</b>, not counted again.
+     * The chart is a breakdown of that number and a second count could drift from it — the same
+     * mistake, one field apart, as the roster cover that disagreed with the roster.
+     *
+     * <p>Fixed order and all three always present, including zeros. The old shape sorted by size
+     * descending and dropped empty groups, which reads well and quietly moves a segment's colour to
+     * a different meaning the day two counts cross; and a platform with no vendors yet should show
+     * "Vendors · 0" rather than a chart that has silently become two-segment.
+     */
+    private List<DashboardMetricsDTO.KeyCount> accountMix(DashboardMetricsDTO.NetworkTotals network) {
+        return List.of(
+            new DashboardMetricsDTO.KeyCount("patients", network.patients()),
+            new DashboardMetricsDTO.KeyCount("professionals", network.professionals()),
+            new DashboardMetricsDTO.KeyCount("vendors", network.vendors())
+        );
     }
 
     /**
