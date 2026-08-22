@@ -29,7 +29,7 @@
         <spring-boot.version>4.1.0</spring-boot.version>
         <spring-cloud.version>2025.1.2</spring-cloud.version>
         <mongock.version>5.5.1</mongock.version>
-        <springdoc.version>3.0.3</springdoc.version>
+        <springdoc.version>3.1.0</springdoc.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
         <archunit-junit5.version>1.4.2</archunit-junit5.version>
         <checkstyle.version>10.21.4</checkstyle.version>
