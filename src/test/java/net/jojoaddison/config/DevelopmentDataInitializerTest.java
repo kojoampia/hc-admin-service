@@ -160,14 +160,25 @@ class DevelopmentDataInitializerTest {
      * the resolver being broken. It <em>was</em> broken, reading a back-reference nothing populates,
      * and this dataset could not have told anyone.
      *
-     * <p>The four below are hc-professional's seeded clinical logins, each matched to a professional
+     * <p>The first four are hc-professional's seeded clinical logins, each matched to a professional
      * of the corresponding role. They belong to that stack's gateway rather than this one's, which
      * is the point: {@code account_id} holds a platform login, and the three stacks share one
      * identity space through a common signing key.
      *
-     * <p>Five professionals are deliberately left on placeholder ids. "This account has no
-     * professional record" is a real state — every applicant mid-onboarding is in it — and it has to
-     * stay reachable in the seed rather than becoming a case nobody can produce.
+     * <p><b>The remaining five were placeholders until 2026-08-22 and now name their holders</b> —
+     * first initial then surname, so Nii Osae is {@code nosae}. hc-professional's quality fixture
+     * ({@code quality/seed-data.json} there) creates gateway accounts under exactly these logins,
+     * which is what makes p5–p9's shifts and earnings reachable by the people they belong to.
+     * <b>The two ends have to move together</b>: this initializer calls {@code saveAll} on every
+     * start, so a login changed only in a database is rewritten from this file at the next restart,
+     * and a login changed only there resolves to nobody. Either way the symptom is a 404 that reads
+     * as "no professional record" rather than as a broken link.
+     *
+     * <p>The placeholders existed to keep "this account has no professional record" producible, and
+     * it still is: {@code profile-me} — {@code admin}, a login on all three gateways — is a profile
+     * with no professional attached, and the twelve {@code cred-aN} office profiles have none
+     * either. The last assertion holds that line explicitly, so linking the last unlinked profile
+     * cannot happen unnoticed.
      */
     @Test
     void shouldLinkSomeProfessionalsToRealClinicalLogins() throws Exception {
@@ -197,19 +208,30 @@ class DevelopmentDataInitializerTest {
             .containsEntry("doctor", ProfessionalRole.DOCTOR)
             .containsEntry("nurse", ProfessionalRole.NURSE)
             .containsEntry("paramedic", ProfessionalRole.PARAMEDIC)
-            .containsEntry("carer", ProfessionalRole.CAREGIVER);
+            .containsEntry("carer", ProfessionalRole.CAREGIVER)
+            .containsEntry("nosae", ProfessionalRole.DOCTOR)
+            .containsEntry("asarpong", ProfessionalRole.NURSE)
+            .containsEntry("kntim", ProfessionalRole.CAREGIVER)
+            .containsEntry("afrimpong", ProfessionalRole.PARAMEDIC)
+            .containsEntry("makoto", ProfessionalRole.NURSE);
 
-        // The unlinked ones, kept on purpose.
-        assertThat(
-            test
-                .getProfessionals()
-                .stream()
-                .filter(professional -> professional.getProfile() != null)
-                .map(professional -> accountIdByProfileId.get(professional.getProfile().getId()))
-                .filter(accountId -> accountId != null && accountId.startsWith("cred-"))
-                .count()
-        )
-            .isEqualTo(5);
+        // Every professional is now reachable by a login somebody can actually sign in with.
+        assertThat(loginToRole).hasSameSizeAs(test.getProfessionals());
+
+        // And the state the placeholders used to hold open is still reachable: profiles that belong
+        // to no professional at all. `admin` is the one that matters, because it is a login on all
+        // three gateways — signing in as it and asking for /professionals/me/earnings is how "this
+        // account has no professional record" gets produced now.
+        java.util.Set<String> linkedProfileIds = test
+            .getProfessionals()
+            .stream()
+            .filter(professional -> professional.getProfile() != null)
+            .map(professional -> professional.getProfile().getId())
+            .collect(Collectors.toSet());
+        assertThat(test.getPersonProfiles())
+            .filteredOn(profile -> profile.getAccountId() != null && !linkedProfileIds.contains(profile.getId()))
+            .extracting(Profile::getAccountId)
+            .contains("admin");
     }
 
     /**
