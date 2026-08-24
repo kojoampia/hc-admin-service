@@ -37,7 +37,7 @@ enum Sex { MALE, FEMALE }
 enum IdType { GHANA_CARD, PASSPORT, VOTER_ID, DRIVERS_LICENCE }
 
 enum AccountStatus { ACTIVE, PENDING, SUSPENDED, ON_LEAVE, UNDER_REVIEW }
-enum VerificationStatus { VERIFIED, PENDING, REJECTED }
+enum VerificationStatus { VERIFIED, PENDING, REJECTED, REVOKED, EXPIRED }
 enum ProfessionalRole { CAREGIVER, PARAMEDIC, THERAPIST, NURSE, DOCTOR }
 
 /** Kinds of site a vendor can operate. Matches
@@ -181,6 +181,25 @@ entity Professional {
   isArchived Boolean
 }
 
+/**
+ * One recorded verification decision about a professional.
+ *
+ * Append-only: a change of state is a new row, never an edit of an existing one, exactly as
+ * WageRate is effective-dated. Current state is the latest row, and is projected onto
+ * Professional.verification by ProfessionalVerificationService so the directory badge and the
+ * dashboard's pending count stay a single field read.
+ */
+entity ProfessionalVerification {
+  id String
+  status VerificationStatus required
+  recordedAt Instant required
+  recordedBy String required maxlength(100)
+  method String maxlength(60)
+  reference String maxlength(120)
+  note String maxlength(500)
+  expiresOn LocalDate
+}
+
 /** PDF: Team (Name, Description, Supervisor). */
 // geographicSpaceIds is NOT in the console's own hc-admin.jdl. It is declared here because
 // DutyRosterService.autoScheduleShifts reads it through
@@ -297,7 +316,6 @@ entity ServicePlan {
   currency String required maxlength(3)
   summary String maxlength(240)
   featured Boolean required
-  subscriberCount Integer min(0)
 }
 
 entity PlanFeature {
@@ -410,6 +428,7 @@ relationship ManyToOne {
   Team{supervisor(licenceNumber)} to Professional
   Task{owner(licenceNumber)} to Professional
   Task{sourceMessage(subject)} to Message
+  ProfessionalVerification{professional(licenceNumber) required} to Professional
 }
 
 relationship OneToMany {
@@ -441,13 +460,14 @@ relationship OneToMany {
 // parse. The visitor rewrites paginate -> pagination internally anyway.
 paginate Patient, Professional, Vendor, Message, Task, Document,
          CareActivity, ServiceActivity, AuditEntry, ShiftAssignment,
-         WageRate
+         WageRate, ProfessionalVerification
          with pagination
 
-readOnly PlatformService, AuditEntry
+readOnly PlatformService, AuditEntry, ProfessionalVerification
 
 // Group the generated entity folders to mirror the sidebar sections.
-clientRootFolder Patient, Professional, Vendor, Angel, Profile, Address with directory
+clientRootFolder Patient, Professional, Vendor, Angel, Profile, Address,
+                 ProfessionalVerification with directory
 clientRootFolder Message, Task, RosterWeek, ShiftAssignment, WageRate with operations
 clientRootFolder ServicePlan, PlanFeature, Category, ServiceActivity with catalogue
 clientRootFolder Organisation, Hub, Team, UserOption,

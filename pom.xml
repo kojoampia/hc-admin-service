@@ -571,6 +571,33 @@
                             </path>
                         </annotationProcessorPaths>
                     </configuration>
+                    <executions>
+                        <!--
+                            No annotation processing when compiling tests.
+
+                            Nothing under src/test/java carries @Mapper or @ConfigurationProperties,
+                            so the processors have nothing to do there - but they still run, and
+                            MapStruct regenerates the *MapperImpl sources into
+                            target/generated-test-sources alongside the ones already compiled from
+                            the main round. Which of the two javac resolves is not deterministic:
+                            `clean verify` failed and passed on identical sources, and when it fails
+                            it reports "AddressMapperImpl cannot be converted to AddressMapper"
+                            across thirteen mapper tests - naming files nobody has touched, and
+                            never the change that provoked it.
+
+                            -proc:none here removes the second round entirely. The main compile is
+                            untouched and still generates every Impl.
+                        -->
+                        <execution>
+                            <id>default-testCompile</id>
+                            <goals>
+                                <goal>testCompile</goal>
+                            </goals>
+                            <configuration>
+                                <proc>none</proc>
+                            </configuration>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>

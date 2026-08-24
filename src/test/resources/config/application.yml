@@ -41,6 +41,15 @@ spring:
           replicationFactor: 1
           auto-create-topics: true
       bindings:
+        # binding-out-0 deliberately declares NO destination here, unlike config/application.yml.
+        #
+        # OutputDestination resolves by destination when a binding has one and by binding name when
+        # it does not — and sse-topic is also kafkaConsumer-in-0's destination, so giving this one
+        # the real name routes the message to the consumer and the producing tests receive nothing.
+        # Setting it "to match production" was tried and broke HcAdminServiceKafkaResourceIT.
+        #
+        # The shipped destinations are guarded where they can be: ConfigurationBindingTest reads
+        # config/application.yml itself, which is the file that actually runs.
         binding-out-0:
           content-type: text/plain
           group: hc-admin-service
@@ -49,6 +58,10 @@ spring:
           content-type: text/plain
           group: hc-admin-service
         kafkaProducer-out-0:
+          content-type: text/plain
+          group: hc-admin-service
+        verification-out-0:
+          destination: professional-verification
           content-type: text/plain
           group: hc-admin-service
   # No `jackson.serialization: {}` here. Spring Boot 4.1 moved to Jackson 3, whose

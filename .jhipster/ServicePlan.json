@@ -50,12 +50,6 @@
       "fieldName": "featured",
       "fieldType": "Boolean",
       "fieldValidateRules": ["required"]
-    },
-    {
-      "fieldName": "subscriberCount",
-      "fieldType": "Integer",
-      "fieldValidateRules": ["min"],
-      "fieldValidateRulesMin": "0"
     }
   ],
   "microserviceName": "hcAdminService",

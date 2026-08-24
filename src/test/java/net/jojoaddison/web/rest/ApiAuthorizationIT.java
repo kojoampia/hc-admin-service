@@ -166,6 +166,74 @@ class ApiAuthorizationIT {
             });
     }
 
+    // --- bulk export: the one place an operator's read stops ---------------------------------------
+
+    /**
+     * An operator may page through the patient directory and may not download it.
+     *
+     * <p>This is the only {@code GET} under {@code /api} an operator is refused, so it is the one
+     * assertion standing between the decision and a matcher that gets moved below the blanket read
+     * rule during some later tidy-up — at which point every operator silently gains the ability to
+     * extract the whole directory, with nothing failing.
+     *
+     * <p>403 and not 404: a 404 would mean the path had stopped existing, and this test would go on
+     * passing while asserting nothing at all.
+     */
+    @Test
+    void operatorCannotExportThePatientDirectory() throws Exception {
+        mvc.perform(get("/api/patients/export").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void plainUserCannotExportThePatientDirectory() throws Exception {
+        mvc.perform(get("/api/patients/export").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
+    }
+
+    /**
+     * And the admin does reach it — asserted so that "operator is refused" cannot be satisfied by
+     * the endpoint being unreachable for everyone.
+     */
+    @Test
+    void adminCanExportThePatientDirectory() throws Exception {
+        mvc.perform(get("/api/patients/export").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isOk());
+    }
+
+    /**
+     * The list is untouched by the export rule: an operator still reads the directory a page at a
+     * time. Without this, narrowing {@code /api/patients/**} to admins by mistake would look
+     * exactly like the intended change.
+     */
+    @Test
+    void operatorStillReadsThePatientList() throws Exception {
+        mvc.perform(get("/api/patients").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
+    }
+
+    /**
+     * Recording a verification is a write, so it is the administrator's.
+     *
+     * <p>Covered by the blanket rule rather than a matcher of its own, and asserted anyway because
+     * it does not look like a write from the console: it is a button on a record screen an operator
+     * can otherwise read in full. Deciding that somebody is credentialed to work on patients is not
+     * a read.
+     */
+    @Test
+    void operatorCannotRecordAVerification() throws Exception {
+        mvc
+            .perform(
+                post("/api/professional-verifications")
+                    .with(as(AuthoritiesConstants.OPERATOR))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{}")
+            )
+            .andExpect(status().isForbidden());
+    }
+
+    /** They can still read the history, like everything else under GET. */
+    @Test
+    void operatorCanReadTheVerificationHistory() throws Exception {
+        mvc.perform(get("/api/professional-verifications").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
+    }
+
     // --- the patient carve-out --------------------------------------------------------------------
 
     /**

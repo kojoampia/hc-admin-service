@@ -53,9 +53,6 @@ class ServicePlanResourceIT {
     private static final Boolean DEFAULT_FEATURED = false;
     private static final Boolean UPDATED_FEATURED = true;
 
-    private static final Integer DEFAULT_SUBSCRIBER_COUNT = 0;
-    private static final Integer UPDATED_SUBSCRIBER_COUNT = 1;
-
     private static final String ENTITY_API_URL = "/api/service-plans";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -86,8 +83,7 @@ class ServicePlanResourceIT {
             .monthlyPrice(DEFAULT_MONTHLY_PRICE)
             .currency(DEFAULT_CURRENCY)
             .summary(DEFAULT_SUMMARY)
-            .featured(DEFAULT_FEATURED)
-            .subscriberCount(DEFAULT_SUBSCRIBER_COUNT);
+            .featured(DEFAULT_FEATURED);
     }
 
     /**
@@ -104,8 +100,7 @@ class ServicePlanResourceIT {
             .monthlyPrice(UPDATED_MONTHLY_PRICE)
             .currency(UPDATED_CURRENCY)
             .summary(UPDATED_SUMMARY)
-            .featured(UPDATED_FEATURED)
-            .subscriberCount(UPDATED_SUBSCRIBER_COUNT);
+            .featured(UPDATED_FEATURED);
     }
 
     @BeforeEach
@@ -250,8 +245,7 @@ class ServicePlanResourceIT {
             .andExpect(jsonPath("$.[*].monthlyPrice").value(hasItem(sameNumber(DEFAULT_MONTHLY_PRICE))))
             .andExpect(jsonPath("$.[*].currency").value(hasItem(DEFAULT_CURRENCY)))
             .andExpect(jsonPath("$.[*].summary").value(hasItem(DEFAULT_SUMMARY)))
-            .andExpect(jsonPath("$.[*].featured").value(hasItem(DEFAULT_FEATURED)))
-            .andExpect(jsonPath("$.[*].subscriberCount").value(hasItem(DEFAULT_SUBSCRIBER_COUNT)));
+            .andExpect(jsonPath("$.[*].featured").value(hasItem(DEFAULT_FEATURED)));
     }
 
     @Test
@@ -271,8 +265,7 @@ class ServicePlanResourceIT {
             .andExpect(jsonPath("$.monthlyPrice").value(sameNumber(DEFAULT_MONTHLY_PRICE)))
             .andExpect(jsonPath("$.currency").value(DEFAULT_CURRENCY))
             .andExpect(jsonPath("$.summary").value(DEFAULT_SUMMARY))
-            .andExpect(jsonPath("$.featured").value(DEFAULT_FEATURED))
-            .andExpect(jsonPath("$.subscriberCount").value(DEFAULT_SUBSCRIBER_COUNT));
+            .andExpect(jsonPath("$.featured").value(DEFAULT_FEATURED));
     }
 
     @Test
@@ -297,8 +290,7 @@ class ServicePlanResourceIT {
             .monthlyPrice(UPDATED_MONTHLY_PRICE)
             .currency(UPDATED_CURRENCY)
             .summary(UPDATED_SUMMARY)
-            .featured(UPDATED_FEATURED)
-            .subscriberCount(UPDATED_SUBSCRIBER_COUNT);
+            .featured(UPDATED_FEATURED);
 
         restServicePlanMockMvc
             .perform(
@@ -411,8 +403,7 @@ class ServicePlanResourceIT {
             .monthlyPrice(UPDATED_MONTHLY_PRICE)
             .currency(UPDATED_CURRENCY)
             .summary(UPDATED_SUMMARY)
-            .featured(UPDATED_FEATURED)
-            .subscriberCount(UPDATED_SUBSCRIBER_COUNT);
+            .featured(UPDATED_FEATURED);
 
         restServicePlanMockMvc
             .perform(

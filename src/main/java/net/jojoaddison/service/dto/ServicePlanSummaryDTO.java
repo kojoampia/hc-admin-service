@@ -14,13 +14,15 @@ import java.util.List;
  * direction. {@code monthlyRevenue} is arithmetic the client could do, and is here so the row
  * arrives whole rather than half-computed.
  *
- * <p><strong>Subscribers are counted from {@code Patient.plan}, not from
- * {@code ServicePlan.subscriberCount}.</strong> The two disagree and only one is checkable: the
- * stored counter reads 41/52/23 in the {@code test} seed — 116 subscribers against a directory of
- * twelve patients — while the references resolve to 4/5/3 and reconcile exactly to the patients an
- * operator can open. A denormalised counter that nothing maintains is a fabricated figure with a
- * database column to sit in; {@code subscriberCount} is consequently now read by nothing, and
- * removing it is a JDL change that does not belong in a screen rebuild.
+ * <p><strong>Subscribers are counted from {@code Patient.plan}.</strong> There used to be a second
+ * source — a denormalised {@code ServicePlan.subscriberCount} — and the two disagreed: the stored
+ * counter read 41/52/23 in the {@code test} seed, 116 subscribers against a directory of twelve
+ * patients, while the references resolve to 4/5/3 and reconcile exactly to the patients an operator
+ * can open. A counter that nothing maintains is a fabricated figure with a database column to sit
+ * in, so the field was deleted on 2026-08-24 rather than left unread. <strong>Do not add it
+ * back</strong>: the mix has to be derived live because it must reconcile to the directory, so a
+ * maintained counter would be kept correct for no reader while adding a write path on every plan
+ * change, archive and bulk load.
  *
  * <p>Archived patients are excluded, because the directory that lists them excludes them. A share
  * computed over rows the console will not show would disagree with the console.

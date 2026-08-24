@@ -60,6 +60,19 @@ public class SecurityConfiguration {
                     // /api/professionals/**. The id-addressed earnings endpoint stays admin-gated by
                     // the rule below, and that is what stops a clinician reading a colleague's pay.
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/professionals/me/**")).authenticated()
+                    // Bulk export is admin-only, and it has to precede the read rule below, which
+                    // would otherwise hand it to every operator along with the rest of GET.
+                    //
+                    // The narrowing is deliberate and was taken on 2026-08-24. An operator can
+                    // already read every patient in the directory a page at a time, so this looks
+                    // inconsistent — but paging through a directory and downloading it are
+                    // different acts. One is bounded by attention, leaves a request per page in the
+                    // audit trail, and produces nothing that outlives the session; the other emits
+                    // every patient on the platform as a file in one request, and what happens to
+                    // that file afterwards is outside every control this stack has. The read/write
+                    // split was drawn around what an operator needs in order to work, and bulk
+                    // extraction is not on that list.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/patients/export")).hasAuthority(AuthoritiesConstants.ADMIN)
                     // The read/write split. Everything else under /api is admin data: operators read
                     // it, only admins change it. Authentication alone is deliberately not enough —
                     // a bare ROLE_USER reaches nothing here.

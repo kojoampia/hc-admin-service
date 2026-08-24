@@ -8,15 +8,20 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.DutyRole;
+import net.jojoaddison.domain.enumeration.MessageStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
 import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.domain.enumeration.ShiftType;
+import net.jojoaddison.domain.enumeration.TaskState;
+import net.jojoaddison.domain.enumeration.VerificationStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 
@@ -135,8 +140,8 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getVendors().stream().filter(vendor -> !vendor.getFacilities().isEmpty()).count()).isEqualTo(3);
         assertThat(test.getFacilities().stream().filter(facility -> facility.getVendor() != null).count()).isEqualTo(5);
         assertThat(test.getAngels()).hasSize(12);
-        assertThat(test.getMessages()).hasSize(12);
-        assertThat(test.getTasks()).hasSize(13);
+        assertThat(test.getMessages()).hasSize(43);
+        assertThat(test.getTasks()).hasSize(34);
         assertThat(test.getRosterWeeks()).hasSize(15);
         assertThat(test.getShiftAssignments()).hasSize(921);
         assertThat(test.getServicePlans()).hasSize(3);
@@ -147,6 +152,47 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getTeams()).hasSize(4);
         assertThat(test.getHubs()).hasSize(2);
         assertThat(test.getOrganisations()).hasSize(1);
+    }
+
+    /**
+     * The message and task fixtures reach back far enough for the backlog sparklines to draw.
+     *
+     * <p>Both spanned one week in August until 2026-08-24, so five of the six monthly points were
+     * zero — honest, and a chart nobody can read, which is the same problem the roster fixture had
+     * before it grew from one week to fifteen. <b>The fix is the fixture, never the query</b>: the
+     * two series count what was outstanding at each month end, and making the line look better by
+     * counting something else is the fabricated-figure failure the in-browser mock was deleted for.
+     *
+     * <p>Six distinct months is the floor because {@code VOLUME_MONTHS} is six — a fixture that
+     * covers five leaves the oldest point at zero and the line starting from nowhere.
+     */
+    @Test
+    void shouldSeedEnoughCorrespondenceToDrawABacklogSeries() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getMessages().stream().map(message -> YearMonth.from(message.getSentAt().atZone(ZoneOffset.UTC))).distinct())
+            .hasSizeGreaterThanOrEqualTo(6);
+        assertThat(test.getTasks().stream().map(task -> YearMonth.from(task.getCreatedAt().atZone(ZoneOffset.UTC))).distinct())
+            .hasSizeGreaterThanOrEqualTo(6);
+    }
+
+    /**
+     * <b>The historical rows carry their own read and close times.</b>
+     *
+     * <p>Without them the backlog is undrawable, and not obviously so: {@code readAt} and
+     * {@code closedAt} are stamped server-side, and {@code MessageLifecycleCallback} only stamps
+     * when the field arrives empty. A historical message seeded without one would be stamped
+     * <em>now</em> — so every archived message would read as having sat unread for months and left
+     * the backlog today, and the line would be a ramp that never happened.
+     */
+    @Test
+    void shouldSeedHistoricalCorrespondenceWithItsOwnReadAndCloseTimes() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getMessages().stream().filter(message -> message.getStatus() != MessageStatus.NEW))
+            .allSatisfy(message -> assertThat(message.getReadAt()).as("read time for %s", message.getId()).isNotNull());
+        assertThat(test.getTasks().stream().filter(task -> task.getState() == TaskState.DONE))
+            .allSatisfy(task -> assertThat(task.getClosedAt()).as("close time for %s", task.getId()).isNotNull());
     }
 
     /**
@@ -311,6 +357,63 @@ class DevelopmentDataInitializerTest {
 
         assertThat(perRole).containsEntry(ProfessionalRole.DOCTOR, 2L).containsEntry(ProfessionalRole.NURSE, 2L);
         assertThat(test.getWageRates().stream().map(WageRate::getValidFrom).distinct()).hasSizeGreaterThan(1);
+    }
+
+    /**
+     * Every professional carries a verification history, and its head agrees with the field.
+     *
+     * <p><b>The agreement is the invariant the whole design rests on.</b>
+     * {@code Professional.verification} is a projection of the newest row, written only by
+     * {@code ProfessionalVerificationService}. A fixture where the two disagree is a fixture that
+     * contradicts the rule the service enforces on every write — and it would be read later as
+     * evidence that the projection drifts, which is exactly the property being avoided.
+     */
+    @Test
+    void shouldSeedAVerificationHistoryWhoseHeadMatchesTheStoredStatus() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<String, ProfessionalVerification> heads = test
+            .getProfessionalVerifications()
+            .stream()
+            .collect(
+                Collectors.toMap(
+                    verification -> verification.getProfessional().getId(),
+                    verification -> verification,
+                    (a, b) -> a.getRecordedAt().isAfter(b.getRecordedAt()) ? a : b
+                )
+            );
+
+        assertThat(heads).hasSize(test.getProfessionals().size());
+        for (Professional professional : test.getProfessionals()) {
+            assertThat(heads.get(professional.getId()))
+                .as("history head for %s", professional.getId())
+                .isNotNull()
+                .extracting(ProfessionalVerification::getStatus)
+                .isEqualTo(professional.getVerification());
+        }
+    }
+
+    /**
+     * <b>At least one professional has to have been superseded.</b> Same reasoning as the wage
+     * rates above: with one row each, the fixture reads identically whether verifications are a
+     * history or a current-state field, and the distinction the model turns on stays invisible.
+     *
+     * <p>The two outcomes a date field could never represent are pinned by name. A
+     * {@code verifiedOn} on {@code Professional} — the change this collection was built instead of —
+     * can say when somebody was last verified and can never say that they were revoked in between.
+     */
+    @Test
+    void shouldSeedAVerificationThatHasBeenSuperseded() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<String, Long> perProfessional = test
+            .getProfessionalVerifications()
+            .stream()
+            .collect(Collectors.groupingBy(verification -> verification.getProfessional().getId(), Collectors.counting()));
+
+        assertThat(perProfessional).containsEntry("p3", 2L).containsEntry("p6", 3L).containsEntry("p9", 3L);
+        assertThat(test.getProfessionalVerifications().stream().map(ProfessionalVerification::getStatus).distinct())
+            .contains(VerificationStatus.REVOKED, VerificationStatus.EXPIRED, VerificationStatus.PENDING, VerificationStatus.VERIFIED);
     }
 
     /**

@@ -59,8 +59,7 @@ public class ServicePlanAsserts {
             )
             .satisfies(a -> assertThat(a.getCurrency()).as("check currency").isEqualTo(expected.getCurrency()))
             .satisfies(a -> assertThat(a.getSummary()).as("check summary").isEqualTo(expected.getSummary()))
-            .satisfies(a -> assertThat(a.getFeatured()).as("check featured").isEqualTo(expected.getFeatured()))
-            .satisfies(a -> assertThat(a.getSubscriberCount()).as("check subscriberCount").isEqualTo(expected.getSubscriberCount()));
+            .satisfies(a -> assertThat(a.getFeatured()).as("check featured").isEqualTo(expected.getFeatured()));
     }
 
     /**

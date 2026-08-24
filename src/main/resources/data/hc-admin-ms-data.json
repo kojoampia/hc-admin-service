@@ -1581,6 +1581,378 @@
     ],
     "messages": [
       {
+        "id": "m-h1",
+        "sentAt": "2026-03-03T09:07:00Z",
+        "fromAddress": "sender1@mail.gh",
+        "senderName": "Correspondent 1",
+        "subject": "Invoice query",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-03-04T10:07:00Z"
+      },
+      {
+        "id": "m-h2",
+        "sentAt": "2026-03-09T10:14:00Z",
+        "fromAddress": "sender2@mail.gh",
+        "senderName": "Correspondent 2",
+        "subject": "Medication supply",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-03-11T12:14:00Z"
+      },
+      {
+        "id": "m-h3",
+        "sentAt": "2026-03-14T11:21:00Z",
+        "fromAddress": "sender3@mail.gh",
+        "senderName": "Correspondent 3",
+        "subject": "Roster availability",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-03-19T14:21:00Z"
+      },
+      {
+        "id": "m-h4",
+        "sentAt": "2026-03-18T12:28:00Z",
+        "fromAddress": "sender4@mail.gh",
+        "senderName": "Correspondent 4",
+        "subject": "Care plan question",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-03-19T16:28:00Z"
+      },
+      {
+        "id": "m-h5",
+        "sentAt": "2026-03-22T13:35:00Z",
+        "fromAddress": "sender5@mail.gh",
+        "senderName": "Correspondent 5",
+        "subject": "Equipment collection",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-04-03T13:35:00Z"
+      },
+      {
+        "id": "m-h6",
+        "sentAt": "2026-03-27T14:42:00Z",
+        "fromAddress": "sender6@mail.gh",
+        "senderName": "Correspondent 6",
+        "subject": "Account access",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-03-29T15:42:00Z"
+      },
+      {
+        "id": "m-h7",
+        "sentAt": "2026-04-02T15:49:00Z",
+        "fromAddress": "sender7@mail.gh",
+        "senderName": "Correspondent 7",
+        "subject": "Discharge summary",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-04-05T17:49:00Z"
+      },
+      {
+        "id": "m-h8",
+        "sentAt": "2026-04-07T16:56:00Z",
+        "fromAddress": "sender8@mail.gh",
+        "senderName": "Correspondent 8",
+        "subject": "Visit time change",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-04-08T19:56:00Z"
+      },
+      {
+        "id": "m-h9",
+        "sentAt": "2026-04-11T08:03:00Z",
+        "fromAddress": "sender9@mail.gh",
+        "senderName": "Correspondent 9",
+        "subject": "Invoice query",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-05-01T12:03:00Z"
+      },
+      {
+        "id": "m-h10",
+        "sentAt": "2026-04-16T09:10:00Z",
+        "fromAddress": "sender10@mail.gh",
+        "senderName": "Correspondent 10",
+        "subject": "Medication supply",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-04-18T09:10:00Z"
+      },
+      {
+        "id": "m-h11",
+        "sentAt": "2026-04-21T10:17:00Z",
+        "fromAddress": "sender11@mail.gh",
+        "senderName": "Correspondent 11",
+        "subject": "Roster availability",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-04-22T11:17:00Z"
+      },
+      {
+        "id": "m-h12",
+        "sentAt": "2026-04-24T11:24:00Z",
+        "fromAddress": "sender12@mail.gh",
+        "senderName": "Correspondent 12",
+        "subject": "Care plan question",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-04-28T13:24:00Z"
+      },
+      {
+        "id": "m-h13",
+        "sentAt": "2026-04-29T12:31:00Z",
+        "fromAddress": "sender13@mail.gh",
+        "senderName": "Correspondent 13",
+        "subject": "Equipment collection",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-05-01T15:31:00Z"
+      },
+      {
+        "id": "m-h14",
+        "sentAt": "2026-05-05T13:38:00Z",
+        "fromAddress": "sender14@mail.gh",
+        "senderName": "Correspondent 14",
+        "subject": "Account access",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-05-06T17:38:00Z"
+      },
+      {
+        "id": "m-h15",
+        "sentAt": "2026-05-08T14:45:00Z",
+        "fromAddress": "sender15@mail.gh",
+        "senderName": "Correspondent 15",
+        "subject": "Discharge summary",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-06-07T14:45:00Z"
+      },
+      {
+        "id": "m-h16",
+        "sentAt": "2026-05-13T15:52:00Z",
+        "fromAddress": "sender16@mail.gh",
+        "senderName": "Correspondent 16",
+        "subject": "Visit time change",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-05-15T16:52:00Z"
+      },
+      {
+        "id": "m-h17",
+        "sentAt": "2026-05-19T16:59:00Z",
+        "fromAddress": "sender17@mail.gh",
+        "senderName": "Correspondent 17",
+        "subject": "Invoice query",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-05-20T18:59:00Z"
+      },
+      {
+        "id": "m-h18",
+        "sentAt": "2026-05-26T08:06:00Z",
+        "fromAddress": "sender18@mail.gh",
+        "senderName": "Correspondent 18",
+        "subject": "Medication supply",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-05-29T11:06:00Z"
+      },
+      {
+        "id": "m-h19",
+        "sentAt": "2026-06-01T09:13:00Z",
+        "fromAddress": "sender19@mail.gh",
+        "senderName": "Correspondent 19",
+        "subject": "Roster availability",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-06-03T13:13:00Z"
+      },
+      {
+        "id": "m-h20",
+        "sentAt": "2026-06-06T10:20:00Z",
+        "fromAddress": "sender20@mail.gh",
+        "senderName": "Correspondent 20",
+        "subject": "Care plan question",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-06-07T10:20:00Z"
+      },
+      {
+        "id": "m-h21",
+        "sentAt": "2026-06-10T11:27:00Z",
+        "fromAddress": "sender21@mail.gh",
+        "senderName": "Correspondent 21",
+        "subject": "Equipment collection",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-07-20T12:27:00Z"
+      },
+      {
+        "id": "m-h22",
+        "sentAt": "2026-06-15T12:34:00Z",
+        "fromAddress": "sender22@mail.gh",
+        "senderName": "Correspondent 22",
+        "subject": "Account access",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-06-17T14:34:00Z"
+      },
+      {
+        "id": "m-h23",
+        "sentAt": "2026-06-20T13:41:00Z",
+        "fromAddress": "sender23@mail.gh",
+        "senderName": "Correspondent 23",
+        "subject": "Discharge summary",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-06-21T16:41:00Z"
+      },
+      {
+        "id": "m-h24",
+        "sentAt": "2026-06-25T14:48:00Z",
+        "fromAddress": "sender24@mail.gh",
+        "senderName": "Correspondent 24",
+        "subject": "Visit time change",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-07-01T18:48:00Z"
+      },
+      {
+        "id": "m-h25",
+        "sentAt": "2026-06-30T15:55:00Z",
+        "fromAddress": "sender25@mail.gh",
+        "senderName": "Correspondent 25",
+        "subject": "Invoice query",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-07-01T15:55:00Z"
+      },
+      {
+        "id": "m-h26",
+        "sentAt": "2026-07-04T16:02:00Z",
+        "fromAddress": "sender26@mail.gh",
+        "senderName": "Correspondent 26",
+        "subject": "Medication supply",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-07-06T17:02:00Z"
+      },
+      {
+        "id": "m-h27",
+        "sentAt": "2026-07-09T08:09:00Z",
+        "fromAddress": "sender27@mail.gh",
+        "senderName": "Correspondent 27",
+        "subject": "Roster availability",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-07-10T10:09:00Z"
+      },
+      {
+        "id": "m-h28",
+        "sentAt": "2026-07-13T09:16:00Z",
+        "fromAddress": "sender28@mail.gh",
+        "senderName": "Correspondent 28",
+        "subject": "Care plan question",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-07-16T12:16:00Z"
+      },
+      {
+        "id": "m-h29",
+        "sentAt": "2026-07-17T10:23:00Z",
+        "fromAddress": "sender29@mail.gh",
+        "senderName": "Correspondent 29",
+        "subject": "Equipment collection",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "VENDOR_PORTAL",
+        "status": "READ",
+        "priority": "LOW",
+        "readAt": "2026-08-11T14:23:00Z"
+      },
+      {
+        "id": "m-h30",
+        "sentAt": "2026-07-21T11:30:00Z",
+        "fromAddress": "sender30@mail.gh",
+        "senderName": "Correspondent 30",
+        "subject": "Account access",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PATIENT_APP",
+        "status": "REPLIED",
+        "priority": "HIGH",
+        "readAt": "2026-07-22T11:30:00Z"
+      },
+      {
+        "id": "m-h31",
+        "sentAt": "2026-07-26T12:37:00Z",
+        "fromAddress": "sender31@mail.gh",
+        "senderName": "Correspondent 31",
+        "subject": "Discharge summary",
+        "body": "Archived correspondence, kept so the message desk and the backlog trend have a history to draw.",
+        "channel": "PROFESSIONAL_APP",
+        "status": "READ",
+        "priority": "NORMAL",
+        "readAt": "2026-07-28T13:37:00Z"
+      },
+      {
         "id": "m1",
         "sentAt": "2026-08-05T08:12:00Z",
         "fromAddress": "k.ofosu@mail.gh",
@@ -1723,6 +2095,321 @@
       }
     ],
     "tasks": [
+      {
+        "id": "t-h1",
+        "title": "Reconcile vendor invoice",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-03-11",
+        "tag": "Roster",
+        "createdAt": "2026-03-04T10:11:00Z",
+        "closedAt": "2026-03-10T11:11:00Z",
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h2",
+        "title": "Update care plan template",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-03-19",
+        "tag": "Vendors",
+        "createdAt": "2026-03-12T11:22:00Z",
+        "closedAt": "2026-03-15T13:22:00Z",
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h3",
+        "title": "Confirm roster cover for the week",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-03-27",
+        "tag": "Clinical",
+        "createdAt": "2026-03-20T12:33:00Z",
+        "closedAt": "2026-04-04T15:33:00Z",
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h4",
+        "title": "Review supply order",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-04-02",
+        "tag": "Accounts",
+        "createdAt": "2026-03-26T13:44:00Z",
+        "closedAt": "2026-03-28T17:44:00Z",
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h5",
+        "title": "Close out onboarding checklist",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-04-10",
+        "tag": "Plans",
+        "createdAt": "2026-04-03T14:55:00Z",
+        "closedAt": "2026-04-05T19:55:00Z",
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h6",
+        "title": "Verify hub contact details",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-04-17",
+        "tag": "Comms",
+        "createdAt": "2026-04-10T15:06:00Z",
+        "closedAt": "2026-05-05T15:06:00Z",
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h7",
+        "title": "Archive completed case notes",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-04-24",
+        "tag": "Platform",
+        "createdAt": "2026-04-17T09:17:00Z",
+        "closedAt": "2026-04-21T10:17:00Z",
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h8",
+        "title": "Chase outstanding licence renewal",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-04-30",
+        "tag": "Onboarding",
+        "createdAt": "2026-04-23T10:28:00Z",
+        "closedAt": "2026-04-24T12:28:00Z",
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h9",
+        "title": "Reconcile vendor invoice",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-05-05",
+        "tag": "Roster",
+        "createdAt": "2026-04-28T11:39:00Z",
+        "closedAt": "2026-05-06T14:39:00Z",
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h10",
+        "title": "Update care plan template",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-05-13",
+        "tag": "Vendors",
+        "createdAt": "2026-05-06T12:50:00Z",
+        "closedAt": "2026-05-09T16:50:00Z",
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h11",
+        "title": "Confirm roster cover for the week",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-05-21",
+        "tag": "Clinical",
+        "createdAt": "2026-05-14T13:01:00Z",
+        "closedAt": "2026-06-18T18:01:00Z",
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h12",
+        "title": "Review supply order",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-05-28",
+        "tag": "Accounts",
+        "createdAt": "2026-05-21T14:12:00Z",
+        "closedAt": "2026-05-23T14:12:00Z",
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h13",
+        "title": "Close out onboarding checklist",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-06-09",
+        "tag": "Plans",
+        "createdAt": "2026-06-02T15:23:00Z",
+        "closedAt": "2026-06-07T16:23:00Z",
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h14",
+        "title": "Verify hub contact details",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-06-16",
+        "tag": "Comms",
+        "createdAt": "2026-06-09T09:34:00Z",
+        "closedAt": "2026-06-11T11:34:00Z",
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h15",
+        "title": "Archive completed case notes",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-06-23",
+        "tag": "Platform",
+        "createdAt": "2026-06-16T10:45:00Z",
+        "closedAt": "2026-07-31T13:45:00Z",
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h16",
+        "title": "Chase outstanding licence renewal",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-07-01",
+        "tag": "Onboarding",
+        "createdAt": "2026-06-24T11:56:00Z",
+        "closedAt": "2026-06-27T15:56:00Z",
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h17",
+        "title": "Reconcile vendor invoice",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-07-06",
+        "tag": "Roster",
+        "createdAt": "2026-06-29T12:07:00Z",
+        "closedAt": "2026-06-30T17:07:00Z",
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h18",
+        "title": "Update care plan template",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-07-12",
+        "tag": "Vendors",
+        "createdAt": "2026-07-05T13:18:00Z",
+        "closedAt": "2026-07-09T13:18:00Z",
+        "owner": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h19",
+        "title": "Confirm roster cover for the week",
+        "state": "DONE",
+        "priority": "NORMAL",
+        "dueOn": "2026-07-19",
+        "tag": "Clinical",
+        "createdAt": "2026-07-12T14:29:00Z",
+        "closedAt": "2026-07-14T15:29:00Z",
+        "owner": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h20",
+        "title": "Review supply order",
+        "state": "DONE",
+        "priority": "LOW",
+        "dueOn": "2026-07-26",
+        "tag": "Accounts",
+        "createdAt": "2026-07-19T15:40:00Z",
+        "closedAt": "2026-08-08T17:40:00Z",
+        "owner": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        },
+        "sourceMessage": null
+      },
+      {
+        "id": "t-h21",
+        "title": "Close out onboarding checklist",
+        "state": "DONE",
+        "priority": "HIGH",
+        "dueOn": "2026-08-01",
+        "tag": "Plans",
+        "createdAt": "2026-07-25T09:51:00Z",
+        "closedAt": "2026-07-26T12:51:00Z",
+        "owner": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        },
+        "sourceMessage": null
+      },
       {
         "id": "t1",
         "title": "Verify Kofi Ntim caregiver licence with the registry",
@@ -14922,8 +15609,7 @@
         "monthlyPrice": 320,
         "currency": "GHS",
         "summary": "Monthly check-in visit, record keeping and the 24/7 care line.",
-        "featured": true,
-        "subscriberCount": 41
+        "featured": true
       },
       {
         "id": "pl2",
@@ -14933,8 +15619,7 @@
         "monthlyPrice": 680,
         "currency": "GHS",
         "summary": "Fortnightly nursing visits, physiotherapy and priority scheduling.",
-        "featured": false,
-        "subscriberCount": 52
+        "featured": false
       },
       {
         "id": "pl3",
@@ -14944,8 +15629,7 @@
         "monthlyPrice": 1240,
         "currency": "GHS",
         "summary": "Weekly care, rapid response cover and a named clinical lead.",
-        "featured": false,
-        "subscriberCount": 23
+        "featured": false
       }
     ],
     "planFeatures": [
@@ -15678,6 +16362,197 @@
         "currency": "GHS",
         "validFrom": "2026-07-01",
         "note": "July 2026 market review"
+      }
+    ],
+    "professionalVerifications": [
+      {
+        "id": "verif-p1-1",
+        "status": "VERIFIED",
+        "recordedAt": "2021-06-11T09:14:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "MDC/RN/23-4471",
+        "note": "Registration confirmed at intake.",
+        "expiresOn": "2027-06-11",
+        "professional": {
+          "id": "p1",
+          "licenceNumber": "MDC/RN/23-4471"
+        }
+      },
+      {
+        "id": "verif-p2-1",
+        "status": "VERIFIED",
+        "recordedAt": "2020-09-03T11:02:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "NMC/GH/19-8820",
+        "note": "Registration confirmed at intake.",
+        "expiresOn": "2027-09-03",
+        "professional": {
+          "id": "p2",
+          "licenceNumber": "NMC/GH/19-8820"
+        }
+      },
+      {
+        "id": "verif-p4-1",
+        "status": "VERIFIED",
+        "recordedAt": "2021-04-27T08:40:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "AMB/GH/21-3092",
+        "note": "Registration confirmed at intake.",
+        "expiresOn": "2027-04-27",
+        "professional": {
+          "id": "p4",
+          "licenceNumber": "AMB/GH/21-3092"
+        }
+      },
+      {
+        "id": "verif-p5-1",
+        "status": "VERIFIED",
+        "recordedAt": "2020-02-08T14:25:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "MDC/RN/20-1187",
+        "note": "Registration confirmed at intake.",
+        "expiresOn": "2027-02-08",
+        "professional": {
+          "id": "p5",
+          "licenceNumber": "MDC/RN/20-1187"
+        }
+      },
+      {
+        "id": "verif-p7-1",
+        "status": "PENDING",
+        "recordedAt": "2026-07-28T10:05:00Z",
+        "recordedBy": "admin",
+        "method": "Document review",
+        "note": "Certificates received, awaiting register check.",
+        "professional": {
+          "id": "p7",
+          "licenceNumber": "CG/ABF/24-206"
+        }
+      },
+      {
+        "id": "verif-p8-1",
+        "status": "PENDING",
+        "recordedAt": "2026-07-31T15:30:00Z",
+        "recordedBy": "admin",
+        "method": "Document review",
+        "note": "Awaiting ambulance service confirmation.",
+        "professional": {
+          "id": "p8",
+          "licenceNumber": "AMB/GH/26-0117"
+        }
+      },
+      {
+        "id": "verif-p3-1",
+        "status": "VERIFIED",
+        "recordedAt": "2022-01-19T09:00:00Z",
+        "recordedBy": "admin",
+        "method": "Document review",
+        "reference": "CG/ABF/22-114",
+        "note": "Care certificate verified at intake.",
+        "expiresOn": "2026-08-19",
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "verif-p3-2",
+        "status": "VERIFIED",
+        "recordedAt": "2026-08-20T09:45:00Z",
+        "recordedBy": "admin",
+        "method": "Document review",
+        "reference": "CG/ABF/22-114",
+        "note": "Renewed on expiry of the 2022 certificate.",
+        "expiresOn": "2030-08-20",
+        "professional": {
+          "id": "p3",
+          "licenceNumber": "CG/ABF/22-114"
+        }
+      },
+      {
+        "id": "verif-p6-1",
+        "status": "VERIFIED",
+        "recordedAt": "2022-11-14T10:10:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "NMC/GH/22-4410",
+        "note": "Registration confirmed at intake.",
+        "expiresOn": "2026-05-01",
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "verif-p6-2",
+        "status": "REVOKED",
+        "recordedAt": "2026-05-02T16:20:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "NMC/GH/22-4410",
+        "note": "Register showed the registration lapsed.",
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "verif-p6-3",
+        "status": "VERIFIED",
+        "recordedAt": "2026-07-15T11:35:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "NMC/GH/22-4410",
+        "note": "Registration restored and confirmed.",
+        "expiresOn": "2029-07-15",
+        "professional": {
+          "id": "p6",
+          "licenceNumber": "NMC/GH/22-4410"
+        }
+      },
+      {
+        "id": "verif-p9-1",
+        "status": "VERIFIED",
+        "recordedAt": "2019-05-22T08:15:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "NMC/GH/18-2204",
+        "note": "Registration confirmed at intake.",
+        "expiresOn": "2026-06-30",
+        "professional": {
+          "id": "p9",
+          "licenceNumber": "NMC/GH/18-2204"
+        }
+      },
+      {
+        "id": "verif-p9-2",
+        "status": "EXPIRED",
+        "recordedAt": "2026-06-30T23:59:00Z",
+        "recordedBy": "admin",
+        "reference": "NMC/GH/18-2204",
+        "note": "Lapsed on its own expiry date.",
+        "professional": {
+          "id": "p9",
+          "licenceNumber": "NMC/GH/18-2204"
+        }
+      },
+      {
+        "id": "verif-p9-3",
+        "status": "VERIFIED",
+        "recordedAt": "2026-08-19T13:05:00Z",
+        "recordedBy": "admin",
+        "method": "Licence register",
+        "reference": "NMC/GH/18-2204",
+        "note": "Renewed registration confirmed.",
+        "expiresOn": "2031-08-19",
+        "professional": {
+          "id": "p9",
+          "licenceNumber": "NMC/GH/18-2204"
+        }
       }
     ]
   }
