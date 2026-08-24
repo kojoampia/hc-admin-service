@@ -137,6 +137,19 @@ spring:
         kafkaProducer-out-0:
           content-type: text/plain
           group: hc-admin-service
+        # Verification decisions. Its own destination rather than sse-topic, which is a text/plain
+        # UI fan-out channel — a domain event other services subscribe to does not belong in it, and
+        # a consumer of one should not have to filter out the other. The decision is also relayed
+        # onto sse-topic so the console updates without a reload; that is a second send, not a
+        # shared binding.
+        #
+        # `destination` is not optional and its absence is silent: without it Spring publishes to a
+        # topic named after the binding, the send succeeds, and nothing ever reads it. That is
+        # exactly what binding-out-0 did above until it was found.
+        verification-out-0:
+          destination: professional-verification
+          content-type: text/plain
+          group: hc-admin-service
   profiles:
     # The commented value for `active` can be replaced with valid Spring profiles to load.
     # Otherwise, it will be filled in by maven when building the JAR file

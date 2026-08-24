@@ -9,10 +9,13 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
+import net.jojoaddison.domain.enumeration.VerificationStatus;
 import net.jojoaddison.repository.ProfessionalRepository;
 import net.jojoaddison.repository.support.NamedFilters;
+import net.jojoaddison.service.ProfessionalVerificationService;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,9 +50,16 @@ public class ProfessionalResource {
     /** For the named filters above, which need more than one optional predicate combined. */
     private final MongoTemplate mongoTemplate;
 
-    public ProfessionalResource(ProfessionalRepository professionalRepository, MongoTemplate mongoTemplate) {
+    private final ProfessionalVerificationService verificationService;
+
+    public ProfessionalResource(
+        ProfessionalRepository professionalRepository,
+        MongoTemplate mongoTemplate,
+        ProfessionalVerificationService verificationService
+    ) {
         this.professionalRepository = professionalRepository;
         this.mongoTemplate = mongoTemplate;
+        this.verificationService = verificationService;
     }
 
     /**
@@ -65,6 +75,11 @@ public class ProfessionalResource {
         if (professional.getId() != null) {
             throw new BadRequestAlertException("A new professional cannot already have an ID", ENTITY_NAME, "idexists");
         }
+        // Nobody has verified a professional who was created a moment ago, so the intake state is
+        // PENDING whatever the payload said. Without this the field would be server-written on
+        // update and client-written on create, which is not a rule — it is a rule with a doorway
+        // next to it, and creating a record is the easiest doorway to walk through.
+        professional.setVerification(VerificationStatus.PENDING);
         professional = professionalRepository.save(professional);
         return ResponseEntity
             .created(new URI("/api/professionals/" + professional.getId()))
@@ -95,9 +110,16 @@ public class ProfessionalResource {
             throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
         }
 
-        if (!professionalRepository.existsById(id)) {
-            throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
-        }
+        Professional stored = professionalRepository
+            .findById(id)
+            .orElseThrow(() -> new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound"));
+
+        // verification is written only by ProfessionalVerificationService, from a recorded decision.
+        // Restoring the stored value is not the same as ignoring the payload: PUT sends a whole
+        // document, so leaving the field alone would write straight through whatever arrived. This
+        // is the rule AuditingEntityCallback applies to createdBy, for the same reason — a badge the
+        // client can set is not evidence that anybody verified anything.
+        professional.setVerification(stored.getVerification());
 
         professional = professionalRepository.save(professional);
         return ResponseEntity
@@ -140,7 +162,6 @@ public class ProfessionalResource {
                 updateIfPresent(existingProfessional::setRole, professional.getRole());
                 updateIfPresent(existingProfessional::setSpeciality, professional.getSpeciality());
                 updateIfPresent(existingProfessional::setLicenceNumber, professional.getLicenceNumber());
-                updateIfPresent(existingProfessional::setVerification, professional.getVerification());
                 updateIfPresent(existingProfessional::setStatus, professional.getStatus());
                 updateIfPresent(existingProfessional::setPatientCount, professional.getPatientCount());
                 updateIfPresent(existingProfessional::setCaseCount, professional.getCaseCount());
@@ -177,7 +198,10 @@ public class ProfessionalResource {
         // The directory tiles filter on these and read their counts from X-Total-Count. Undeclared,
         // Spring drops them and every tile reads the collection total.
         @RequestParam(name = "status.equals", required = false) AccountStatus statusEquals,
-        @RequestParam(name = "role.equals", required = false) ProfessionalRole roleEquals
+        @RequestParam(name = "role.equals", required = false) ProfessionalRole roleEquals,
+        // The verification badge became filterable when the history landed. One more named
+        // parameter, not a query language — the line NamedFilters draws.
+        @RequestParam(name = "verification.equals", required = false) VerificationStatus verificationEquals
     ) {
         LOG.debug("REST request to get a page of Professionals");
         // The two operators the console sends, and only those. This is not a criteria framework:
@@ -187,7 +211,11 @@ public class ProfessionalResource {
 
         // eagerload is not a distinction MongoDB makes here — findAllWithEagerRelationships is
         // literally @Query("{}") — so the filtered queries serve both branches.
-        NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals).equals("role", roleEquals);
+        NamedFilters.Builder filters = NamedFilters
+            .builder()
+            .equals("status", statusEquals)
+            .equals("role", roleEquals)
+            .equals("verification", verificationEquals);
         // Archived stays `$ne: true` rather than `is(false)`: a document written before the field
         // existed does not carry it, and `is_archived: false` matches none of them.
         if (archived != null) {
@@ -206,6 +234,26 @@ public class ProfessionalResource {
         }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
+     * {@code GET  /professionals/:id/verifications} : this professional's verification history,
+     * newest first.
+     *
+     * <p>Not paginated, and deliberately outside {@code PaginationIT}'s sweep by having two path
+     * segments. A history is bounded by how many times one person has been verified — single
+     * figures — and the record panel draws all of it in date order. A pager over four rows would be
+     * chrome around nothing, and paging would hide the oldest decision, which is the one somebody
+     * is usually looking for.
+     *
+     * @param id the professional
+     * @return {@code 200 (OK)} and the decisions, newest first. An empty list for a professional
+     *     who has never been verified, which is a real state and not a 404.
+     */
+    @GetMapping("/{id}/verifications")
+    public ResponseEntity<List<ProfessionalVerification>> getVerificationHistory(@PathVariable("id") String id) {
+        LOG.debug("REST request to get the verification history of Professional : {}", id);
+        return ResponseEntity.ok(verificationService.historyFor(id));
     }
 
     /**

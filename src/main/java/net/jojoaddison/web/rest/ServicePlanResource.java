@@ -141,7 +141,6 @@ public class ServicePlanResource {
                 updateIfPresent(existingServicePlan::setCurrency, servicePlan.getCurrency());
                 updateIfPresent(existingServicePlan::setSummary, servicePlan.getSummary());
                 updateIfPresent(existingServicePlan::setFeatured, servicePlan.getFeatured());
-                updateIfPresent(existingServicePlan::setSubscriberCount, servicePlan.getSubscriberCount());
 
                 return existingServicePlan;
             })

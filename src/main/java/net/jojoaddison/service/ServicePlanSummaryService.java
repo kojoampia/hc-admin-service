@@ -20,8 +20,8 @@ import org.springframework.stereotype.Service;
  * The plan mix under the console's plan board, computed over the whole patient directory.
  *
  * <p>See {@link ServicePlanSummaryDTO} for why the share cannot be computed by the client, and why
- * subscribers are counted from {@code Patient.plan} rather than read off
- * {@code ServicePlan.subscriberCount}.
+ * subscribers are counted from {@code Patient.plan} rather than off a stored counter — the counter
+ * that used to exist was deleted on 2026-08-24 and must not come back.
  */
 @Service
 public class ServicePlanSummaryService {

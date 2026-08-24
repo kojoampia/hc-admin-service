@@ -45,13 +45,21 @@ public class ProfessionalAsserts {
      * @param expected the expected entity
      * @param actual the actual entity
      */
+    /**
+     * <p><b>{@code verification} is deliberately not asserted here, because it is not an updatable
+     * field.</b> Since 2026-08-24 it is written only by {@code ProfessionalVerificationService}, from
+     * a recorded decision: {@code POST} forces {@code PENDING}, {@code PUT} restores the stored
+     * value and {@code PATCH} does not carry it. Asserting that it round-trips is asserting the
+     * vulnerability — the same reason the four auditing fields are absent from every entity IT and
+     * covered by {@code AuditingIT} instead. {@code ProfessionalVerificationResourceIT} covers this
+     * one.
+     */
     public static void assertProfessionalUpdatableFieldsEquals(Professional expected, Professional actual) {
         assertThat(actual)
             .as("Verify Professional relevant properties")
             .satisfies(a -> assertThat(a.getRole()).as("check role").isEqualTo(expected.getRole()))
             .satisfies(a -> assertThat(a.getSpeciality()).as("check speciality").isEqualTo(expected.getSpeciality()))
             .satisfies(a -> assertThat(a.getLicenceNumber()).as("check licenceNumber").isEqualTo(expected.getLicenceNumber()))
-            .satisfies(a -> assertThat(a.getVerification()).as("check verification").isEqualTo(expected.getVerification()))
             .satisfies(a -> assertThat(a.getStatus()).as("check status").isEqualTo(expected.getStatus()))
             .satisfies(a -> assertThat(a.getPatientCount()).as("check patientCount").isEqualTo(expected.getPatientCount()))
             .satisfies(a -> assertThat(a.getCaseCount()).as("check caseCount").isEqualTo(expected.getCaseCount()))

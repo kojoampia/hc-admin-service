@@ -57,10 +57,6 @@ public class ServicePlan implements Serializable {
     @Field("featured")
     private Boolean featured;
 
-    @Min(value = 0)
-    @Field("subscriber_count")
-    private Integer subscriberCount;
-
     @DBRef
     @Field("feature")
     @JsonIgnoreProperties(value = { "plan" }, allowSetters = true)
@@ -172,19 +168,6 @@ public class ServicePlan implements Serializable {
         this.featured = featured;
     }
 
-    public Integer getSubscriberCount() {
-        return this.subscriberCount;
-    }
-
-    public ServicePlan subscriberCount(Integer subscriberCount) {
-        this.setSubscriberCount(subscriberCount);
-        return this;
-    }
-
-    public void setSubscriberCount(Integer subscriberCount) {
-        this.subscriberCount = subscriberCount;
-    }
-
     public Set<PlanFeature> getFeatures() {
         return this.features;
     }
@@ -247,7 +230,6 @@ public class ServicePlan implements Serializable {
             ", currency='" + getCurrency() + "'" +
             ", summary='" + getSummary() + "'" +
             ", featured='" + getFeatured() + "'" +
-            ", subscriberCount=" + getSubscriberCount() +
             "}";
     }
 }

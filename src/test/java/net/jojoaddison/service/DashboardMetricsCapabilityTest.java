@@ -35,7 +35,11 @@ class DashboardMetricsCapabilityTest {
         // No roster week, which is production's state and keeps this test about capabilities.
         CurrentRosterWeekService rosterWeek = mock(CurrentRosterWeekService.class);
         when(rosterWeek.inForce()).thenReturn(Optional.empty());
-        return new DashboardMetricsService(mongo, observability, rosterWeek, Clock.systemUTC()).metrics();
+        // Stubbed to nought: the professionals delta reads the verification history now, and this
+        // test is about capability badges. Nought is also production's answer.
+        ProfessionalVerificationService verifications = mock(ProfessionalVerificationService.class);
+        when(verifications.verifiedSince(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+        return new DashboardMetricsService(mongo, observability, rosterWeek, Clock.systemUTC(), verifications).metrics();
     }
 
     private static String statusOf(DashboardMetricsDTO metrics, String capability) {

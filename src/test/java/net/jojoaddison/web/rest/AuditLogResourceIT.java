@@ -17,11 +17,14 @@ import net.jojoaddison.repository.AuditLogRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 /**
  * Integration tests for the {@link AuditLogResource} REST controller.
@@ -115,148 +118,6 @@ class AuditLogResourceIT {
     }
 
     @Test
-    void createAuditLog() throws Exception {
-        long databaseSizeBeforeCreate = getRepositoryCount();
-        // Create the AuditLog
-        var returnedAuditLog = om.readValue(
-            restAuditLogMockMvc
-                .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-                .andExpect(status().isCreated())
-                .andReturn()
-                .getResponse()
-                .getContentAsString(),
-            AuditLog.class
-        );
-
-        // Validate the AuditLog in the database
-        assertIncrementedRepositoryCount(databaseSizeBeforeCreate);
-        assertAuditLogUpdatableFieldsEquals(returnedAuditLog, getPersistedAuditLog(returnedAuditLog));
-
-        insertedAuditLog = returnedAuditLog;
-    }
-
-    @Test
-    void createAuditLogWithExistingId() throws Exception {
-        // Create the AuditLog with an existing ID
-        auditLog.setId("existing_id");
-
-        long databaseSizeBeforeCreate = getRepositoryCount();
-
-        // An entity with an existing ID cannot be created, so this API call must fail
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeCreate);
-    }
-
-    @Test
-    void checkActionTypeIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setActionType(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkUserIdIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setUserId(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkMetadataIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setMetadata(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkCreatedByIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setCreatedBy(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkCreatedDateIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setCreatedDate(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkModifiedByIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setModifiedBy(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkModifiedDateIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        auditLog.setModifiedDate(null);
-
-        // Create the AuditLog, which fails.
-
-        restAuditLogMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
     void getAllAuditLogs() throws Exception {
         // Initialize the database
         insertedAuditLog = auditLogRepository.save(auditLog);
@@ -294,214 +155,42 @@ class AuditLogResourceIT {
         restAuditLogMockMvc.perform(get(ENTITY_API_URL_ID, Long.MAX_VALUE)).andExpect(status().isNotFound());
     }
 
-    @Test
-    void putExistingAuditLog() throws Exception {
-        // Initialize the database
+    // --- read-only ---------------------------------------------------------------------------------
+
+    /**
+     * <b>The audit trail cannot be written to over HTTP.</b>
+     *
+     * <p>Every write case that used to live here — create, put, patch, delete, and the seven
+     * required-field checks that only ever exercised the create handler — has been replaced by this
+     * one. They tested a CRUD surface that {@code docs/AUDIT-TODO.md} §2.1 identified as the
+     * problem: rows are written by {@code AuditLogCallback} on every save and delete across every
+     * collection, so the verbs let the very principals this collection records append to it, edit it
+     * and delete from it. The blanket {@code /api/**} rule gated them to {@code ROLE_ADMIN}, which
+     * is precisely whose actions are being recorded.
+     *
+     * <p>405 and not 404: the path still exists and is still readable. A 404 would also satisfy
+     * "cannot write" and would mean the resource had moved, at which point this test would go on
+     * passing while asserting nothing.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = { "POST", "PUT", "PATCH", "DELETE" })
+    void refusesEveryWriteVerb(String verb) throws Exception {
         insertedAuditLog = auditLogRepository.save(auditLog);
+        long before = getRepositoryCount();
 
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-
-        // Update the auditLog
-        AuditLog updatedAuditLog = auditLogRepository.findById(auditLog.getId()).orElseThrow();
-        updatedAuditLog
-            .actionType(UPDATED_ACTION_TYPE)
-            .userId(UPDATED_USER_ID)
-            .metadata(UPDATED_METADATA)
-            .createdBy(UPDATED_CREATED_BY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedBy(UPDATED_MODIFIED_BY)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
+        MockHttpServletRequestBuilder request =
+            switch (verb) {
+                case "POST" -> post(ENTITY_API_URL);
+                case "PUT" -> put(ENTITY_API_URL_ID, auditLog.getId());
+                case "PATCH" -> patch(ENTITY_API_URL_ID, auditLog.getId());
+                default -> delete(ENTITY_API_URL_ID, auditLog.getId());
+            };
 
         restAuditLogMockMvc
-            .perform(
-                put(ENTITY_API_URL_ID, updatedAuditLog.getId())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(om.writeValueAsBytes(updatedAuditLog))
-            )
-            .andExpect(status().isOk());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-        assertPersistedAuditLogToMatchAllProperties(updatedAuditLog);
-    }
-
-    @Test
-    void putNonExistingAuditLog() throws Exception {
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-        auditLog.setId(UUID.randomUUID().toString());
-
-        // If the entity doesn't have an ID, it will throw BadRequestAlertException
-        restAuditLogMockMvc
-            .perform(
-                put(ENTITY_API_URL_ID, auditLog.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog))
-            )
-            .andExpect(status().isBadRequest());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-    }
-
-    @Test
-    void putWithIdMismatchAuditLog() throws Exception {
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-        auditLog.setId(UUID.randomUUID().toString());
-
-        // If url ID doesn't match entity ID, it will throw BadRequestAlertException
-        restAuditLogMockMvc
-            .perform(
-                put(ENTITY_API_URL_ID, UUID.randomUUID().toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(om.writeValueAsBytes(auditLog))
-            )
-            .andExpect(status().isBadRequest());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-    }
-
-    @Test
-    void putWithMissingIdPathParamAuditLog() throws Exception {
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-        auditLog.setId(UUID.randomUUID().toString());
-
-        // If url ID doesn't match entity ID, it will throw BadRequestAlertException
-        restAuditLogMockMvc
-            .perform(put(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
+            .perform(request.contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))
             .andExpect(status().isMethodNotAllowed());
 
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-    }
-
-    @Test
-    void partialUpdateAuditLogWithPatch() throws Exception {
-        // Initialize the database
-        insertedAuditLog = auditLogRepository.save(auditLog);
-
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-
-        // Update the auditLog using partial update
-        AuditLog partialUpdatedAuditLog = new AuditLog();
-        partialUpdatedAuditLog.setId(auditLog.getId());
-
-        partialUpdatedAuditLog
-            .actionType(UPDATED_ACTION_TYPE)
-            .metadata(UPDATED_METADATA)
-            .createdBy(UPDATED_CREATED_BY)
-            .modifiedBy(UPDATED_MODIFIED_BY);
-
-        restAuditLogMockMvc
-            .perform(
-                patch(ENTITY_API_URL_ID, partialUpdatedAuditLog.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(om.writeValueAsBytes(partialUpdatedAuditLog))
-            )
-            .andExpect(status().isOk());
-
-        // Validate the AuditLog in the database
-
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-        assertAuditLogUpdatableFieldsEquals(createUpdateProxyForBean(partialUpdatedAuditLog, auditLog), getPersistedAuditLog(auditLog));
-    }
-
-    @Test
-    void fullUpdateAuditLogWithPatch() throws Exception {
-        // Initialize the database
-        insertedAuditLog = auditLogRepository.save(auditLog);
-
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-
-        // Update the auditLog using partial update
-        AuditLog partialUpdatedAuditLog = new AuditLog();
-        partialUpdatedAuditLog.setId(auditLog.getId());
-
-        partialUpdatedAuditLog
-            .actionType(UPDATED_ACTION_TYPE)
-            .userId(UPDATED_USER_ID)
-            .metadata(UPDATED_METADATA)
-            .createdBy(UPDATED_CREATED_BY)
-            .createdDate(UPDATED_CREATED_DATE)
-            .modifiedBy(UPDATED_MODIFIED_BY)
-            .modifiedDate(UPDATED_MODIFIED_DATE);
-
-        restAuditLogMockMvc
-            .perform(
-                patch(ENTITY_API_URL_ID, partialUpdatedAuditLog.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(om.writeValueAsBytes(partialUpdatedAuditLog))
-            )
-            .andExpect(status().isOk());
-
-        // Validate the AuditLog in the database
-
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-        assertAuditLogUpdatableFieldsEquals(partialUpdatedAuditLog, getPersistedAuditLog(partialUpdatedAuditLog));
-    }
-
-    @Test
-    void patchNonExistingAuditLog() throws Exception {
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-        auditLog.setId(UUID.randomUUID().toString());
-
-        // If the entity doesn't have an ID, it will throw BadRequestAlertException
-        restAuditLogMockMvc
-            .perform(
-                patch(ENTITY_API_URL_ID, auditLog.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(om.writeValueAsBytes(auditLog))
-            )
-            .andExpect(status().isBadRequest());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-    }
-
-    @Test
-    void patchWithIdMismatchAuditLog() throws Exception {
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-        auditLog.setId(UUID.randomUUID().toString());
-
-        // If url ID doesn't match entity ID, it will throw BadRequestAlertException
-        restAuditLogMockMvc
-            .perform(
-                patch(ENTITY_API_URL_ID, UUID.randomUUID().toString())
-                    .contentType("application/merge-patch+json")
-                    .content(om.writeValueAsBytes(auditLog))
-            )
-            .andExpect(status().isBadRequest());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-    }
-
-    @Test
-    void patchWithMissingIdPathParamAuditLog() throws Exception {
-        long databaseSizeBeforeUpdate = getRepositoryCount();
-        auditLog.setId(UUID.randomUUID().toString());
-
-        // If url ID doesn't match entity ID, it will throw BadRequestAlertException
-        restAuditLogMockMvc
-            .perform(patch(ENTITY_API_URL).contentType("application/merge-patch+json").content(om.writeValueAsBytes(auditLog)))
-            .andExpect(status().isMethodNotAllowed());
-
-        // Validate the AuditLog in the database
-        assertSameRepositoryCount(databaseSizeBeforeUpdate);
-    }
-
-    @Test
-    void deleteAuditLog() throws Exception {
-        // Initialize the database
-        insertedAuditLog = auditLogRepository.save(auditLog);
-
-        long databaseSizeBeforeDelete = getRepositoryCount();
-
-        // Delete the auditLog
-        restAuditLogMockMvc
-            .perform(delete(ENTITY_API_URL_ID, auditLog.getId()).accept(MediaType.APPLICATION_JSON))
-            .andExpect(status().isNoContent());
-
-        // Validate the database contains one less item
-        assertDecrementedRepositoryCount(databaseSizeBeforeDelete);
+        assertSameRepositoryCount(before);
     }
 
     protected long getRepositoryCount() {

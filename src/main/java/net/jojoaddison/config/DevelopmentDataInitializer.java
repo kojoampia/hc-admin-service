@@ -26,6 +26,7 @@ import net.jojoaddison.domain.PlanFeature;
 import net.jojoaddison.domain.PlatformService;
 import net.jojoaddison.domain.PricingPlan;
 import net.jojoaddison.domain.Professional;
+import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.RosterWeek;
 import net.jojoaddison.domain.ServiceActivity;
 import net.jojoaddison.domain.ServicePlan;
@@ -56,6 +57,7 @@ import net.jojoaddison.repository.PlanFeatureRepository;
 import net.jojoaddison.repository.PlatformServiceRepository;
 import net.jojoaddison.repository.PricingPlanRepository;
 import net.jojoaddison.repository.ProfessionalRepository;
+import net.jojoaddison.repository.ProfessionalVerificationRepository;
 import net.jojoaddison.repository.ProfileRepository;
 import net.jojoaddison.repository.RosterWeekRepository;
 import net.jojoaddison.repository.ServiceActivityRepository;
@@ -115,6 +117,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
     private final PlatformServiceRepository platformServiceRepository;
     private final AuditEntryRepository auditEntryRepository;
     private final WageRateRepository wageRateRepository;
+    private final ProfessionalVerificationRepository professionalVerificationRepository;
     private final ContactRepository contactRepository;
     private final FacilityRepository facilityRepository;
     private final AuditLogRepository auditLogRepository;
@@ -159,7 +162,8 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         UserOptionRepository userOptionRepository,
         PlatformServiceRepository platformServiceRepository,
         AuditEntryRepository auditEntryRepository,
-        WageRateRepository wageRateRepository
+        WageRateRepository wageRateRepository,
+        ProfessionalVerificationRepository professionalVerificationRepository
     ) {
         this.mapper = mapper;
         this.environment = environment;
@@ -194,6 +198,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         this.platformServiceRepository = platformServiceRepository;
         this.auditEntryRepository = auditEntryRepository;
         this.wageRateRepository = wageRateRepository;
+        this.professionalVerificationRepository = professionalVerificationRepository;
     }
 
     @Override
@@ -248,6 +253,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             save("platformServices", platformServiceRepository, profileData.getPlatformServices());
             save("auditEntries", auditEntryRepository, profileData.getAuditEntries());
             save("wageRates", wageRateRepository, profileData.getWageRates());
+            save("professionalVerifications", professionalVerificationRepository, profileData.getProfessionalVerifications());
         } catch (RuntimeException e) {
             log.error("Failed to persist {} seed data", profile, e);
         }
@@ -313,6 +319,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         private List<PlatformService> platformServices = new ArrayList<>();
         private List<AuditEntry> auditEntries = new ArrayList<>();
         private List<WageRate> wageRates = new ArrayList<>();
+        private List<ProfessionalVerification> professionalVerifications = new ArrayList<>();
 
         public List<Address> getAddresses() {
             return addresses;
@@ -564,6 +571,14 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
 
         private static <T> List<T> nullSafe(List<T> value) {
             return value == null ? new ArrayList<>() : value;
+        }
+
+        public List<ProfessionalVerification> getProfessionalVerifications() {
+            return professionalVerifications;
+        }
+
+        public void setProfessionalVerifications(List<ProfessionalVerification> professionalVerifications) {
+            this.professionalVerifications = nullSafe(professionalVerifications);
         }
     }
 }

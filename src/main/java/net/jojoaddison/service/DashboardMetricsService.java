@@ -83,16 +83,20 @@ public class DashboardMetricsService {
     private final CurrentRosterWeekService currentRosterWeek;
     private final Clock clock;
 
+    private final ProfessionalVerificationService verificationService;
+
     public DashboardMetricsService(
         MongoTemplate mongoTemplate,
         ObservabilityClient observability,
         CurrentRosterWeekService currentRosterWeek,
-        Clock clock
+        Clock clock,
+        ProfessionalVerificationService verificationService
     ) {
         this.mongoTemplate = mongoTemplate;
         this.observability = observability;
         this.currentRosterWeek = currentRosterWeek;
         this.clock = clock;
+        this.verificationService = verificationService;
     }
 
     public DashboardMetricsDTO metrics() {
@@ -336,13 +340,21 @@ public class DashboardMetricsService {
      * The figure under each KPI tile: item 14's "notes are copy, not measurements".
      *
      * <p>Every one is a count over the last seven days, and each is <b>the measurement its own
-     * template names</b> rather than a generic delta the copy is free to reinterpret. The demo says
-     * "+2 verified" under professionals; nothing here records when a professional was verified, so
-     * this counts who joined instead and the string says so. Inventing a verification date to match
-     * a caption would be the same failure in a different field.
+     * template names</b> rather than a generic delta the copy is free to reinterpret.
+     *
+     * <p>The professionals note used to be the exception and is no longer. The demo says
+     * "+2 verified"; nothing recorded when a professional was verified, so it counted who joined and
+     * said so — inventing a verification date to match a caption would have been the same failure in
+     * a different field. As of 2026-08-24 the act is recorded, by
+     * {@code ProfessionalVerificationService}, so the count is now literally what the caption claims.
+     * <b>It is a count of decisions, not of professionals</b>: two verifications of the same person
+     * in one week count twice, which is what "verified this week" describes.
      *
      * <ul>
-     *   <li>{@code patients}, {@code professionals} — joined in the last seven days.
+     *   <li>{@code patients} — joined in the last seven days.
+     *   <li>{@code professionals} — <b>verified</b> in the last seven days, from the verification
+     *       history. {@code professionalsJoined} carries the old measurement beside it, because the
+     *       account-mix chart and the network tiles are about arrivals and still want it.
      *   <li>{@code messages} — arrived in the last seven days. Inflow, and labelled as inflow: the
      *       tile counts unread, and "3 arrived" beside "12 unread" is two honest numbers.
      *   <li>{@code tasks} — closed in the last seven days, which needs {@code closed_at} and is the
@@ -356,6 +368,8 @@ public class DashboardMetricsService {
             "patients",
             count(net.jojoaddison.domain.Patient.class, Criteria.where("joined_on").gte(weekAgoDate)),
             "professionals",
+            verificationService.verifiedSince(weekAgo),
+            "professionalsJoined",
             count(Professional.class, Criteria.where("joined_on").gte(weekAgoDate)),
             "messages",
             count(Message.class, Criteria.where("sent_at").gte(weekAgo)),

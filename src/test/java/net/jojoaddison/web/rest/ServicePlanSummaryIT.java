@@ -32,11 +32,13 @@ import org.springframework.test.web.servlet.MockMvc;
  * {@link VendorSummaryIT} gives: every assertion here is a proportion of the whole collection, and
  * that only means anything if this test owns what is in it.
  *
- * <p><strong>Subscribers are counted from {@code Patient.plan}.</strong> The seeded
- * {@code ServicePlan.subscriberCount} disagrees with the patient directory — 41/52/23 against twelve
- * patients — and this test deliberately sets that field to a wrong number on every plan, so a
- * regression that reads the stored counter fails here rather than shipping figures nobody can
- * reconcile.
+ * <p><strong>Subscribers are counted from {@code Patient.plan}.</strong> This test used to set a
+ * deliberately wrong {@code ServicePlan.subscriberCount} on every plan, so that a regression reading
+ * the stored counter failed here rather than shipping figures nobody could reconcile. That field was
+ * deleted on 2026-08-24 and the guard is now structural — there is no counter to read back, and a
+ * reintroduced one would have to get past {@link net.jojoaddison.service.dto.ServicePlanSummaryDTO}'s
+ * javadoc first. What remains asserted here is the positive half, and it is the half that matters:
+ * every figure reconciles to the patients an operator can actually open.
  */
 @IntegrationTest
 @AutoConfigureMockMvc(addFilters = false)
@@ -65,10 +67,9 @@ class ServicePlanSummaryIT {
         patientRepository.deleteAll();
         servicePlanRepository.deleteAll();
 
-        // subscriberCount is set to a figure that matches nothing on purpose. Nothing may read it.
-        essential = servicePlanRepository.save(plan("Bridge Essential", PlanTier.ESSENTIAL, "320", 41));
-        plus = servicePlanRepository.save(plan("Bridge Plus", PlanTier.PLUS, "680", 52));
-        family = servicePlanRepository.save(plan("Bridge Family", PlanTier.FAMILY, "1240", 23));
+        essential = servicePlanRepository.save(plan("Bridge Essential", PlanTier.ESSENTIAL, "320"));
+        plus = servicePlanRepository.save(plan("Bridge Plus", PlanTier.PLUS, "680"));
+        family = servicePlanRepository.save(plan("Bridge Family", PlanTier.FAMILY, "1240"));
 
         patientRepository.saveAll(
             List.of(
@@ -95,8 +96,8 @@ class ServicePlanSummaryIT {
     }
 
     /**
-     * Six subscribers: two Essential, three Plus, one Family. Not 116, which is what the stored
-     * counters add up to.
+     * Six subscribers: two Essential, three Plus, one Family — every one of them a patient this
+     * test put in the directory, which is the whole property being asserted.
      */
     @Test
     void subscribersAreCountedFromThePatientDirectory() throws Exception {
@@ -218,10 +219,8 @@ class ServicePlanSummaryIT {
         mvc.perform(get("/api/service-plans/summary")).andExpect(status().isOk()).andExpect(jsonPath("$.totalSubscribers").exists());
     }
 
-    private static ServicePlan plan(String name, PlanTier tier, String price, int wrongStoredCount) {
-        ServicePlan plan = new ServicePlan().name(name).tier(tier).monthlyPrice(new BigDecimal(price)).currency("GHS").featured(false);
-        plan.setSubscriberCount(wrongStoredCount);
-        return plan;
+    private static ServicePlan plan(String name, PlanTier tier, String price) {
+        return new ServicePlan().name(name).tier(tier).monthlyPrice(new BigDecimal(price)).currency("GHS").featured(false);
     }
 
     private static PlanFeature feature(String label, int position, ServicePlan plan) {
