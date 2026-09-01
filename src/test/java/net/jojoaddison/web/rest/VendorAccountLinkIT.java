@@ -2,6 +2,8 @@ package net.jojoaddison.web.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -18,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -71,8 +74,27 @@ class VendorAccountLinkIT {
         mvc
             .perform(get("/api/vendors").param("accountId.equals", "kaneshie").param("size", "100"))
             .andExpect(status().isOk())
+            // Exactly one is the whole contract, so assert the count and not merely that the right
+            // vendor is somewhere in the page: a regression that OR-combined the criteria, or a
+            // duplicate in the data, would satisfy "present and the other absent" and still be wrong.
+            .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(linked.getId())).exists())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(unlinked.getId())).doesNotExist());
+    }
+
+    /**
+     * Resolution is case- and whitespace-insensitive because the values are normalised on both
+     * sides. Gateway logins are always stored lower-case, so {@code "Kaneshie "} names the same
+     * account — and an exact-match filter that missed it would tell the vendor they have no record,
+     * which is the failure this mechanism exists to avoid.
+     */
+    @Test
+    void resolutionIsNormalisedOnTheWayIn() throws Exception {
+        mvc
+            .perform(get("/api/vendors").param("accountId.equals", "  KaneShie ").param("size", "100"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(linked.getId())).exists());
     }
 
     /**
@@ -91,15 +113,25 @@ class VendorAccountLinkIT {
     }
 
     /**
-     * Documents a sharp edge rather than asserting a good behaviour. {@code NamedFilters} drops
-     * blank strings as well as nulls, so a blank login is not "no vendor" — it is no filter, and the
-     * caller gets the entire directory. A resolver that passes an empty login straight through would
-     * hand its user the first vendor in the collection.
+     * A blank login is rejected rather than silently treated as no filter.
+     *
+     * <p>{@code NamedFilters} drops blank strings as well as nulls, so before this guard
+     * {@code ?accountId.equals=} returned the entire directory and a resolver passing an empty login
+     * straight through would have handed its user the first vendor in the collection. On a filter
+     * that decides which vendor a caller <em>is</em>, that is a 400 and not a footnote.
+     *
+     * <p>Absent remains "no filter" — that is the console listing the directory, and it is fine.
      */
     @Test
-    void aBlankLoginIsNoFilterAtAllAndReturnsEverything() throws Exception {
+    void aBlankLoginIsRejectedRatherThanIgnored() throws Exception {
+        mvc.perform(get("/api/vendors").param("accountId.equals", "").param("size", "100")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/vendors").param("accountId.equals", "   ").param("size", "100")).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void anAbsentFilterStillListsTheDirectory() throws Exception {
         mvc
-            .perform(get("/api/vendors").param("accountId.equals", "").param("size", "100"))
+            .perform(get("/api/vendors").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(linked.getId())).exists())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(unlinked.getId())).exists());
@@ -156,6 +188,99 @@ class VendorAccountLinkIT {
             .collect(java.util.stream.Collectors.toMap(v -> v.path("id").asText(), v -> v.path("accountId").asText()));
 
         assertThat(actual).isEqualTo(expected);
+    }
+
+    /**
+     * The duplicate no index prevents. Two vendors on one login would show one of them the other's
+     * purchase orders, and an admin pasting the wrong login into the console is the realistic way it
+     * happens — so the three write handlers check, and these hold them to it.
+     */
+    @Test
+    void aLoginCannotBeGivenToASecondVendorOnCreate() throws Exception {
+        mvc
+            .perform(
+                post("/api/vendors")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsBytes(VendorResourceIT.createEntity().accountId("kaneshie")))
+            )
+            .andExpect(status().isBadRequest());
+
+        assertThat(vendorRepository.count()).as("nothing was written").isEqualTo(2);
+    }
+
+    @Test
+    void aLoginCannotBeMovedOntoASecondVendorByPatch() throws Exception {
+        Vendor patch = new Vendor();
+        patch.setId(unlinked.getId());
+        patch.setAccountId("kaneshie");
+
+        mvc
+            .perform(
+                patch("/api/vendors/{id}", unlinked.getId())
+                    .contentType("application/merge-patch+json")
+                    .content(objectMapper.writeValueAsBytes(patch))
+            )
+            .andExpect(status().isBadRequest());
+
+        assertThat(vendorRepository.findById(unlinked.getId()).orElseThrow().getAccountId()).isNull();
+    }
+
+    /** Re-saving a vendor with the login it already holds is not a collision with itself. */
+    @Test
+    void aVendorKeepingItsOwnLoginIsNotADuplicate() throws Exception {
+        Vendor patch = new Vendor();
+        patch.setId(linked.getId());
+        patch.setAccountId("kaneshie");
+
+        mvc
+            .perform(
+                patch("/api/vendors/{id}", linked.getId())
+                    .contentType("application/merge-patch+json")
+                    .content(objectMapper.writeValueAsBytes(patch))
+            )
+            .andExpect(status().isOk());
+    }
+
+    /**
+     * Stored values are normalised, so the exact-match filter can be trusted. A blank becomes null
+     * rather than {@code ""}: the two differ in MongoDB but not to the filter, so a stored empty
+     * string would be a link that looks present and can never resolve.
+     */
+    @Test
+    void accountIdIsNormalisedOnWrite() throws Exception {
+        Vendor patch = new Vendor();
+        patch.setId(unlinked.getId());
+        patch.setAccountId("  RiDGe  ");
+
+        mvc
+            .perform(
+                patch("/api/vendors/{id}", unlinked.getId())
+                    .contentType("application/merge-patch+json")
+                    .content(objectMapper.writeValueAsBytes(patch))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.accountId").value("ridge"));
+
+        assertThat(vendorRepository.findById(unlinked.getId()).orElseThrow().getAccountId()).isEqualTo("ridge");
+    }
+
+    @Test
+    void aBlankAccountIdIsStoredAsNull() throws Exception {
+        Vendor patch = new Vendor();
+        patch.setId(linked.getId());
+        patch.setAccountId("   ");
+
+        mvc
+            .perform(
+                patch("/api/vendors/{id}", linked.getId())
+                    .contentType("application/merge-patch+json")
+                    .content(objectMapper.writeValueAsBytes(patch))
+            )
+            .andExpect(status().isOk());
+
+        // The merge ignores nulls, so a blank does not clear an existing link - it is simply not a
+        // value. What matters is that "" never reaches the database.
+        assertThat(vendorRepository.findById(linked.getId()).orElseThrow().getAccountId()).isEqualTo("kaneshie");
     }
 
     private List<JsonNode> seededVendors() throws Exception {

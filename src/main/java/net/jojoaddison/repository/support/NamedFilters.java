@@ -32,7 +32,22 @@ public final class NamedFilters {
 
     private NamedFilters() {}
 
-    /** Collects the criteria that were actually supplied. Nulls and blanks are simply absent. */
+    /**
+     * Collects the criteria that were actually supplied. Nulls and blanks are simply absent.
+     *
+     * <p><b>The four operators do not agree on what "blank" means, and only {@code equals} is
+     * currently used with strings.</b> {@code equals} drops a blank string; {@code notEquals} keeps
+     * it and would build a real {@code $ne: ""}; {@code in} passes blank elements through;
+     * {@code contains} drops blanks and additionally trims. Nothing is wrong today — both
+     * {@code notEquals} callers pass Booleans — but the first String {@code notEquals} will behave
+     * opposite to {@code equals}, which is not what its name suggests. Decide that deliberately when
+     * it happens rather than inheriting it by accident.
+     *
+     * <p>Dropping a blank is also not free at the call site: a filter that vanishes is a query that
+     * returns everything. Where a filter decides <em>who the caller is</em> rather than what they are
+     * browsing, reject the blank at the handler instead — {@code VendorResource}'s
+     * {@code accountId.equals} does, and says why.
+     */
     public static final class Builder {
 
         private final List<Criteria> criteria = new ArrayList<>();

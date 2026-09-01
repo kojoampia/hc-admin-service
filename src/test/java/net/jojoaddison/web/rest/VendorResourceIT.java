@@ -75,8 +75,12 @@ class VendorResourceIT {
     private static final Boolean DEFAULT_IS_ARCHIVED = false;
     private static final Boolean UPDATED_IS_ARCHIVED = true;
 
-    private static final String DEFAULT_ACCOUNT_ID = "AAAAAAAAAA";
-    private static final String UPDATED_ACCOUNT_ID = "BBBBBBBBBB";
+    // Lower-case, unlike the generator's other String placeholders. accountId holds a vendor-gateway
+    // login, the gateway stores every login lower-cased, and VendorResource normalises on write - so
+    // an upper-case sample would come back normalised and the round-trip assertions would fail on a
+    // difference that is the point of the field rather than a bug.
+    private static final String DEFAULT_ACCOUNT_ID = "aaaaaaaaaa";
+    private static final String UPDATED_ACCOUNT_ID = "bbbbbbbbbb";
 
     private static final String ENTITY_API_URL = "/api/vendors";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
