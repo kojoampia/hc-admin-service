@@ -121,6 +121,21 @@ public class ProfessionalResource {
         // client can set is not evidence that anybody verified anything.
         professional.setVerification(stored.getVerification());
 
+        // homeSpaceId is not part of the console model, so the generated edit form does not send it
+        // — and PUT sends a whole document, which means the first time anybody edits a professional
+        // their home space is erased. Nothing reports it: the record saves, the screen shows what it
+        // asked for, and proximity ranking simply stops having an origin to measure from. This is
+        // the failure TeamService.restoreGeographicSpaceIds already exists to prevent one collection
+        // over, for the same field on the same client.
+        //
+        // The cost of the rule, stated: a null cannot clear the value. Unlike Team's list, where an
+        // empty array is a deliberate clear and null is an omission, a String has one absent value
+        // doing both jobs. Clearing a home space is a write nothing asks for yet; when something
+        // does, it needs a shape that can say so rather than a relaxation of this line.
+        if (professional.getHomeSpaceId() == null) {
+            professional.setHomeSpaceId(stored.getHomeSpaceId());
+        }
+
         professional = professionalRepository.save(professional);
         return ResponseEntity
             .ok()
@@ -169,6 +184,7 @@ public class ProfessionalResource {
                 updateIfPresent(existingProfessional::setRating, professional.getRating());
                 updateIfPresent(existingProfessional::setJoinedOn, professional.getJoinedOn());
                 updateIfPresent(existingProfessional::setIsArchived, professional.getIsArchived());
+                updateIfPresent(existingProfessional::setHomeSpaceId, professional.getHomeSpaceId());
 
                 return existingProfessional;
             })

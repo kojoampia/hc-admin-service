@@ -60,6 +60,27 @@ public class SecurityConfiguration {
                     // /api/professionals/**. The id-addressed earnings endpoint stays admin-gated by
                     // the rule below, and that is what stops a clinician reading a colleague's pay.
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/professionals/me/**")).authenticated()
+                    // Geographic spaces as reference data. hc-professional stores a space id on a
+                    // roster round and has to render a name beside it; the authorities its callers
+                    // hold are its own, and this service does not know them, so naming them here
+                    // would copy that list into a fourth repository — the same argument as the rule
+                    // above. Authentication is the gate.
+                    //
+                    // Unlike that rule, this one DOES take a subject, so what an id buys has to be
+                    // answered rather than dissolved: a place name, the kind of area it is, and the
+                    // area around it. That is reference data — it describes a place, not a person,
+                    // and it reads the same for everyone — which is why disclosure is acceptable
+                    // here and would not be one path along. GeographicSpaceReferenceResource
+                    // projects those four values and nothing else, so a field added to the entity
+                    // later does not join them by default.
+                    //
+                    // Two exact matchers rather than /api/geographic-spaces/**, and that is the
+                    // point of writing them out: a future sub-path — the professionals in a space,
+                    // say — matches neither and falls to the blanket rules below, which is the safe
+                    // direction to fail. A wildcard here would hand it to every authenticated caller
+                    // in the network on the day it was written, with nothing to notice.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/geographic-spaces")).authenticated()
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/geographic-spaces/{id}")).authenticated()
                     // Bulk export is admin-only, and it has to precede the read rule below, which
                     // would otherwise hand it to every operator along with the rest of GET.
                     //

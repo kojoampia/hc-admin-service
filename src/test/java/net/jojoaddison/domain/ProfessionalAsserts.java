@@ -68,7 +68,8 @@ public class ProfessionalAsserts {
                 assertThat(a.getRating()).as("check rating").usingComparator(bigDecimalCompareTo).isEqualTo(expected.getRating())
             )
             .satisfies(a -> assertThat(a.getJoinedOn()).as("check joinedOn").isEqualTo(expected.getJoinedOn()))
-            .satisfies(a -> assertThat(a.getIsArchived()).as("check isArchived").isEqualTo(expected.getIsArchived()));
+            .satisfies(a -> assertThat(a.getIsArchived()).as("check isArchived").isEqualTo(expected.getIsArchived()))
+            .satisfies(a -> assertThat(a.getHomeSpaceId()).as("check homeSpaceId").isEqualTo(expected.getHomeSpaceId()));
     }
 
     /**

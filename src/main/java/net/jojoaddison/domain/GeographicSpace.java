@@ -23,6 +23,25 @@ public class GeographicSpace implements Serializable {
     @Field("type")
     private String type;
 
+    /**
+     * The space that contains this one, or null at the root.
+     *
+     * <p>Containment was implicit before this field: a district and the city around it were two
+     * unrelated rows that happened to be named after each other. Proximity — "same space, then same
+     * parent, then same ancestor" — is a walk up this chain and cannot be computed without it.
+     *
+     * <p>An opaque id rather than a {@code @DBRef}, matching {@code DutyRoster.geographicSpaceId}
+     * and {@code Team.geographicSpaceIds}, which are the only other references to this collection.
+     * A {@code @DBRef} would also make every read of a leaf space load its whole ancestry, which is
+     * the opposite of what the reference read below wants.
+     *
+     * <p>A parent naming no stored space is left alone: nothing in this service enforces referential
+     * integrity between collections, and a walk that meets a missing id simply ends. What is
+     * enforced is that the chain terminates — see {@code GeographicSpaceCycleGuard}.
+     */
+    @Field("parent_id")
+    private String parentId;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public String getId() {
@@ -64,6 +83,19 @@ public class GeographicSpace implements Serializable {
         this.type = type;
     }
 
+    public String getParentId() {
+        return this.parentId;
+    }
+
+    public GeographicSpace parentId(String parentId) {
+        this.setParentId(parentId);
+        return this;
+    }
+
+    public void setParentId(String parentId) {
+        this.parentId = parentId;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -89,6 +121,7 @@ public class GeographicSpace implements Serializable {
             "id=" + getId() +
             ", name='" + getName() + "'" +
             ", type='" + getType() + "'" +
+            ", parentId='" + getParentId() + "'" +
             "}";
     }
 }

@@ -234,6 +234,65 @@ class ApiAuthorizationIT {
         mvc.perform(get("/api/professional-verifications").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
     }
 
+    // --- geographic spaces: reference data, readable by anybody who is signed in --------------------
+
+    /**
+     * <b>This is the assertion the endpoint exists for.</b>
+     *
+     * <p>hc-professional stores a geographic space id on a roster round and has to render a name
+     * beside it. Its callers hold hc-professional's clinical authorities, which this service does not
+     * know and deliberately does not enumerate — so the gate is authentication, and the only way to
+     * say that in a test is to present a token holding an authority that reaches nothing else here.
+     * {@code ROLE_USER} is exactly that token: {@code plainUserIsRefusedEverywhere} above pins that
+     * it is refused across the entity surface, so a pass here cannot be the blanket rule leaking.
+     *
+     * <p>Written as its own case rather than added to that sweep for the same reason: the sweep says
+     * "nothing", this says "this one thing", and a change that merged them would delete the
+     * distinction the decision turns on.
+     */
+    @Test
+    void anyAuthenticatedCallerCanResolveAGeographicSpace() throws Exception {
+        mvc.perform(get("/api/geographic-spaces").with(as(AuthoritiesConstants.USER))).andExpect(status().isOk());
+        // 404 and not 403: the id is unknown, which is a fact about geography. The point is that the
+        // chain admitted the caller and the handler answered.
+        mvc.perform(get("/api/geographic-spaces/no-such-space").with(as(AuthoritiesConstants.USER))).andExpect(status().isNotFound());
+    }
+
+    /**
+     * The carve-out is on {@code GET} only.
+     *
+     * <p>There is no write mapping on {@code GeographicSpaceReferenceResource} today, so this asserts
+     * that the blanket {@code /api/** -> ROLE_ADMIN} rule is what would answer if one were added —
+     * 403 rather than 404. Without it, a later CRUD resource on this path would arrive with its
+     * writes already open to every authenticated caller in the network and nothing would fail.
+     */
+    @Test
+    void theGeographicSpaceCarveOutDoesNotExtendToWrites() throws Exception {
+        mvc
+            .perform(
+                post("/api/geographic-spaces").with(as(AuthoritiesConstants.USER)).contentType(MediaType.APPLICATION_JSON).content("{}")
+            )
+            .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/geographic-spaces/any-id").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
+    }
+
+    /**
+     * And it does not extend to a sub-path either.
+     *
+     * <p>The matchers name {@code /api/geographic-spaces} and {@code /api/geographic-spaces/{id}}
+     * exactly rather than {@code /api/geographic-spaces/**}, so anything deeper — the professionals
+     * based in a space, say, which is a list of people and not a place name — falls to the blanket
+     * read rule and is refused. This asserts the failing direction is the safe one; the path itself
+     * does not exist, and a 403 rather than a 404 is what says the chain decided before the handler
+     * lookup did.
+     */
+    @Test
+    void theGeographicSpaceCarveOutDoesNotExtendToSubPaths() throws Exception {
+        mvc
+            .perform(get("/api/geographic-spaces/any-id/professionals").with(as(AuthoritiesConstants.USER)))
+            .andExpect(status().isForbidden());
+    }
+
     // --- the patient carve-out --------------------------------------------------------------------
 
     /**

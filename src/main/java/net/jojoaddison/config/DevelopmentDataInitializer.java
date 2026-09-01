@@ -16,6 +16,7 @@ import net.jojoaddison.domain.Category;
 import net.jojoaddison.domain.Contact;
 import net.jojoaddison.domain.DutyRoster;
 import net.jojoaddison.domain.Facility;
+import net.jojoaddison.domain.GeographicSpace;
 import net.jojoaddison.domain.HCProfile;
 import net.jojoaddison.domain.Hub;
 import net.jojoaddison.domain.Message;
@@ -47,6 +48,7 @@ import net.jojoaddison.repository.ContactRepository;
 import net.jojoaddison.repository.DocumentRepository;
 import net.jojoaddison.repository.DutyRosterRepository;
 import net.jojoaddison.repository.FacilityRepository;
+import net.jojoaddison.repository.GeographicSpaceRepository;
 import net.jojoaddison.repository.HCProfileRepository;
 import net.jojoaddison.repository.HubRepository;
 import net.jojoaddison.repository.MessageRepository;
@@ -124,6 +126,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
     private final OrganisationRepository organisationRepository;
     private final PersonRepository personRepository;
     private final TeamRepository teamRepository;
+    private final GeographicSpaceRepository geographicSpaceRepository;
     private final HCProfileRepository profileRepository;
     private final DutyRosterRepository dutyRosterRepository;
     private final PricingPlanRepository pricingPlanRepository;
@@ -139,6 +142,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         OrganisationRepository organisationRepository,
         PersonRepository personRepository,
         TeamRepository teamRepository,
+        GeographicSpaceRepository geographicSpaceRepository,
         HCProfileRepository profileRepository,
         DutyRosterRepository dutyRosterRepository,
         PricingPlanRepository pricingPlanRepository,
@@ -174,6 +178,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         this.organisationRepository = organisationRepository;
         this.personRepository = personRepository;
         this.teamRepository = teamRepository;
+        this.geographicSpaceRepository = geographicSpaceRepository;
         this.profileRepository = profileRepository;
         this.dutyRosterRepository = dutyRosterRepository;
         this.pricingPlanRepository = pricingPlanRepository;
@@ -228,6 +233,10 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             save("audits", auditLogRepository, profileData.getAudits());
             save("organisations", organisationRepository, profileData.getOrganisations());
             save("persons", personRepository, profileData.getPersons());
+            // Before teams and duty rosters, both of which reference spaces by id. Nothing enforces
+            // that ordering — the references are opaque strings, not DBRefs — but a reader tracing
+            // the fixture should meet the tree before the things that point into it.
+            save("geographicSpaces", geographicSpaceRepository, profileData.getGeographicSpaces());
             save("teams", teamRepository, profileData.getTeams());
             save("profiles", profileRepository, profileData.getProfiles());
             save("dutyRosters", dutyRosterRepository, profileData.getDutyRosters());
@@ -292,6 +301,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         private List<Organisation> organisations = new ArrayList<>();
         private List<Person> persons = new ArrayList<>();
         private List<Team> teams = new ArrayList<>();
+        private List<GeographicSpace> geographicSpaces = new ArrayList<>();
         private List<HCProfile> profiles = new ArrayList<>();
         private List<DutyRoster> dutyRosters = new ArrayList<>();
         private List<PricingPlan> pricingPlans = new ArrayList<>();
@@ -375,6 +385,14 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
 
         public void setTeams(List<Team> teams) {
             this.teams = nullSafe(teams);
+        }
+
+        public List<GeographicSpace> getGeographicSpaces() {
+            return geographicSpaces;
+        }
+
+        public void setGeographicSpaces(List<GeographicSpace> geographicSpaces) {
+            this.geographicSpaces = nullSafe(geographicSpaces);
         }
 
         public List<HCProfile> getProfiles() {

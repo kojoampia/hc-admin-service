@@ -166,6 +166,16 @@ entity Patient {
 // isArchived is not in the console's own hc-admin.jdl. The console's directory
 // screens archive a record rather than deleting it — see hc-admin-app — and the
 // list endpoints filter on it. Keep it whenever this file is regenerated.
+//
+// Neither is homeSpaceId, and it is declared as a plain String rather than as a
+// relationship on purpose: GeographicSpace is not a JHipster entity — it is in no
+// .jhipster/ config and in no JDL — so a relationship to it cannot be expressed
+// here at all, and every other reference to that collection is already an opaque id
+// (Team.geographicSpaceIds, DutyRoster.geographicSpaceId). It is what proximity
+// measures a candidate's distance from; without it the ranking has no origin. Keep
+// it whenever this file is regenerated, and note ProfessionalResource restores it on
+// PUT for the same reason TeamService restores geographicSpaceIds — the console does
+// not send a field it does not know about, and PUT sends a whole document.
 entity Professional {
   id String
   role ProfessionalRole required
@@ -179,6 +189,7 @@ entity Professional {
   rating BigDecimal min(0) max(5)
   joinedOn LocalDate required
   isArchived Boolean
+  homeSpaceId String
 }
 
 /**

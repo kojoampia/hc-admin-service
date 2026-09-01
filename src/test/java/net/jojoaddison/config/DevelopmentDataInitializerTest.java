@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.Professional;
@@ -66,6 +67,7 @@ class DevelopmentDataInitializerTest {
         assertThat(dev.getOrganisations()).hasSize(1);
         assertThat(dev.getPersons()).hasSize(1);
         assertThat(dev.getTeams()).hasSize(1);
+        assertThat(dev.getGeographicSpaces()).hasSize(2);
         assertThat(dev.getDutyRosters()).hasSize(1);
         assertThat(dev.getPricingPlans()).hasSize(1);
         assertThat(dev.getSystemCatalogs()).hasSize(1);
@@ -150,6 +152,7 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getAuditEntries()).hasSize(7);
         assertThat(test.getAddresses()).hasSize(13);
         assertThat(test.getTeams()).hasSize(4);
+        assertThat(test.getGeographicSpaces()).hasSize(10);
         assertThat(test.getHubs()).hasSize(2);
         assertThat(test.getOrganisations()).hasSize(1);
     }
@@ -428,6 +431,102 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getShiftAssignments().stream().map(shift -> YearMonth.from(shift.getShiftDate())).distinct())
             .hasSizeGreaterThanOrEqualTo(4);
         assertThat(test.getShiftAssignments().stream().filter(shift -> shift.getShift() != ShiftType.OFF)).hasSize(654);
+    }
+
+    /**
+     * <b>The geography is a tree, not a flat list of names.</b>
+     *
+     * <p>Proximity — same space, then same parent, then same ancestor — is a walk up
+     * {@code parentId}. A fixture of unrelated rows satisfies "spaces exist" and can only ever
+     * exercise the first of those three steps, so the ranking would look implemented and would be
+     * untestable past its cheapest case. This asserts the shape the walk needs: exactly one root,
+     * every other space reaching it, and depth enough for "same parent" and "same ancestor" to be
+     * different answers.
+     *
+     * <p>It also asserts what the guard forbids, from the data side. {@code
+     * GeographicSpaceCycleGuard} refuses a cycle on write; this refuses one in the file, which is the
+     * copy that gets re-saved on every start and would therefore be the thing reintroducing it.
+     */
+    @Test
+    void shouldSeedGeographicSpacesAsATreeWithASingleRoot() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<String, String> parentOf = test
+            .getGeographicSpaces()
+            .stream()
+            .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
+
+        assertThat(parentOf).hasSameSizeAs(test.getGeographicSpaces());
+        assertThat(parentOf.entrySet().stream().filter(entry -> entry.getValue() == null).map(Map.Entry::getKey))
+            .as("exactly one root")
+            .containsExactly("gs-ghana");
+        assertThat(parentOf.values())
+            .filteredOn(java.util.Objects::nonNull)
+            .allSatisfy(parentId -> assertThat(parentOf).as("parent %s is itself a seeded space", parentId).containsKey(parentId));
+
+        // Every space reaches the root, in a bounded number of steps. The bound is what makes this a
+        // test rather than a hang: an unrooted cycle would otherwise spin here exactly as it would
+        // in the ranking.
+        for (String id : parentOf.keySet()) {
+            String walker = id;
+            int steps = 0;
+            while (parentOf.get(walker) != null && steps <= parentOf.size()) {
+                walker = parentOf.get(walker);
+                steps++;
+            }
+            assertThat(walker).as("ancestry of %s terminates at the root", id).isEqualTo("gs-ghana");
+        }
+
+        // Four levels, so "same parent" and "same ancestor" can disagree.
+        assertThat(parentOf).containsEntry("gs-osu", "gs-accra").containsEntry("gs-accra", "gs-greater-accra");
+    }
+
+    /**
+     * <b>Every professional is based somewhere, and the somewheres make proximity testable.</b>
+     *
+     * <p>{@code Professional.homeSpaceId} is the other end of the comparison the ranking makes
+     * against a shift's own space; without it there is nothing to measure "near" against. A fixture
+     * that merely filled the field would satisfy "not null" and still leave the ranking with one
+     * possible answer, so this asserts the four cases the ranking has to tell apart: two clinicians
+     * in the same space, two sharing a parent, two sharing only a distant ancestor, and — through the
+     * hub check below — no home that contradicts where the person actually works.
+     */
+    @Test
+    void shouldGiveEveryProfessionalAHomeSpaceThatMakesProximityMeaningful() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        // Collected into a HashMap rather than through Collectors.toMap, which throws on a null
+        // value — the assertion below has to be able to report a missing home space rather than be
+        // pre-empted by an NPE inside the collector.
+        Map<String, String> homeOf = test
+            .getProfessionals()
+            .stream()
+            .collect(HashMap::new, (map, professional) -> map.put(professional.getId(), professional.getHomeSpaceId()), HashMap::putAll);
+        Map<String, String> parentOf = test
+            .getGeographicSpaces()
+            .stream()
+            .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
+
+        assertThat(homeOf).hasSameSizeAs(test.getProfessionals()).doesNotContainValue(null);
+        assertThat(homeOf.values())
+            .allSatisfy(spaceId -> assertThat(parentOf).as("home space %s is a seeded space", spaceId).containsKey(spaceId));
+
+        // Same space, same parent, and same ancestor only — the three tiers, each reachable.
+        assertThat(homeOf.get("p2")).as("same space as p1").isEqualTo(homeOf.get("p1"));
+        assertThat(homeOf.get("p3")).as("a different space from p1").isNotEqualTo(homeOf.get("p1"));
+        assertThat(parentOf.get(homeOf.get("p3"))).as("but the same parent as p1").isEqualTo(parentOf.get(homeOf.get("p1")));
+        assertThat(parentOf.get(homeOf.get("p5"))).as("p5 shares no parent with p1").isNotEqualTo(parentOf.get(homeOf.get("p1")));
+
+        // And a home space that agrees with the hub the person is attached to. The two are separate
+        // fields and nothing joins them, so a fixture can put an Accra clinician in Kumasi and read
+        // as complete — which would make every proximity result look like a bug in the ranking.
+        Map<String, String> regionOf = Map.of("hub-1", "gs-greater-accra", "hub-2", "gs-ashanti");
+        assertThat(test.getProfessionals())
+            .allSatisfy(professional ->
+                assertThat(regionOf.get(professional.getHub().getId()))
+                    .as("home region of %s", professional.getId())
+                    .isEqualTo(parentOf.get(parentOf.get(professional.getHomeSpaceId())))
+            );
     }
 
     /**

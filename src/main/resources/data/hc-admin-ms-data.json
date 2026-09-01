@@ -74,6 +74,20 @@
         "language": "EN"
       }
     ],
+    "geographicSpaces": [
+      {
+        "id": "building-a",
+        "name": "Building A",
+        "type": "BUILDING",
+        "parentId": null
+      },
+      {
+        "id": "room-101",
+        "name": "Room 101",
+        "type": "ROOM",
+        "parentId": "building-a"
+      }
+    ],
     "teams": [
       {
         "id": "team-001",
@@ -1146,7 +1160,8 @@
         "hub": {
           "id": "hub-1",
           "name": "Accra Hub"
-        }
+        },
+        "homeSpaceId": "gs-osu"
       },
       {
         "id": "p2",
@@ -1173,7 +1188,8 @@
         "hub": {
           "id": "hub-1",
           "name": "Accra Hub"
-        }
+        },
+        "homeSpaceId": "gs-osu"
       },
       {
         "id": "p3",
@@ -1200,7 +1216,8 @@
         "hub": {
           "id": "hub-1",
           "name": "Accra Hub"
-        }
+        },
+        "homeSpaceId": "gs-madina"
       },
       {
         "id": "p4",
@@ -1227,7 +1244,8 @@
         "hub": {
           "id": "hub-1",
           "name": "Accra Hub"
-        }
+        },
+        "homeSpaceId": "gs-tema"
       },
       {
         "id": "p5",
@@ -1254,7 +1272,8 @@
         "hub": {
           "id": "hub-2",
           "name": "Kumasi Hub"
-        }
+        },
+        "homeSpaceId": "gs-asokwa"
       },
       {
         "id": "p6",
@@ -1281,7 +1300,8 @@
         "hub": {
           "id": "hub-2",
           "name": "Kumasi Hub"
-        }
+        },
+        "homeSpaceId": "gs-suame"
       },
       {
         "id": "p7",
@@ -1308,7 +1328,8 @@
         "hub": {
           "id": "hub-1",
           "name": "Accra Hub"
-        }
+        },
+        "homeSpaceId": "gs-madina"
       },
       {
         "id": "p8",
@@ -1335,7 +1356,8 @@
         "hub": {
           "id": "hub-1",
           "name": "Accra Hub"
-        }
+        },
+        "homeSpaceId": "gs-tema"
       },
       {
         "id": "p9",
@@ -1362,7 +1384,70 @@
         "hub": {
           "id": "hub-2",
           "name": "Kumasi Hub"
-        }
+        },
+        "homeSpaceId": "gs-asokwa"
+      }
+    ],
+    "geographicSpaces": [
+      {
+        "id": "gs-ghana",
+        "name": "Ghana",
+        "type": "COUNTRY",
+        "parentId": null
+      },
+      {
+        "id": "gs-greater-accra",
+        "name": "Greater Accra",
+        "type": "REGION",
+        "parentId": "gs-ghana"
+      },
+      {
+        "id": "gs-accra",
+        "name": "Accra",
+        "type": "CITY",
+        "parentId": "gs-greater-accra"
+      },
+      {
+        "id": "gs-osu",
+        "name": "Osu",
+        "type": "DISTRICT",
+        "parentId": "gs-accra"
+      },
+      {
+        "id": "gs-madina",
+        "name": "Madina",
+        "type": "DISTRICT",
+        "parentId": "gs-accra"
+      },
+      {
+        "id": "gs-tema",
+        "name": "Tema",
+        "type": "DISTRICT",
+        "parentId": "gs-accra"
+      },
+      {
+        "id": "gs-ashanti",
+        "name": "Ashanti",
+        "type": "REGION",
+        "parentId": "gs-ghana"
+      },
+      {
+        "id": "gs-kumasi",
+        "name": "Kumasi",
+        "type": "CITY",
+        "parentId": "gs-ashanti"
+      },
+      {
+        "id": "gs-asokwa",
+        "name": "Asokwa",
+        "type": "DISTRICT",
+        "parentId": "gs-kumasi"
+      },
+      {
+        "id": "gs-suame",
+        "name": "Suame",
+        "type": "DISTRICT",
+        "parentId": "gs-kumasi"
       }
     ],
     "teams": [
