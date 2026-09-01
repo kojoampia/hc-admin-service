@@ -1,16 +1,12 @@
 package net.jojoaddison.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashSet;
-import java.util.Set;
 import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -46,11 +42,6 @@ public class RosterWeek implements Serializable {
 
     @Field("published_at")
     private Instant publishedAt;
-
-    @DBRef
-    @Field("assignment")
-    @JsonIgnoreProperties(value = { "week", "professional" }, allowSetters = true)
-    private Set<ShiftAssignment> assignments = new HashSet<>();
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
@@ -117,37 +108,6 @@ public class RosterWeek implements Serializable {
 
     public void setPublishedAt(Instant publishedAt) {
         this.publishedAt = publishedAt;
-    }
-
-    public Set<ShiftAssignment> getAssignments() {
-        return this.assignments;
-    }
-
-    public void setAssignments(Set<ShiftAssignment> shiftAssignments) {
-        if (this.assignments != null) {
-            this.assignments.forEach(i -> i.setWeek(null));
-        }
-        if (shiftAssignments != null) {
-            shiftAssignments.forEach(i -> i.setWeek(this));
-        }
-        this.assignments = shiftAssignments;
-    }
-
-    public RosterWeek assignments(Set<ShiftAssignment> shiftAssignments) {
-        this.setAssignments(shiftAssignments);
-        return this;
-    }
-
-    public RosterWeek addAssignment(ShiftAssignment shiftAssignment) {
-        this.assignments.add(shiftAssignment);
-        shiftAssignment.setWeek(this);
-        return this;
-    }
-
-    public RosterWeek removeAssignment(ShiftAssignment shiftAssignment) {
-        this.assignments.remove(shiftAssignment);
-        shiftAssignment.setWeek(null);
-        return this;
     }
 
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
