@@ -111,6 +111,29 @@ public class Vendor implements Serializable {
     @Field("is_archived")
     private Boolean isArchived;
 
+    /**
+     * The vendor-gateway login this record belongs to — hc-vendor's counterpart to
+     * {@code Profile.account_id}.
+     *
+     * <p>hc-vendor is a PostgreSQL subsystem and this service is MongoDB, so a vendor's directory
+     * record here and its purchase orders there can never be joined in a query. This string is the
+     * only thing relating them, and the relation is resolved over HTTP through
+     * {@code /services/adminservice/api/vendors?accountId.equals=…}. It is an application-level
+     * convention, not a foreign key, and nothing in either database enforces it.
+     *
+     * <p>Nullable, and absent on every document written before this field existed — most vendors
+     * have no portal login and are not expected to grow one. Absent therefore reads as "not
+     * linked", not as an error: a vendor without one is an ordinary directory entry.
+     *
+     * <p><b>Expected to be unique where present.</b> A login resolving to two vendors would show
+     * one of them another vendor's orders. No unique index enforces that — no field in this domain
+     * is indexed — so the guard is {@code VendorAccountLinkIT.seededAccountIdsAreDistinct}. Do not
+     * populate this by hand without checking what already holds the value.
+     */
+    @Size(max = 50)
+    @Field("account_id")
+    private String accountId;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public String getId() {
@@ -370,6 +393,19 @@ public class Vendor implements Serializable {
         this.isArchived = isArchived;
     }
 
+    public String getAccountId() {
+        return this.accountId;
+    }
+
+    public Vendor accountId(String accountId) {
+        this.setAccountId(accountId);
+        return this;
+    }
+
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -408,6 +444,7 @@ public class Vendor implements Serializable {
             ", spendToDate=" + getSpendToDate() +
             ", rating=" + getRating() +
             ", isArchived='" + getIsArchived() + "'" +
+            ", accountId='" + getAccountId() + "'" +
             "}";
     }
 }

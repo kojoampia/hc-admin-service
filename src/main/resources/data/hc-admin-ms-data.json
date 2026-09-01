@@ -1406,6 +1406,7 @@
     "vendors": [
       {
         "id": "v1",
+        "accountId": "kaneshie",
         "isArchived": false,
         "name": "Kaneshie Medical Supplies",
         "category": "Consumables",
@@ -1423,6 +1424,7 @@
       },
       {
         "id": "v2",
+        "accountId": "ridge",
         "isArchived": false,
         "name": "Ridge Diagnostics Lab",
         "category": "Diagnostics",
@@ -1448,6 +1450,7 @@
       },
       {
         "id": "v3",
+        "accountId": "goldstar",
         "isArchived": false,
         "name": "GoldStar Pharmacy",
         "category": "Pharmacy",
@@ -1473,6 +1476,7 @@
       },
       {
         "id": "v4",
+        "accountId": "swiftamb",
         "isArchived": true,
         "name": "SwiftAmb Transport",
         "category": "Transport",
@@ -1490,6 +1494,7 @@
       },
       {
         "id": "v5",
+        "accountId": "homecare",
         "isArchived": false,
         "name": "Homecare Equipment GH",
         "category": "Equipment",
@@ -1507,6 +1512,7 @@
       },
       {
         "id": "v6",
+        "accountId": "volta",
         "isArchived": false,
         "name": "Volta Nutrition Services",
         "category": "Nutrition",
@@ -1524,6 +1530,7 @@
       },
       {
         "id": "v7",
+        "accountId": "tkphysio",
         "isArchived": false,
         "name": "Takoradi Physio Partners",
         "category": "Therapy",
@@ -1546,6 +1553,7 @@
       },
       {
         "id": "v8",
+        "accountId": "bridgepay",
         "isArchived": false,
         "name": "BridgePay Settlement",
         "category": "Payments",
@@ -1563,6 +1571,7 @@
       },
       {
         "id": "v9",
+        "accountId": "cclinens",
         "isArchived": false,
         "name": "Cape Coast Care Linens",
         "category": "Consumables",

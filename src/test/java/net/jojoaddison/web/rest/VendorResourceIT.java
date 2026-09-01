@@ -75,6 +75,9 @@ class VendorResourceIT {
     private static final Boolean DEFAULT_IS_ARCHIVED = false;
     private static final Boolean UPDATED_IS_ARCHIVED = true;
 
+    private static final String DEFAULT_ACCOUNT_ID = "AAAAAAAAAA";
+    private static final String UPDATED_ACCOUNT_ID = "BBBBBBBBBB";
+
     private static final String ENTITY_API_URL = "/api/vendors";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -112,7 +115,8 @@ class VendorResourceIT {
             .orderCount(DEFAULT_ORDER_COUNT)
             .spendToDate(DEFAULT_SPEND_TO_DATE)
             .rating(DEFAULT_RATING)
-            .isArchived(DEFAULT_IS_ARCHIVED);
+            .isArchived(DEFAULT_IS_ARCHIVED)
+            .accountId(DEFAULT_ACCOUNT_ID);
     }
 
     /**
@@ -136,7 +140,8 @@ class VendorResourceIT {
             .orderCount(UPDATED_ORDER_COUNT)
             .spendToDate(UPDATED_SPEND_TO_DATE)
             .rating(UPDATED_RATING)
-            .isArchived(UPDATED_IS_ARCHIVED);
+            .isArchived(UPDATED_IS_ARCHIVED)
+            .accountId(UPDATED_ACCOUNT_ID);
     }
 
     @BeforeEach
@@ -258,7 +263,8 @@ class VendorResourceIT {
             .andExpect(jsonPath("$.[*].orderCount").value(hasItem(DEFAULT_ORDER_COUNT)))
             .andExpect(jsonPath("$.[*].spendToDate").value(hasItem(sameNumber(DEFAULT_SPEND_TO_DATE))))
             .andExpect(jsonPath("$.[*].rating").value(hasItem(sameNumber(DEFAULT_RATING))))
-            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)));
+            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)))
+            .andExpect(jsonPath("$.[*].accountId").value(hasItem(DEFAULT_ACCOUNT_ID)));
     }
 
     @Test
@@ -285,7 +291,8 @@ class VendorResourceIT {
             .andExpect(jsonPath("$.orderCount").value(DEFAULT_ORDER_COUNT))
             .andExpect(jsonPath("$.spendToDate").value(sameNumber(DEFAULT_SPEND_TO_DATE)))
             .andExpect(jsonPath("$.rating").value(sameNumber(DEFAULT_RATING)))
-            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED));
+            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED))
+            .andExpect(jsonPath("$.accountId").value(DEFAULT_ACCOUNT_ID));
     }
 
     @Test
@@ -437,7 +444,8 @@ class VendorResourceIT {
             .orderCount(UPDATED_ORDER_COUNT)
             .spendToDate(UPDATED_SPEND_TO_DATE)
             .rating(UPDATED_RATING)
-            .isArchived(UPDATED_IS_ARCHIVED);
+            .isArchived(UPDATED_IS_ARCHIVED)
+            .accountId(UPDATED_ACCOUNT_ID);
 
         restVendorMockMvc
             .perform(

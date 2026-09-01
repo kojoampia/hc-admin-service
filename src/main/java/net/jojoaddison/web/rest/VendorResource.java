@@ -155,6 +155,7 @@ public class VendorResource {
                 updateIfPresent(existingVendor::setSpendToDate, vendor.getSpendToDate());
                 updateIfPresent(existingVendor::setRating, vendor.getRating());
                 updateIfPresent(existingVendor::setIsArchived, vendor.getIsArchived());
+                updateIfPresent(existingVendor::setAccountId, vendor.getAccountId());
 
                 return existingVendor;
             })
@@ -169,6 +170,7 @@ public class VendorResource {
      * @param pageable the pagination information.
      * @param isArchivedEquals when true, return only archived records; when false, only unarchived.
      * @param isArchivedNotEquals the inverse, sent by the console as {@code isArchived.notEquals=true}.
+     * @param accountIdEquals the vendor-gateway login to resolve to a directory record.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Vendors in body.
      */
     @GetMapping("")
@@ -178,15 +180,25 @@ public class VendorResource {
         @RequestParam(name = "isArchived.notEquals", required = false) Boolean isArchivedNotEquals,
         // The directory tiles filter on these and read their counts from X-Total-Count. Undeclared,
         // Spring drops them and every tile reads the collection total.
-        @RequestParam(name = "status.equals", required = false) AccountStatus statusEquals
+        @RequestParam(name = "status.equals", required = false) AccountStatus statusEquals,
+        // hc-vendor resolves a portal login to a vendor here. Deliberately this filter rather than a
+        // /vendors/account/{login} route: a page is an unambiguous answer where a 404 is not. The
+        // vendor portal's own spec records the failure it is avoiding — in the sibling subsystems a
+        // login that names no record 404s exactly like a service that is down, and it reads to the
+        // user as "you have no vendor record". An empty page cannot be confused with either.
+        //
+        // One sharp edge for the caller: NamedFilters drops null *and blank* values, so
+        // `?accountId.equals=` is not "no vendor" — it is no filter at all, and returns the whole
+        // directory. Resolve with a login you have already established is non-empty.
+        @RequestParam(name = "accountId.equals", required = false) String accountIdEquals
     ) {
         LOG.debug("REST request to get a page of Vendors");
-        // The two operators the console sends, and only those. This is not a criteria framework:
-        // every other entity here lists unfiltered, and inventing a general query language for one
-        // boolean would be a much larger surface than the screen that needs it.
+        // The operators the console and the vendor portal send, and only those. This is not a
+        // criteria framework: every other entity here lists unfiltered, and inventing a general
+        // query language would be a much larger surface than the screens that need it.
         Boolean archived = resolveArchivedFilter(isArchivedEquals, isArchivedNotEquals);
 
-        NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals);
+        NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals).equals("account_id", accountIdEquals);
         // Archived stays `$ne: true` rather than `is(false)`: a document written before the field
         // existed does not carry it, and `is_archived: false` matches none of them.
         if (archived != null) {
