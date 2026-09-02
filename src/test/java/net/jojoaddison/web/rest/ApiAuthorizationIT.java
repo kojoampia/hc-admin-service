@@ -1,5 +1,6 @@
 package net.jojoaddison.web.rest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -7,18 +8,23 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.security.AuthoritiesConstants;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 /**
  * The authorization matrix for {@code /api/**}.
@@ -40,6 +46,11 @@ import org.springframework.test.web.servlet.MockMvc;
  * whatever {@code TestSecurityContextHolder} placed there, and every request comes back 401. The
  * post-processor puts the authorities on the request itself, where the bearer-token filter reads
  * them.
+ *
+ * <p>The corollary is how an anonymous case is written: <em>no</em> post-processor at all, so the
+ * request carries no {@code Authorization} header. {@code jwt()} with an empty authority set is not
+ * the same thing — it is an authenticated principal holding nothing, which satisfies
+ * {@code .authenticated()} and would pass a {@code permitAll} identically, asserting neither.
  */
 @IntegrationTest
 @AutoConfigureMockMvc
@@ -50,6 +61,12 @@ class ApiAuthorizationIT {
 
     @Autowired
     private MockMvc mvc;
+
+    // Qualified by name: actuator contributes a second RequestMappingHandlerMapping
+    // (controllerEndpointHandlerMapping) and by type alone this is ambiguous.
+    @Autowired
+    @Qualifier("requestMappingHandlerMapping")
+    private RequestMappingHandlerMapping handlerMapping;
 
     private static JwtRequestPostProcessor as(String... authorities) {
         return jwt().authorities(Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toArray(GrantedAuthority[]::new));
@@ -232,6 +249,139 @@ class ApiAuthorizationIT {
     @Test
     void operatorCanReadTheVerificationHistory() throws Exception {
         mvc.perform(get("/api/professional-verifications").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
+    }
+
+    // --- geographic spaces: reference data, readable by anybody who is signed in --------------------
+
+    /**
+     * <b>This is the assertion the endpoint exists for.</b>
+     *
+     * <p>hc-professional stores a geographic space id on a roster round and has to render a name
+     * beside it. Its callers hold hc-professional's clinical authorities, which this service does not
+     * know and deliberately does not enumerate — so the gate is authentication, and the only way to
+     * say that in a test is to present a token holding an authority that reaches nothing else here.
+     * {@code ROLE_USER} is exactly that token: {@code plainUserIsRefusedEverywhere} above pins that
+     * it is refused across the entity surface, so a pass here cannot be the blanket rule leaking.
+     *
+     * <p>Written as its own case rather than added to that sweep for the same reason: the sweep says
+     * "nothing", this says "this one thing", and a change that merged them would delete the
+     * distinction the decision turns on.
+     */
+    @Test
+    void anyAuthenticatedCallerCanResolveAGeographicSpace() throws Exception {
+        mvc.perform(get("/api/geographic-spaces").with(as(AuthoritiesConstants.USER))).andExpect(status().isOk());
+        // 404 and not 403: the id is unknown, which is a fact about geography. The point is that the
+        // chain admitted the caller and the handler answered.
+        mvc.perform(get("/api/geographic-spaces/no-such-space").with(as(AuthoritiesConstants.USER))).andExpect(status().isNotFound());
+    }
+
+    /**
+     * The carve-out is on {@code GET} only.
+     *
+     * <p>There is no write mapping on {@code GeographicSpaceReferenceResource} today, so this asserts
+     * that the blanket {@code /api/** -> ROLE_ADMIN} rule is what would answer if one were added —
+     * 403 rather than 404. Without it, a later CRUD resource on this path would arrive with its
+     * writes already open to every authenticated caller in the network and nothing would fail.
+     */
+    @Test
+    void theGeographicSpaceCarveOutDoesNotExtendToWrites() throws Exception {
+        mvc
+            .perform(
+                post("/api/geographic-spaces").with(as(AuthoritiesConstants.USER)).contentType(MediaType.APPLICATION_JSON).content("{}")
+            )
+            .andExpect(status().isForbidden());
+        mvc.perform(delete("/api/geographic-spaces/any-id").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
+    }
+
+    /**
+     * <b>And the floor has a ceiling: signed in is still required.</b>
+     *
+     * <p>Written after a review found that {@link #anyAuthenticatedCallerCanResolveAGeographicSpace}
+     * pins only how far the carve-out reaches <em>down</em>. Change either matcher in
+     * {@code SecurityConfiguration} from {@code .authenticated()} to {@code .permitAll()} and the
+     * whole suite stayed green: the {@code ROLE_USER} cases go on passing, the write case goes on
+     * passing because the blanket rules answer writes, and no case sent this path with no token at
+     * all. This is the identical gap that let {@code /api/** -> authenticated()} survive — this class
+     * is the only one running with the filter chain on, and a question it does not ask is a question
+     * nothing else in the suite can ask.
+     *
+     * <p>No {@code .with(as(...))} on purpose: the request carries no {@code Authorization} header
+     * whatsoever, which is what "anonymous" has to mean here. A token holding an empty authority set
+     * would still be an authenticated principal and would pass a {@code permitAll} and an
+     * {@code authenticated()} alike, asserting nothing.
+     *
+     * <p>401 and not 403, for the reason {@link #anonymousIsChallenged} gives: a 403 would mean an
+     * anonymous principal was reaching the chain as authenticated-but-unauthorized.
+     */
+    @Test
+    void anonymousCannotResolveAGeographicSpace() throws Exception {
+        mvc.perform(get("/api/geographic-spaces")).andExpect(status().isUnauthorized());
+        // The unknown-id case too: under permitAll this answers 404, which is a pass for the
+        // ROLE_USER case above and would be a silent pass here as well if it were not asserted.
+        mvc.perform(get("/api/geographic-spaces/no-such-space")).andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * And it does not extend to a sub-path either.
+     *
+     * <p>The matchers name {@code /api/geographic-spaces} and {@code /api/geographic-spaces/{id}}
+     * exactly rather than {@code /api/geographic-spaces/**}, so anything deeper — the professionals
+     * based in a space, say, which is a list of people and not a place name — falls to the blanket
+     * read rule and is refused. This asserts the failing direction is the safe one; the path itself
+     * does not exist, and a 403 rather than a 404 is what says the chain decided before the handler
+     * lookup did.
+     *
+     * <p>Two segments, and it can only ever be two: see
+     * {@link #noLiteralSiblingHidesBehindTheGeographicSpaceIdMatcher} for the one-segment case, which
+     * this cannot reach.
+     */
+    @Test
+    void theGeographicSpaceCarveOutDoesNotExtendToSubPaths() throws Exception {
+        mvc
+            .perform(get("/api/geographic-spaces/any-id/professionals").with(as(AuthoritiesConstants.USER)))
+            .andExpect(status().isForbidden());
+    }
+
+    /**
+     * The one-segment sibling, which no request can test and which the matchers do not stop.
+     *
+     * <p>{@code /api/geographic-spaces/{id}} is a <em>single-segment</em> wildcard. The sub-path case
+     * above is safe because it is two segments deep; a literal one segment deep — {@code /export},
+     * say — matches {@code {id}}, is admitted on authentication alone, and is then routed by MVC to
+     * its own handler. There is no request that demonstrates this today, because the sibling does not
+     * exist; by the time one does, the damage is already written and green.
+     *
+     * <p>So this asserts the shape of the application instead: exactly the two patterns the two
+     * matchers name are mapped under this path. It fails on the commit that adds a third, which is
+     * precisely when somebody needs to read the rule in {@code SecurityConfiguration}. The precedent
+     * is in the same file twelve lines below — {@code /api/patients/export} is this exact shape and
+     * needed an admin-only matcher of its own, above the read rule rather than below it.
+     *
+     * <p>Discovered from the handler mapping rather than enumerated, for {@code PaginationIT}'s
+     * reason: a list that has to be extended by hand stops covering things without saying so.
+     */
+    @Test
+    void noLiteralSiblingHidesBehindTheGeographicSpaceIdMatcher() {
+        List<String> mapped = handlerMapping
+            .getHandlerMethods()
+            .keySet()
+            .stream()
+            .map(RequestMappingInfo::getPathPatternsCondition)
+            .filter(Objects::nonNull)
+            .flatMap(condition -> condition.getPatternValues().stream())
+            .filter(pattern -> pattern.startsWith("/api/geographic-spaces"))
+            .distinct()
+            .sorted()
+            .toList();
+
+        assertThat(mapped)
+            .as(
+                "A new path under /api/geographic-spaces/ needs its own matcher ABOVE the two in " +
+                "SecurityConfiguration, gated on what it discloses — one segment deep it matches " +
+                "{id} and is open to every authenticated caller on three stacks. Add the matcher, " +
+                "then add the pattern here."
+            )
+            .containsExactlyInAnyOrder("/api/geographic-spaces", "/api/geographic-spaces/{id}");
     }
 
     // --- the patient carve-out --------------------------------------------------------------------

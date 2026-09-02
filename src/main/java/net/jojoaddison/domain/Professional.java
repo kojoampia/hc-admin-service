@@ -101,6 +101,32 @@ public class Professional implements Serializable {
     @Field("is_archived")
     private Boolean isArchived;
 
+    /**
+     * Where this professional is based, as a {@code GeographicSpace} id.
+     *
+     * <p><b>Proximity has nothing to measure against without it.</b> A shift knows the space it is
+     * in; ranking candidates by how near they are needs the other end of that comparison, and no
+     * field on this document supplied one — {@code hub} is a building, and {@code team} carries the
+     * spaces the team covers rather than the spaces its members live in.
+     *
+     * <p>An opaque id, not a {@code @DBRef}, and that is the one thing here that reads as
+     * inconsistent: {@code profile}, {@code team} and {@code hub} are all {@code @DBRef}. Three
+     * reasons it is not. {@code GeographicSpace} is not a JHipster entity — it appears in no
+     * {@code .jhipster/} config and in no {@code jdl/} file — so a relationship to it cannot be
+     * expressed in {@code .jhipster/Professional.json}, and a regeneration would drop it in silence.
+     * Every other reference to this collection in the service is already an opaque id
+     * ({@code Team.geographicSpaceIds}, {@code DutyRoster.geographicSpaceId}). And
+     * {@code ProfessionalResource} serialises this entity directly with no DTO, so a {@code @DBRef}
+     * would put a whole space — and, once the tree is walked for display, its ancestry — into every
+     * row of the directory listing.
+     *
+     * <p>The console does not send it, so {@code ProfessionalResource.updateProfessional} restores
+     * the stored value when a {@code PUT} arrives without one. See the note there: this is the same
+     * silent erasure {@code TeamService.restoreGeographicSpaceIds} exists to prevent.
+     */
+    @Field("home_space_id")
+    private String homeSpaceId;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
     public String getId() {
@@ -329,6 +355,19 @@ public class Professional implements Serializable {
         this.isArchived = isArchived;
     }
 
+    public String getHomeSpaceId() {
+        return this.homeSpaceId;
+    }
+
+    public Professional homeSpaceId(String homeSpaceId) {
+        this.setHomeSpaceId(homeSpaceId);
+        return this;
+    }
+
+    public void setHomeSpaceId(String homeSpaceId) {
+        this.homeSpaceId = homeSpaceId;
+    }
+
     // jhipster-needle-entity-add-getters-setters - JHipster will add getters and setters here
 
     @Override
@@ -364,6 +403,7 @@ public class Professional implements Serializable {
             ", rating=" + getRating() +
             ", joinedOn='" + getJoinedOn() + "'" +
             ", isArchived='" + getIsArchived() + "'" +
+            ", homeSpaceId='" + getHomeSpaceId() + "'" +
             "}";
     }
 }
