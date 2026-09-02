@@ -26,7 +26,7 @@ import tech.jhipster.web.util.ResponseUtil;
  * beside it. The decision recorded in {@code docs/duty-roster-plan.md} § 9 was to give it a narrow
  * purpose-built read rather than to widen an entity surface — and the entity surface it names does
  * not in fact exist: {@code GeographicSpace} had no resource, no DTO and no mapper in this service
- * before this class, so there was nothing to widen. Both documents describe
+ * before this class, so there was nothing to widen. That document describes
  * {@code GET /api/geographic-spaces} as existing generated CRUD gated on {@code ROLE_ADMIN} /
  * {@code ROLE_OPERATOR}. It did not exist at all.
  *

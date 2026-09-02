@@ -226,46 +226,50 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             return;
         }
 
-        try {
-            save("addresses", addressRepository, profileData.getAddresses());
-            save("contacts", contactRepository, profileData.getContacts());
-            save("facilities", facilityRepository, profileData.getFacilities());
-            save("audits", auditLogRepository, profileData.getAudits());
-            save("organisations", organisationRepository, profileData.getOrganisations());
-            save("persons", personRepository, profileData.getPersons());
-            // Before teams and duty rosters, both of which reference spaces by id. Nothing enforces
-            // that ordering — the references are opaque strings, not DBRefs — but a reader tracing
-            // the fixture should meet the tree before the things that point into it.
-            save("geographicSpaces", geographicSpaceRepository, profileData.getGeographicSpaces());
-            save("teams", teamRepository, profileData.getTeams());
-            save("profiles", profileRepository, profileData.getProfiles());
-            save("dutyRosters", dutyRosterRepository, profileData.getDutyRosters());
-            save("pricingPlans", pricingPlanRepository, profileData.getPricingPlans());
-            save("systemCatalogs", systemCatalogRepository, profileData.getSystemCatalogs());
-            save("personProfiles", profileRecordRepository, profileData.getPersonProfiles());
-            save("hubs", hubRepository, profileData.getHubs());
-            save("angels", angelRepository, profileData.getAngels());
-            save("professionals", professionalRepository, profileData.getProfessionals());
-            save("servicePlans", servicePlanRepository, profileData.getServicePlans());
-            save("planFeatures", planFeatureRepository, profileData.getPlanFeatures());
-            save("patients", patientRepository, profileData.getPatients());
-            save("vendors", vendorRepository, profileData.getVendors());
-            save("messages", messageRepository, profileData.getMessages());
-            save("tasks", taskRepository, profileData.getTasks());
-            save("rosterWeeks", rosterWeekRepository, profileData.getRosterWeeks());
-            save("shiftAssignments", shiftAssignmentRepository, profileData.getShiftAssignments());
-            save("categories", categoryRepository, profileData.getCategories());
-            save("serviceActivities", serviceActivityRepository, profileData.getServiceActivities());
-            save("careActivities", careActivityRepository, profileData.getCareActivities());
-            save("documents", documentRepository, profileData.getDocuments());
-            save("userOptions", userOptionRepository, profileData.getUserOptions());
-            save("platformServices", platformServiceRepository, profileData.getPlatformServices());
-            save("auditEntries", auditEntryRepository, profileData.getAuditEntries());
-            save("wageRates", wageRateRepository, profileData.getWageRates());
-            save("professionalVerifications", professionalVerificationRepository, profileData.getProfessionalVerifications());
-        } catch (RuntimeException e) {
-            log.error("Failed to persist {} seed data", profile, e);
-        }
+        // No try around the block: each save catches for itself, so one collection that cannot be
+        // written no longer takes every collection after it with it. See save(...) below.
+        save("addresses", addressRepository, profileData.getAddresses());
+        save("contacts", contactRepository, profileData.getContacts());
+        save("facilities", facilityRepository, profileData.getFacilities());
+        save("audits", auditLogRepository, profileData.getAudits());
+        save("organisations", organisationRepository, profileData.getOrganisations());
+        save("persons", personRepository, profileData.getPersons());
+        // Before teams and duty rosters, both of which reference spaces by id. Nothing enforces
+        // that ordering — the references are opaque strings, not DBRefs — it is here so that the
+        // sequence of saves reads in the direction the references point.
+        //
+        // It says nothing about the file, and said so until 2026-09-02: under `test` the tree sits
+        // several thousand lines BELOW the teams and professionals that point into it, and the file
+        // is not in this order anywhere (facilities and audits are its last two keys and its third
+        // and fourth save). Reordering 16,000 lines of fixture to match would be a large diff
+        // asserting a property nothing reads.
+        save("geographicSpaces", geographicSpaceRepository, profileData.getGeographicSpaces());
+        save("teams", teamRepository, profileData.getTeams());
+        save("profiles", profileRepository, profileData.getProfiles());
+        save("dutyRosters", dutyRosterRepository, profileData.getDutyRosters());
+        save("pricingPlans", pricingPlanRepository, profileData.getPricingPlans());
+        save("systemCatalogs", systemCatalogRepository, profileData.getSystemCatalogs());
+        save("personProfiles", profileRecordRepository, profileData.getPersonProfiles());
+        save("hubs", hubRepository, profileData.getHubs());
+        save("angels", angelRepository, profileData.getAngels());
+        save("professionals", professionalRepository, profileData.getProfessionals());
+        save("servicePlans", servicePlanRepository, profileData.getServicePlans());
+        save("planFeatures", planFeatureRepository, profileData.getPlanFeatures());
+        save("patients", patientRepository, profileData.getPatients());
+        save("vendors", vendorRepository, profileData.getVendors());
+        save("messages", messageRepository, profileData.getMessages());
+        save("tasks", taskRepository, profileData.getTasks());
+        save("rosterWeeks", rosterWeekRepository, profileData.getRosterWeeks());
+        save("shiftAssignments", shiftAssignmentRepository, profileData.getShiftAssignments());
+        save("categories", categoryRepository, profileData.getCategories());
+        save("serviceActivities", serviceActivityRepository, profileData.getServiceActivities());
+        save("careActivities", careActivityRepository, profileData.getCareActivities());
+        save("documents", documentRepository, profileData.getDocuments());
+        save("userOptions", userOptionRepository, profileData.getUserOptions());
+        save("platformServices", platformServiceRepository, profileData.getPlatformServices());
+        save("auditEntries", auditEntryRepository, profileData.getAuditEntries());
+        save("wageRates", wageRateRepository, profileData.getWageRates());
+        save("professionalVerifications", professionalVerificationRepository, profileData.getProfessionalVerifications());
     }
 
     /**
@@ -278,13 +282,34 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
             : JHipsterConstants.SPRING_PROFILE_DEVELOPMENT;
     }
 
+    /**
+     * One collection, and one collection's worth of failure.
+     *
+     * <p>The catch used to be a single one around all 31 calls, which was harmless while nothing in
+     * the block could throw on well-formed JSON. {@link GeographicSpaceCycleGuard} changed that: it
+     * throws {@code BadRequestAlertException} out of {@code saveAll}, so one space whose ancestry
+     * loops aborted every collection after it — teams, all nine professionals, all 921 shifts —
+     * while the application went on starting and reporting healthy. The seed file itself is kept
+     * acyclic by {@code DevelopmentDataInitializerTest}, but a long-lived {@code dev} database is not
+     * the file: a cycle introduced there by hand reproduces on every restart, and the only trace is a
+     * log line.
+     *
+     * <p>Silence is the failure mode this whole class was rewritten after — the seed once did not
+     * load at all and every reason was swallowed by a catch-and-log. Keeping the catch is right, this
+     * being a development convenience that must not stop the application booting; keeping its blast
+     * radius at one collection is what stops the log line from being a lie about the other thirty.
+     */
     private <T> void save(String collection, MongoRepository<T, String> repository, List<T> records) {
         if (records.isEmpty()) {
             log.debug("No {} records to seed", collection);
             return;
         }
-        repository.saveAll(records);
-        log.info("Seeded {} {} record(s)", records.size(), collection);
+        try {
+            repository.saveAll(records);
+            log.info("Seeded {} {} record(s)", records.size(), collection);
+        } catch (RuntimeException e) {
+            log.error("Failed to seed {} record(s) into {} — continuing with the other collections", records.size(), collection, e);
+        }
     }
 
     /**

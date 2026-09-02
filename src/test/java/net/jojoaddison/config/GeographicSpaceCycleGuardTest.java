@@ -88,6 +88,13 @@ class GeographicSpaceCycleGuardTest {
     /**
      * The case the one-step check misses, and the one a hand-built tree actually produces: a
      * reparenting deep enough that nobody notices the loop closing.
+     *
+     * <p>{@code cyclicancestor}, matching the message. It was {@code cyclicparent} under this same
+     * "own ancestor" message until 2026-09-02 — defensible, since both this and
+     * {@link #aSpaceCannotBeItsOwnParent} are faults in the parent id the caller sent, but a key and
+     * a message that name different relationships read as a bug to whoever is triaging the error
+     * rather than writing it. The distinction the keys carry is now what a caller can act on: two
+     * keys for "the parent you sent", one for "what was already stored".
      */
     @Test
     void aSpaceCannotBeItsOwnGrandparent() {
@@ -101,7 +108,7 @@ class GeographicSpaceCycleGuardTest {
             .isInstanceOf(BadRequestAlertException.class)
             .hasMessageContaining("cannot be its own ancestor")
             .extracting(error -> ((BadRequestAlertException) error).getErrorKey())
-            .isEqualTo("cyclicparent");
+            .isEqualTo("cyclicancestor");
     }
 
     /**
@@ -120,6 +127,7 @@ class GeographicSpaceCycleGuardTest {
 
         assertThatThrownBy(() -> guard.onBeforeConvert(leaf, COLLECTION))
             .isInstanceOf(BadRequestAlertException.class)
+            .hasMessageContaining("ancestry above this parent already contains a cycle")
             .extracting(error -> ((BadRequestAlertException) error).getErrorKey())
             .isEqualTo("cyclicancestry");
     }
@@ -156,5 +164,28 @@ class GeographicSpaceCycleGuardTest {
         GeographicSpace osu = new GeographicSpace().id("gs-osu").name("Osu").type("DISTRICT").parentId("gs-accra");
 
         assertThatCode(() -> guard.onBeforeConvert(osu, COLLECTION)).doesNotThrowAnyException();
+    }
+
+    /**
+     * And a blank arriving on a save is turned into no parent, rather than stored as one.
+     *
+     * <p>Tolerating {@code ""} on read is justified by stored data not necessarily having come
+     * through this application. Nothing justifies writing it: the walk would pass — {@code findById("")}
+     * matches nothing — the empty string would be stored, and {@code GeographicSpaceReferenceDTO}
+     * would serve {@code "parentId": ""} to a client that uses a null parent to find the root of the
+     * tree. It would read as a second root, and every walk starting there would stop one level early
+     * with no error anywhere.
+     *
+     * <p>Asserted on the entity rather than through the repository because that is what the callback
+     * returns: Spring Data converts the object it hands back, so mutating it here is what reaches
+     * Mongo.
+     */
+    @Test
+    void aBlankParentOnTheSavedSpaceIsNormalisedToNoParent() {
+        GeographicSpace osu = new GeographicSpace().id("gs-osu").name("Osu").type("DISTRICT").parentId("   ");
+
+        GeographicSpace saved = guard.onBeforeConvert(osu, COLLECTION);
+
+        assertThat(saved.getParentId()).isNull();
     }
 }

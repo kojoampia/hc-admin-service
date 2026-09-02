@@ -75,10 +75,25 @@ public class SecurityConfiguration {
                     // later does not join them by default.
                     //
                     // Two exact matchers rather than /api/geographic-spaces/**, and that is the
-                    // point of writing them out: a future sub-path — the professionals in a space,
-                    // say — matches neither and falls to the blanket rules below, which is the safe
-                    // direction to fail. A wildcard here would hand it to every authenticated caller
-                    // in the network on the day it was written, with nothing to notice.
+                    // point of writing them out: a sub-path of two segments or more — the
+                    // professionals in a space, say — matches neither and falls to the blanket rules
+                    // below, which is the safe direction to fail. A wildcard here would hand it to
+                    // every authenticated caller in the network on the day it was written.
+                    //
+                    // {id} is NOT that protection for a sibling one segment deep, and this comment
+                    // said it was until 2026-09-02. {id} is a single-segment wildcard, so a later
+                    // GET /api/geographic-spaces/export would match it, be admitted on
+                    // authentication alone, and be routed by MVC to the new literal handler — an
+                    // admin-shaped bulk read open to three stacks, with nothing failing. That is not
+                    // hypothetical: /api/patients/export is exactly that shape and needed the
+                    // admin-only matcher twelve lines below, which is what a reader adding a sibling
+                    // here would be copying from.
+                    //
+                    // So: ANY future literal path under /api/geographic-spaces/ must bring its own
+                    // matcher ABOVE these two, gated on what it actually discloses. Enforced rather
+                    // than requested — ApiAuthorizationIT reads the handler mapping and fails if a
+                    // third pattern appears on this path, so a sibling cannot be written without
+                    // this decision being made.
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/geographic-spaces")).authenticated()
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/geographic-spaces/{id}")).authenticated()
                     // Bulk export is admin-only, and it has to precede the read rule below, which

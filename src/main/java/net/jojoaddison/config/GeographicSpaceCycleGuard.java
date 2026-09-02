@@ -25,7 +25,32 @@ import org.springframework.stereotype.Component;
  * <p>A {@code BeforeConvertCallback} sits under every writer instead, present and future, including
  * the seed. That is the same reasoning that put {@code AuditingEntityCallback},
  * {@link MessageLifecycleCallback} and {@link TaskLifecycleCallback} where they are: an invariant
- * the server owns belongs below the layer that can be bypassed.
+ * the server owns belongs below the layer that can be bypassed. <b>"Every writer" is about position,
+ * not about strength</b> — it means no caller can route around the check, not that the check holds
+ * under every schedule. See the next section before relying on it.
+ *
+ * <h2>What it does not cover: concurrent writers</h2>
+ *
+ * <p>The walk reads stored ancestry and then the save is applied, so this is check-then-act with no
+ * lock. Two writes racing — one setting {@code a.parentId = b}, the other {@code b.parentId = a} —
+ * each read the other's <em>stored</em> parent, which is still null, and both pass. The collection
+ * then holds the cycle this class exists to prevent, and the cost lands where the class doc above
+ * says it does: every read that walks through that branch hangs, and the next save onto the branch is
+ * refused with {@code cyclicancestry} — blaming a writer that did nothing wrong, long after the two
+ * that did. It is a one-writer guard honestly, not a serialisable constraint.
+ *
+ * <p>Deliberately not fixed today, because it is unreachable today: this collection has no write
+ * endpoint, and the only writer is {@code DevelopmentDataInitializer} calling {@code saveAll} on a
+ * single thread at startup. Whoever adds the CRUD resource makes the write concurrent and inherits
+ * the question — an optimistic {@code @Version} on {@link GeographicSpace}, or serialising reparenting
+ * behind one lock, are the two shapes that close it. Documented rather than left to be discovered
+ * from a hung request.
+ *
+ * <p><b>The consequence for readers is the part that matters now.</b> A walk up {@code parentId} must
+ * not assume this guard held — the proximity ranking, and anything else that climbs the tree, has to
+ * carry its own visited set or step bound and give up rather than loop. The {@code while} below is the
+ * model: it grows a {@code seen} set every iteration, so it either reaches a root or throws. A reader
+ * that trusts the write-side invariant is exactly the non-terminating request described above.
  *
  * <h2>What a cycle costs if it is allowed through</h2>
  *
@@ -63,6 +88,17 @@ public class GeographicSpaceCycleGuard implements BeforeConvertCallback<Geograph
     public GeographicSpace onBeforeConvert(GeographicSpace space, String collection) {
         String id = space.getId();
         String parentId = space.getParentId();
+        // A blank parent is no parent, and it is normalised on the way IN as well as on the way out.
+        // presentAndNonBlank below only cleans up what it reads back; without this, a save carrying
+        // "" passed the walk (findById("") matches nothing), stored "", and
+        // GeographicSpaceReferenceDTO served {"parentId": ""} — so a client using a null parent to
+        // find the root of the tree saw a second root whose parent was the empty string. The
+        // justification for tolerating it on read is that stored data need not have been written
+        // through this application; that argument does not cover this application writing it.
+        if (parentId != null && parentId.isBlank()) {
+            space.setParentId(null);
+            parentId = null;
+        }
         if (parentId == null) {
             return space;
         }
@@ -79,17 +115,30 @@ public class GeographicSpaceCycleGuard implements BeforeConvertCallback<Geograph
         String ancestorId = parentId;
         while (ancestorId != null) {
             if (!seen.add(ancestorId)) {
+                // Two different faults, so two messages and two keys that agree with them. The key
+                // used to be cyclicparent for the first branch, under the "own ancestor" message
+                // below — deliberate, because both branches are still about a parent id, but it
+                // reads as a copy-paste slip to whoever is triaging the client error, and the pair
+                // that matters to a caller is "what you sent" against "what was already stored".
+                //
+                // cyclicancestor and cyclicancestry are near-identical strings and that is not a
+                // typo either way: an ancestor is the node (this space turned up as one of its
+                // own), an ancestry is the chain (the chain above the parent loops, and this save
+                // is not what did it). The messages use those two words for the same reason.
+                if (id != null && id.equals(ancestorId)) {
+                    throw new BadRequestAlertException("A geographic space cannot be its own ancestor", ENTITY_NAME, "cyclicancestor");
+                }
                 throw new BadRequestAlertException(
-                    "A geographic space cannot be its own ancestor",
+                    "The ancestry above this parent already contains a cycle",
                     ENTITY_NAME,
-                    id != null && id.equals(ancestorId) ? "cyclicparent" : "cyclicancestry"
+                    "cyclicancestry"
                 );
             }
             ancestorId =
                 geographicSpaceRepository
                     .findById(ancestorId)
                     .map(GeographicSpace::getParentId)
-                    .flatMap(GeographicSpaceCycleGuard::presentAndDifferent)
+                    .flatMap(GeographicSpaceCycleGuard::presentAndNonBlank)
                     .orElse(null);
         }
         return space;
@@ -100,9 +149,12 @@ public class GeographicSpaceCycleGuard implements BeforeConvertCallback<Geograph
      *
      * <p>Stored data is not required to have been written through this application, and {@code ""}
      * read back as a parent would send {@code findById} looking for a document that cannot exist —
-     * ending the walk anyway, but by accident rather than because the chain reached a root.
+     * ending the walk anyway, but by accident rather than because the chain reached a root. What
+     * <em>this</em> application writes is normalised at the top of
+     * {@link #onBeforeConvert(GeographicSpace, String)} instead, so a blank never reaches storage
+     * from here in the first place.
      */
-    private static Optional<String> presentAndDifferent(String parentId) {
+    private static Optional<String> presentAndNonBlank(String parentId) {
         return parentId.isBlank() ? Optional.empty() : Optional.of(parentId);
     }
 }
