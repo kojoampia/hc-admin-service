@@ -29,8 +29,17 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 ## 📋 Core Responsibilities
 
 1.  **Duty Roster Management**:
-    - Managing professional shifts (MORNING, AFTERNOON, NIGHT).
-    - Broadcasting roster changes to the `roster` Kafka topic.
+    - Managing professional shifts. `ShiftType` is **`DAY`, `EVENING`, `NIGHT`, `OFF`** — see
+      `domain/enumeration/ShiftType.java`. This said `MORNING, AFTERNOON, NIGHT` until 2026-09-01;
+      only `NIGHT` was ever real on this side. (`MORNING`/`AFTERNOON` did exist in
+      **hc-professional**, which retired them on 2026-08-20 — that is where the names came from.)
+    - The weekly grid is `RosterWeek` + `ShiftAssignment`, and it is what `ShiftValuationService`
+      turns into pay. A shift is payable once its date is past and its type is not `OFF`.
+    - **Nothing reads roster changes.** This claimed a `roster` Kafka topic; no such destination
+      is declared in any `.yml` and nothing consumes one. The grid contains no `StreamBridge` call
+      at all. `DutyRosterService`'s `streamBridge.send("roster-events", …)` does publish — Spring
+      Cloud Stream creates a dynamic destination for an undeclared binding — to a topic no consumer
+      subscribes to. Do not write code against either name.
 2.  **System Catalog (CMS)**:
     - Managing features, product catalogs, and metadata.
 3.  **Pricing & Subscription**:
@@ -104,5 +113,5 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 - **Mixed resource styles**: most resources use DTO + MapStruct mapper with paginated list endpoints, but `OrganisationResource` and `PersonResource` still expose domain entities directly. Follow the surrounding feature rather than normalising the repo.
 - **Mongo fields**: annotate new fields with `@Field("snake_case")` to match existing documents, keep validation on the document/DTO, and prefer Spring Data derived queries before writing custom repository code.
 - **Spring Boot 4 APIs**: import `AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure`, and use `PathPatternRequestMatcher` in security code rather than the older MVC matcher APIs.
-- **Kafka**: Use the `roster` topic for shift updates and `profile-updates` for syncing.
+- **Kafka**: the declared destinations are **`sse-topic`** (the SSE bridge, both apps) and **`professional-verification`**. There is no `roster` topic and no `profile-updates` topic — this line named both until 2026-09-01 and neither string appears as a `destination:` in any `.yml` in any of the three products. Check `config/application.yml` before assuming a binding exists.
 - **Formatting**: Managed by Prettier and Spotless. Run `npm run prettier:format` before committing (husky + lint-staged also run it pre-commit).

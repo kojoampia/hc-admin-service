@@ -429,12 +429,16 @@ relationship ManyToOne {
   Task{owner(licenceNumber)} to Professional
   Task{sourceMessage(subject)} to Message
   ProfessionalVerification{professional(licenceNumber) required} to Professional
+  // Unidirectional, unlike Professional{assignment}: RosterWeek carries no `assignments` set.
+  // Its @DBRef collection was never read — the console loads a week's cells with a paged
+  // `GET /shift-assignments?weekId.equals=`, and the eager side only made every roster-week
+  // payload drag its 63 assignments along. Declaring the left side here again would regenerate it.
+  ShiftAssignment{week(label) required} to RosterWeek
 }
 
 relationship OneToMany {
   Category{activity(name)} to ServiceActivity{category(name) required}
   ServicePlan{feature} to PlanFeature{plan(name) required}
-  RosterWeek{assignment} to ShiftAssignment{week(label) required}
   Professional{assignment} to ShiftAssignment{professional(licenceNumber) required}
   Patient{document} to Document{patient}
   Patient{careActivity} to CareActivity{patient required}

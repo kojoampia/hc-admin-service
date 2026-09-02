@@ -34,14 +34,6 @@
   ],
   "microserviceName": "hcAdminService",
   "name": "RosterWeek",
-  "relationships": [
-    {
-      "otherEntityName": "shiftAssignment",
-      "otherEntityRelationshipName": "week",
-      "relationshipName": "assignment",
-      "relationshipSide": "left",
-      "relationshipType": "one-to-many"
-    }
-  ],
+  "relationships": [],
   "searchEngine": "no"
 }

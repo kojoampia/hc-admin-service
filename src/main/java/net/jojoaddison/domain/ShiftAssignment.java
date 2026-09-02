@@ -40,9 +40,11 @@ public class ShiftAssignment implements Serializable {
     @Field("shift")
     private ShiftType shift;
 
+    // No @JsonIgnoreProperties: it named "assignments", which was the week -> assignments -> week
+    // cycle it existed to break, and RosterWeek no longer has that collection. Left in place the
+    // annotation would read as if the cycle were still there.
     @DBRef
     @Field("week")
-    @JsonIgnoreProperties(value = { "assignments" }, allowSetters = true)
     private RosterWeek week;
 
     @DBRef

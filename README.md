@@ -29,7 +29,9 @@ hc-admin-dashboard (Angular, :4200)
 
 The gateway owns users, authorities, and login; this service trusts the JWT relayed to it.
 
-**Service naming:** this service registers in Consul as `hcadminservice` (`spring.cloud.consul.discovery.service-name`), so the gateway's discovery locator publishes it at `/services/hcadminservice/**` — which is what the Angular dashboard calls. The gateway's `application-dev.yml` also declares a static `/services/admin-service/**` route to `localhost:5507`; that is a dev convenience, not a second contract.
+**Service naming:** this service registers in Consul as `hcadminservice` (`spring.cloud.consul.discovery.service-name`), so the gateway's discovery locator publishes it at `/services/hcadminservice/**` — which is what the Angular dashboard calls. The gateway's `application-dev.yml` also declares a static route to `localhost:5507` for running this service outside Docker — and it uses the **same** name: `id: hcadminservice`, `Path=/services/hcadminservice/**` (`:53-56`). A dev convenience, not a second contract.
+
+This said `/services/admin-service/**` until 2026-09-01, which contradicted the sentence before it. The route was renamed because, as its own comment records, `admin-service` "nothing else in the system used".
 
 ## Project Structure
 
@@ -135,7 +137,9 @@ Conventions:
 
 ### Kafka / SSE bridge
 
-Spring Cloud Stream bindings live in `application.yml` with `spring.cloud.function.definition: kafkaConsumer;kafkaProducer`. `HcAdminServiceKafkaResource` publishes through `StreamBridge`, and `broker/KafkaConsumer` fans inbound messages out to registered `SseEmitter` clients. Roster changes are broadcast on the `roster` topic; profile syncs from `hc-patient-ms` / `hc-professional-service` arrive on `profile-updates`.
+Spring Cloud Stream bindings live in `application.yml` with `spring.cloud.function.definition: kafkaConsumer;kafkaProducer`. `HcAdminServiceKafkaResource` publishes through `StreamBridge`, and `broker/KafkaConsumer` fans inbound messages out to registered `SseEmitter` clients.
+
+The declared destinations are **`sse-topic`** and **`professional-verification`**. This section claimed until 2026-09-01 that roster changes broadcast on a `roster` topic and that profile syncs arrive on `profile-updates`; neither string appears as a `destination:` in any `.yml` here, in `hc-professional` or in `hc-patient`, and nothing consumes either. The grid has no `StreamBridge` call at all; `DutyRosterService`'s `roster-events` send names an undeclared binding, which Spring Cloud Stream resolves to a dynamically-created destination — so it publishes, to a topic nobody reads.
 
 ## Others
 
