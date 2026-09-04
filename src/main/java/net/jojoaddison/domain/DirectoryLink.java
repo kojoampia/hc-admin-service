@@ -30,14 +30,39 @@ import org.springframework.data.mongodb.core.mapping.Field;
  * The rule instead lives in one place, {@link net.jojoaddison.service.DirectoryProjectionService},
  * and this document is only ever the identity map and the watermark.
  *
- * <h2>Idempotency without a unique index</h2>
+ * <h2>Idempotency, and what the atomic upsert does and does not give</h2>
  *
- * <p>{@code (source, externalKey)} is the natural key, and nothing in this service creates indexes:
- * there is no {@code @Indexed} anywhere and {@code auto-index-creation} is off, so a unique index
- * declared here would be a comment rather than a constraint. The write is made atomic instead —
- * {@code findAndModify} with {@code upsert}, which MongoDB serialises per document — so a redelivery
- * and the reconciliation endpoint racing each other still produce one link. See
- * {@code DirectoryProjectionService.upsertLink}.
+ * <p>{@code (source, externalKey)} is the natural key. The write is {@code findAndModify} with
+ * {@code upsert}, which MongoDB serialises per document, so a redelivery of the same event produces
+ * one link and not two.
+ *
+ * <p><b>This paragraph used to say that made a unique index unnecessary, and that was wrong.</b>
+ * MongoDB documents the opposite: the operation is atomic per document, and two concurrent upserts
+ * that match nothing <em>can both insert</em> — the stated requirement for at-most-one is a unique
+ * index on the query field. It also named the wrong race as the one being defended against:
+ * {@code reconcile()} never upserts a link, so "a redelivery and the reconciliation racing each
+ * other" was not a thing that could happen. The index now exists, created explicitly at startup by
+ * {@link net.jojoaddison.config.DirectoryLinkIndexes} because this service creates none by
+ * convention, and it is a lookup index as well as a constraint — {@code (source, external_key)} is
+ * read on every message and this collection had no index at all.
+ *
+ * <p>Two things the index does not fix, stated rather than implied:
+ *
+ * <ul>
+ *   <li><b>The local record is a second write with no transaction around it.</b> Saving the
+ *       {@code Patient} and setting {@code local_id} on the link are separate operations, and Mongo
+ *       runs standalone here, so there is no transaction to hold them together. A crash between them
+ *       leaves an orphaned {@code Patient} and a link with no {@code local_id}; the redelivery then
+ *       creates a second record and claims the link, and the first is unreachable. The claim is at
+ *       least made atomically — see {@code DirectoryProjectionService.createAndClaim} — so two
+ *       writers cannot both attach a record to one link, which is the case that would have shown two
+ *       people on every tile.</li>
+ *   <li><b>"Equal is a redelivery" is equal to the millisecond.</b> MongoDB stores a date as
+ *       milliseconds since the epoch, so an {@code Instant} written with more precision comes back
+ *       truncated and the watermark comparison is a millisecond comparison. Harmless — two distinct
+ *       events about one subject in the same millisecond would have to arrive out of order to matter
+ *       — but it is not the nanosecond comparison the Java types suggest.</li>
+ * </ul>
  */
 @Document(collection = "directory_link")
 public class DirectoryLink implements Serializable {
@@ -110,6 +135,22 @@ public class DirectoryLink implements Serializable {
      */
     @Field("subject_kind")
     private DirectorySubjectKind subjectKind;
+
+    /**
+     * Whether the stream has ever said this account can sign in.
+     *
+     * <p><b>Stored so the reconciliation does not have to re-derive it, which it used to get wrong.</b>
+     * It read {@code state != "AccountCreated"} as "activated", so a link last seen in
+     * {@code OnboardingStarted}, {@code OnboardingStepCompleted}, {@code CareDelegationChanged},
+     * {@code DeletionRequestChanged} or anything it did not know rebuilt as {@code ACTIVE} — while the
+     * consumer, for those same events, says {@code activated == false}. Two derivations of one rule,
+     * disagreeing, under a javadoc claiming they were the same path.
+     *
+     * <p>Written monotonically — set true and never back to false — which is the link's copy of the
+     * {@code PENDING → ACTIVE} rule that governs the {@code Patient} it names.
+     */
+    @Field("activated")
+    private Boolean activated;
 
     /**
      * When the far side told this service it had erased the subject, and null for everybody else.
@@ -221,6 +262,14 @@ public class DirectoryLink implements Serializable {
 
     public void setSubjectKind(DirectorySubjectKind subjectKind) {
         this.subjectKind = subjectKind;
+    }
+
+    public Boolean getActivated() {
+        return activated;
+    }
+
+    public void setActivated(Boolean activated) {
+        this.activated = activated;
     }
 
     public Instant getErasedAt() {

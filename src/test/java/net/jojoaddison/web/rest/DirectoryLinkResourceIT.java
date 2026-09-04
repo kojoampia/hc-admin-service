@@ -22,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.index.IndexField;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -43,6 +45,9 @@ class DirectoryLinkResourceIT {
 
     @Autowired
     private PatientRepository patientRepository;
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @BeforeEach
     @AfterEach
@@ -103,11 +108,72 @@ class DirectoryLinkResourceIT {
     }
 
     /**
+     * <b>The reconciliation reads the status the consumer reached; it does not re-derive one.</b>
+     *
+     * <p>It used to derive "activated" as any state other than the literal {@code AccountCreated}, so
+     * a link last seen in {@code OnboardingStarted} — or any of the four other types, or any type it
+     * did not know — rebuilt as {@code ACTIVE}, while the consumer says those events are not evidence
+     * an account can sign in at all. Two derivations of one rule, disagreeing, under a javadoc
+     * claiming they were the same path. The fixture in this class hard-coded
+     * {@code state = "AccountActivated"}, which is why nothing here saw it.
+     */
+    @Test
+    void reconcileDoesNotInventAnActiveAccountFromTheLastEventType() throws Exception {
+        DirectoryLink onboarding = link(EMAIL, null);
+        onboarding.setState("OnboardingStarted");
+        onboarding.setActivated(null);
+        directoryLinkRepository.save(onboarding);
+
+        mvc.perform(post("/api/directory-links/reconcile")).andExpect(status().isOk()).andExpect(jsonPath("$.created").value(1));
+
+        assertThat(patientRepository.findAll().get(0).getStatus())
+            .as("beginning onboarding is not evidence the account can sign in, and the consumer says so too")
+            .isEqualTo(AccountStatus.PENDING);
+    }
+
+    /** And where the stream did say so, the rebuilt record says so — the same stored answer. */
+    @Test
+    void reconcileRestoresAnActivatedAccountAsActive() throws Exception {
+        DirectoryLink activated = link(EMAIL, null);
+        activated.setActivated(true);
+        directoryLinkRepository.save(activated);
+
+        mvc.perform(post("/api/directory-links/reconcile")).andExpect(status().isOk()).andExpect(jsonPath("$.created").value(1));
+
+        assertThat(patientRepository.findAll().get(0).getStatus()).isEqualTo(AccountStatus.ACTIVE);
+    }
+
+    /**
+     * The lookup index exists, and it is unique.
+     *
+     * <p>Two things at once, and the collection had neither. {@code (source, external_key)} is read on
+     * every message and re-read in full on every backfill, against a collection that grows at the rate
+     * two other stacks create accounts — without an index that is a collection scan per event. And
+     * uniqueness is what the idempotency claim actually needs: {@code findAndModify(upsert)} is atomic
+     * per document, but MongoDB documents that two concurrent upserts matching nothing can both
+     * insert, and names a unique index on the query field as the requirement.
+     *
+     * <p>This service creates no indexes by convention — no {@code @Indexed} anywhere,
+     * {@code auto-index-creation} off — so it is created explicitly at startup rather than declared on
+     * the document, where it would have been a comment.
+     */
+    @Test
+    void theSubjectKeyIsIndexedAndUnique() {
+        assertThat(mongoTemplate.indexOps(DirectoryLink.class).getIndexInfo())
+            .as("directory_link is read on (source, external_key) for every single message")
+            .anySatisfy(index -> {
+                assertThat(index.getIndexFields().stream().map(IndexField::getKey)).containsExactly("source", "external_key");
+                assertThat(index.isUnique()).as("without uniqueness two concurrent first sightings can both insert").isTrue();
+            });
+    }
+
+    /**
      * Running it twice creates nothing the second time.
      *
-     * <p>The reconciliation goes through the same idempotent path a live message does, which is why
-     * the two were built together — a backfill with its own write is a second place for the merge
-     * rule to be got wrong.
+     * <p>The reconciliation shares {@code createAndClaim} with the consumer and reads the status the
+     * consumer stored, which is as close to "the same path" as the two can honestly be — one is
+     * applying an event and the other has none. A backfill with its own write is a second place for
+     * the merge rule to be got wrong, which is exactly what happened to the status derivation above.
      */
     @Test
     void reconcileIsSafeToRunTwice() throws Exception {
@@ -177,6 +243,7 @@ class DirectoryLinkResourceIT {
         link.setEmail(externalKey);
         link.setLogin("kasante");
         link.setState("AccountActivated");
+        link.setActivated(true);
         link.setSubjectKind(DirectorySubjectKind.PATIENT);
         link.setLocalId(localId);
         link.setFirstSeenAt(Instant.parse("2026-08-20T10:00:00Z"));

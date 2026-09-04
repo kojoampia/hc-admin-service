@@ -105,6 +105,30 @@ import org.springframework.stereotype.Service;
  * is the property the dashboard needs — "create a patient per message" would count a redelivery as a
  * second person on every tile — and it is why {@code apply} never inserts without first looking the
  * subject up atomically.
+ *
+ * <p><b>Under concurrency it needs the index as well as the atomic write, and that claim was too
+ * strong until 2026-09-05.</b> {@code findAndModify(upsert)} is atomic per document; it does not stop
+ * two upserts that match nothing from both inserting, for which MongoDB documents a unique index as
+ * the requirement. {@link net.jojoaddison.config.DirectoryLinkIndexes} now creates one. The
+ * <em>record</em> is claimed by a compare-and-set for the same reason — see {@code createAndClaim},
+ * which also names the one window neither closes, the two writes that have no transaction around
+ * them.
+ *
+ * <h2>The reconciliation runs the same rule, and it used to run a different one</h2>
+ *
+ * <p>{@link #reconcile()} rebuilds a local record for a link that has lost one. Its javadoc has
+ * always said it goes through the same idempotent path a live message does; it did not. It re-derived
+ * "is this account activated" as <em>any state other than the literal {@code AccountCreated}</em>, so
+ * a link last seen in {@code OnboardingStarted}, {@code OnboardingStepCompleted},
+ * {@code CareDelegationChanged}, {@code DeletionRequestChanged} or any type it did not know rebuilt
+ * as {@code ACTIVE} — while the consumer, on those same events, says the account is not activated at
+ * all. Two derivations of one rule, disagreeing, and the test that should have caught it hard-coded
+ * {@code state = "AccountActivated"} in its fixture.
+ *
+ * <p>It no longer derives anything: {@code DirectoryLink.activated} is written by the consumer as it
+ * applies each event, monotonically, and the reconciliation <b>reads</b> it. Both paths then go
+ * through one {@code createAndClaim}. That is as close to "the same path" as the two can honestly be
+ * — one is applying an event and the other has none — and it is what the sentence now claims.
  */
 @Service
 public class DirectoryProjectionService {
@@ -263,16 +287,23 @@ public class DirectoryProjectionService {
                 skipped++;
                 continue;
             }
-            Patient patient = createPatient(
-                link.getState() != null && !link.getState().equals("AccountCreated"),
-                link.getFirstSeenAt() == null ? Instant.now() : link.getFirstSeenAt()
-            );
-            mongoTemplate.updateFirst(
-                Query.query(Criteria.where("_id").is(link.getId())),
-                new Update().set("local_id", patient.getId()),
-                DirectoryLink.class
-            );
-            created++;
+            // The SAME rule the consumer applied, read back off the link, rather than a second
+            // derivation of it. This used to read `state != "AccountCreated"` as activated, which
+            // made every link last seen in any other state rebuild as ACTIVE — while the consumer,
+            // for those same events, says activated is false. Two derivations of one rule,
+            // disagreeing, under a javadoc claiming they were the same path.
+            if (
+                createAndClaim(
+                    DirectorySource.HC_PATIENT,
+                    link.getExternalKey(),
+                    Boolean.TRUE.equals(link.getActivated()),
+                    link.getFirstSeenAt() == null ? Instant.now() : link.getFirstSeenAt(),
+                    link.getLocalId()
+                ) !=
+                null
+            ) {
+                created++;
+            }
         }
 
         LOG.info(
@@ -374,6 +405,12 @@ public class DirectoryProjectionService {
             // upsertLink writes the kind on insert only.
             update.set("subject_kind", event.subjectKind());
         }
+        if (event.activated()) {
+            // Monotone: set true, never back to false. The link's copy of the PENDING -> ACTIVE rule
+            // that governs the Patient it names, and it is here so the reconciliation can READ the
+            // answer the consumer reached rather than derive its own from the last event type.
+            update.set("activated", true);
+        }
         setIfPresent(update, "local_id", localId);
 
         mongoTemplate.updateFirst(
@@ -409,25 +446,69 @@ public class DirectoryProjectionService {
             // dangling reference for the reconciliation to rebuild instead of silently dropping it.
             return knownLocalId;
         }
-        Patient patient = createPatient(event.activated(), event.occurredAt());
-        LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), event.subjectKey(), patient.getId());
-        return patient.getId();
+        String created = createAndClaim(event.source(), event.subjectKey(), event.activated(), event.occurredAt(), knownLocalId);
+        if (created != null) {
+            LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), event.subjectKey(), created);
+        }
+        return created;
     }
 
     /**
-     * A patient this service has just learned exists.
+     * Creates the local record for a link that has none, and attaches it <b>atomically</b>.
      *
-     * <p>Two required fields and nothing else. {@code caseCount} is seeded at zero because the
-     * console renders it as a number and an absent one reads as unknown rather than as none;
-     * everything else is left null for an administrator to fill in, including the {@code Profile} —
-     * which cannot be created at all, since it requires a name, a date of birth, a phone number and
-     * a document number, and the patient stream carries none of them by design.
+     * <p>Shared by the consumer and the reconciliation, and that sharing is the point rather than
+     * tidiness. Both paths could create a {@code Patient} for the same link, unserialised: a
+     * reconciliation run while a first sighting is being applied, or two instances briefly on one
+     * partition during a rebalance. Two records, one link, and an orphan counted on every dashboard
+     * tile with nothing pointing at it.
+     *
+     * <p>The claim is therefore a compare-and-set on the value the caller <em>saw</em>: null where the
+     * link had no record, and the stale id where the reconciliation found one naming a document that
+     * has gone. A writer that modifies nothing has lost, deletes the record it had just made, and
+     * answers null — so the winner's is the one the link names. {@code null} also means "nothing was
+     * created" to the caller, which is what keeps the reconciliation's {@code created} count honest.
+     *
+     * <p><b>What this does not fix, and cannot here.</b> Saving the {@code Patient} and setting
+     * {@code local_id} are two writes, Mongo runs standalone, and there is no transaction to hold them
+     * together. A crash between them leaves an orphaned record and a link with no {@code local_id};
+     * the redelivery makes a second record and claims the link, and the first is unreachable for ever.
+     * That window is one Mongo round trip wide and the alternative is a replica set, which is a
+     * deployment decision rather than a code one — backlog item 28.
+     *
+     * <p>Two required fields on the record and nothing else. {@code caseCount} is seeded at zero
+     * because the console renders it as a number and an absent one reads as unknown rather than as
+     * none; everything else is left null for an administrator to fill in, including the
+     * {@code Profile} — which cannot be created at all, since it requires a name, a date of birth, a
+     * phone number and a document number, and the patient stream carries none of them by design.
+     *
+     * @param staleLocalId the {@code local_id} the caller read off the link — null when there was
+     *                     none, or the id of a document that has since gone. The claim only succeeds
+     *                     against that value, which is what makes it a compare-and-set rather than a
+     *                     blind write.
+     * @return the id of the record this call created, or null when it created none.
      */
-    private Patient createPatient(boolean activated, Instant at) {
+    private String createAndClaim(DirectorySource source, String subjectKey, boolean activated, Instant at, String staleLocalId) {
         LocalDate day = LocalDate.ofInstant(at, ZoneOffset.UTC);
-        return patientRepository.save(
+        Patient patient = patientRepository.save(
             new Patient().status(activated ? AccountStatus.ACTIVE : AccountStatus.PENDING).joinedOn(day).lastActiveOn(day).caseCount(0)
         );
+
+        long claimed = mongoTemplate
+            .updateFirst(
+                // `local_id: null` matches a missing field as well as a null one, which is what an
+                // unclaimed link actually looks like — setIfPresent never writes the field at all.
+                Query.query(Criteria.where("source").is(source.name()).and("external_key").is(subjectKey).and("local_id").is(staleLocalId)),
+                new Update().set("local_id", patient.getId()),
+                DirectoryLink.class
+            )
+            .getModifiedCount();
+
+        if (claimed == 0) {
+            LOG.debug("Another writer claimed the link for {} first — dropping the record this call made", subjectKey);
+            patientRepository.deleteById(patient.getId());
+            return null;
+        }
+        return patient.getId();
     }
 
     /** The merge rule from the class javadoc, and nothing beyond it. */
