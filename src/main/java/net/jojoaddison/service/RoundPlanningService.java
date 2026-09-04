@@ -283,9 +283,27 @@ public class RoundPlanningService {
      * <p><b>What it cannot see: rounds already filed with {@code professionalservice}.</b> Those
      * live over there, and the only read that would answer the question is the whole-estate list.
      * Issuing that inside a ranking loop would make a planning run's cost a function of the estate's
-     * history. The far service is the backstop rather than this one — it validates a round against
-     * the target's existing roster and refuses an overlap with a 400, which arrives here as
-     * {@code ROSTER_SERVICE_REFUSED_THE_ROUND} and not as an outage.
+     * history.
+     *
+     * <p><b>The far service is the backstop for rounds that carry visits, and for those only.</b>
+     * {@code DutyRosterService.validateRound} builds each visit's interval, compares it against the
+     * target's existing roster for the date, and refuses an overlap with a 400 — which arrives here
+     * as {@code ROSTER_SERVICE_REFUSED_THE_ROUND} and not as an outage. That is a real check and it
+     * is the one this method is deliberately not duplicating.
+     *
+     * <p><b>A round with no visits is checked by nothing, here or there.</b> {@code validateRound}
+     * returns on an empty visit list before it reaches the overlap comparison, and it does so on
+     * purpose: ward cover and on-call time are real shifts with no visits in them. This method's own
+     * two facts do not close the gap either — an {@code OFF} cell is a different statement from a
+     * filed round, and {@code committedInThisRun} is scoped to one call. So two planning runs can
+     * each file a visit-less round for the same professional, on the same date, in the same space,
+     * and no rule anywhere will notice.
+     *
+     * <p>Stated rather than fixed. Closing it needs the estate-wide read this method declines to
+     * make, or a rule in hc-professional that would have to distinguish a legitimate second
+     * visit-less shift from a duplicate — neither of which is this method's to decide. The value of
+     * this comment is that it says what it cannot check; "the far service is the backstop" was true
+     * enough to read as complete and was the one case it did not name.
      */
     private boolean alreadyCommitted(Professional candidate, LocalDate date, Set<String> committedInThisRun) {
         if (committedInThisRun.contains(candidate.getId())) {
