@@ -106,10 +106,13 @@ class ProfessionalSelfIT {
         wageRateRepository.deleteAll();
 
         wageRateRepository.saveAll(
-            List.of(
-                rate(ProfessionalRole.DOCTOR, 500, LocalDate.of(2026, 1, 1)),
-                rate(ProfessionalRole.NURSE, 300, LocalDate.of(2026, 1, 1))
-            )
+            java.util.stream.Stream
+                .of(
+                    ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 500, LocalDate.of(2026, 1, 1)),
+                    ratesAtEveryShiftType(ProfessionalRole.NURSE, 300, LocalDate.of(2026, 1, 1))
+                )
+                .flatMap(List::stream)
+                .toList()
         );
 
         ama = professional(ProfessionalRole.DOCTOR, "MDC/RN/23-4471", profile("ama", "Ama", "Boateng"));
@@ -160,8 +163,23 @@ class ProfessionalSelfIT {
         return professionalRepository.save(professional);
     }
 
-    private static WageRate rate(ProfessionalRole role, int amount, LocalDate validFrom) {
-        return new WageRate().role(role).amount(new BigDecimal(amount)).currency("GHS").validFrom(validFrom);
+    /**
+     * One rate at that amount for <b>every</b> shift type.
+     *
+     * <p>A rate has been keyed on {@code (role, shiftType, date)} since 2026-09-04, and this suite is
+     * about the payable window, the effective dating and the entitlement boundary rather than about
+     * the shift dimension — so it prices the shift types flat and every expectation below stays
+     * stated in one number. The dimension itself is asserted where it is the subject:
+     * {@code ShiftValuationServiceTest} and {@code WageRateEffectiveDatingIT}, both of which price
+     * a night differently from a day and check that the difference reaches the total.
+     */
+    private static List<WageRate> ratesAtEveryShiftType(ProfessionalRole role, int amount, LocalDate validFrom) {
+        return java.util.Arrays
+            .stream(ShiftType.values())
+            .map(shiftType ->
+                new WageRate().role(role).shiftType(shiftType).amount(new BigDecimal(amount)).currency("GHS").validFrom(validFrom)
+            )
+            .toList();
     }
 
     private void assign(Professional professional, LocalDate date, ShiftType shift) {

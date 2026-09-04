@@ -51,7 +51,7 @@ enum MessageStatus { NEW, READ, REPLIED }
 enum Priority { HIGH, NORMAL, LOW }
 
 enum TaskState { TODO, DOING, DONE }
-enum ShiftType { DAY, EVENING, NIGHT, OFF }
+enum ShiftType { DAY, EVENING, NIGHT, OFF, FLEXIBLE }
 
 enum PlanTier { ESSENTIAL, PLUS, FAMILY }
 enum ServiceHealth { HEALTHY, DEGRADED, DOWN }

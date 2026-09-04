@@ -12,6 +12,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import net.jojoaddison.domain.Professional;
@@ -74,23 +75,48 @@ class ShiftValuationServiceTest {
         return new ShiftAssignment().shiftDate(date).shift(type);
     }
 
-    /** A single rate for {@link #ROLE}, in force from well before any date used here. */
-    private void ratedAt(String amount) {
-        WageRate rate = new WageRate().role(ROLE).amount(new BigDecimal(amount)).currency("GHS").validFrom(LocalDate.of(2020, 1, 1));
-        when(wageRates.rateTableUpTo(any())).thenReturn(new WageRateService.RateTable(Map.of(ROLE, List.of(rate))));
+    private static WageRate rate(ShiftType shiftType, String amount, LocalDate validFrom) {
+        return new WageRate().role(ROLE).shiftType(shiftType).amount(new BigDecimal(amount)).currency("GHS").validFrom(validFrom);
+    }
+
+    /** Installs a table keyed the way {@code rateTableUpTo} builds one: role, then shift type. */
+    private void install(Map<ShiftType, List<WageRate>> byShift) {
+        when(wageRates.rateTableUpTo(any())).thenReturn(new WageRateService.RateTable(Map.of(ROLE, byShift)));
     }
 
     /**
-     * A rate superseded mid-window: {@code amount} from 2020, {@code laterAmount} from {@code rise}.
+     * One rate for {@link #ROLE} at <b>every</b> shift type, in force from well before any date used
+     * here.
+     *
+     * <p>Flat across shift types on purpose. Since 2026-09-04 a rate is keyed on
+     * {@code (role, shiftType, date)}, and most of this class is about the payable boundary and the
+     * bucketing rather than about pricing — a fixture that priced the shift types differently would
+     * make every arithmetic expectation below depend on which shift type each fixture row happened
+     * to carry. The shift dimension gets its own tests at the end of the class, where the rates
+     * differ and the difference is the assertion.
+     */
+    private void ratedAt(String amount) {
+        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
+        for (ShiftType shiftType : ShiftType.values()) {
+            byShift.put(shiftType, List.of(rate(shiftType, amount, LocalDate.of(2020, 1, 1))));
+        }
+        install(byShift);
+    }
+
+    /**
+     * A rate superseded mid-window: {@code amount} from 2020, {@code laterAmount} from {@code rise},
+     * at every shift type.
      *
      * <p>Newest first, because that is the order {@code rateTableUpTo} builds and what
      * {@code RateTable.rateOn}'s {@code findFirst()} depends on — a table sorted the other way
      * answers every date with the oldest rate.
      */
     private void ratedAt(String amount, String laterAmount, LocalDate rise) {
-        WageRate earlier = new WageRate().role(ROLE).amount(new BigDecimal(amount)).currency("GHS").validFrom(LocalDate.of(2020, 1, 1));
-        WageRate later = new WageRate().role(ROLE).amount(new BigDecimal(laterAmount)).currency("GHS").validFrom(rise);
-        when(wageRates.rateTableUpTo(any())).thenReturn(new WageRateService.RateTable(Map.of(ROLE, List.of(later, earlier))));
+        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
+        for (ShiftType shiftType : ShiftType.values()) {
+            byShift.put(shiftType, List.of(rate(shiftType, laterAmount, rise), rate(shiftType, amount, LocalDate.of(2020, 1, 1))));
+        }
+        install(byShift);
     }
 
     /** No rate has ever been configured — distinct from a rate of zero, and the service says so. */
@@ -463,5 +489,103 @@ class ShiftValuationServiceTest {
 
         assertThat(service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY).professionalName())
             .isEqualTo("LIC-1");
+    }
+
+    // --- the shift dimension (2026-09-04) --------------------------------------------------------
+
+    /**
+     * A night is valued at the night rate, not at the role's rate.
+     *
+     * <p>The one assertion in this class that fails if the lookup ever goes back to
+     * {@code (role, date)}. Every other pricing assertion here is deliberately flat across shift
+     * types — see {@link #ratedAt(String)} — so all of them pass either way, which is exactly why
+     * this one has to exist rather than being assumed covered.
+     *
+     * <p>Two shifts, both payable, both in the same bucket: 100 for the day and 150 for the night.
+     * A shift-blind lookup finds whichever row the flattened list happened to hold first and reports
+     * 200 or 300, both of which are plausible totals nobody would query.
+     */
+    @Test
+    void valuesEachShiftAtItsOwnShiftTypesRate() {
+        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
+        byShift.put(ShiftType.DAY, List.of(rate(ShiftType.DAY, "100", LocalDate.of(2020, 1, 1))));
+        byShift.put(ShiftType.NIGHT, List.of(rate(ShiftType.NIGHT, "150", LocalDate.of(2020, 1, 1))));
+        install(byShift);
+        rosterReturns(shift(TODAY.minusDays(3), ShiftType.DAY), shift(TODAY.minusDays(2), ShiftType.NIGHT));
+
+        ProfessionalEarningsDTO earnings = service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY);
+
+        assertThat(earnings.totalAccrued()).isEqualByComparingTo("250");
+        assertThat(earnings.shiftsCompleted()).isEqualTo(2);
+        assertThat(earnings.unpricedShifts()).isZero();
+    }
+
+    /**
+     * An unpriced shift type is unpriced, not valued at a sibling's rate.
+     *
+     * <p>There is no fallback from {@code (role, EVENING)} to {@code (role, DAY)}, so an evening
+     * worked before anybody priced evenings counts toward {@code shiftsCompleted} and contributes
+     * nothing to {@code totalAccrued} — the same treatment as a shift worked before any rate existed
+     * at all. The console shows a non-zero {@code unpricedShifts} as "nobody set a price", which is
+     * the honest answer and is not the same as "earned nothing".
+     */
+    @Test
+    void reportsAnUnpricedShiftTypeAsUnpricedRatherThanBorrowingAnotherRate() {
+        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
+        byShift.put(ShiftType.DAY, List.of(rate(ShiftType.DAY, "100", LocalDate.of(2020, 1, 1))));
+        install(byShift);
+        rosterReturns(shift(TODAY.minusDays(3), ShiftType.DAY), shift(TODAY.minusDays(2), ShiftType.EVENING));
+
+        ProfessionalEarningsDTO earnings = service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY);
+
+        assertThat(earnings.totalAccrued()).isEqualByComparingTo("100");
+        assertThat(earnings.shiftsCompleted()).isEqualTo(2);
+        assertThat(earnings.unpricedShifts()).isEqualTo(1);
+    }
+
+    /**
+     * {@code FLEXIBLE} is payable here, and this is the first thing in this repo that could say so.
+     *
+     * <p>The value arrived with the superset enum on 2026-09-04. It is hc-professional's negotiated
+     * 2–4 hour block, and this service could not previously receive, store or price one — so the
+     * earnings contract it serves back to that stack could not express a shift that stack routinely
+     * rosters. Payability is keyed on {@code shift != OFF}, so {@code FLEXIBLE} accrues like any
+     * worked shift, at its own rate.
+     */
+    @Test
+    void valuesAFlexibleShiftLikeAnyOtherWorkedOne() {
+        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
+        byShift.put(ShiftType.FLEXIBLE, List.of(rate(ShiftType.FLEXIBLE, "60", LocalDate.of(2020, 1, 1))));
+        install(byShift);
+        rosterReturns(shift(TODAY.minusDays(2), ShiftType.FLEXIBLE));
+
+        ProfessionalEarningsDTO earnings = service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY);
+
+        assertThat(earnings.totalAccrued()).isEqualByComparingTo("60");
+        assertThat(earnings.shiftsCompleted()).isEqualTo(1);
+    }
+
+    /**
+     * A priced {@code OFF} row is never reached, and the grid is not the reason.
+     *
+     * <p>The pricing grid offers all five shift types so that whoever owns pricing is asked once, so
+     * an {@code OFF} rate can exist. It must still contribute nothing: {@code payableShifts} drops
+     * {@code OFF} before any rate is resolved, so the row is inert rather than a zero-value
+     * contribution — and the shift does not count toward {@code unpricedShifts} either, because it
+     * is not a shift anybody expects to be paid for.
+     */
+    @Test
+    void neverValuesARestDayEvenWhenOneHasBeenPriced() {
+        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
+        byShift.put(ShiftType.OFF, List.of(rate(ShiftType.OFF, "999", LocalDate.of(2020, 1, 1))));
+        install(byShift);
+        // payableShifts filters OFF in the query, so this is what the roster read actually returns.
+        rosterReturns();
+
+        ProfessionalEarningsDTO earnings = service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY);
+
+        assertThat(earnings.totalAccrued()).isEqualByComparingTo("0");
+        assertThat(earnings.shiftsCompleted()).isZero();
+        assertThat(earnings.unpricedShifts()).isZero();
     }
 }

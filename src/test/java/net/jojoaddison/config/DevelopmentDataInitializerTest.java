@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.Professional;
@@ -344,22 +345,49 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
-     * <b>At least one role has to carry a superseded rate.</b> A seed with one row per role reads
+     * <b>At least one cell has to carry a superseded rate.</b> A seed with one row per cell reads
      * identically whether rates are effective-dated or simply editable in place — the distinction
      * that the whole model turns on is invisible until a rate has history behind it, and the
      * console's history view has nothing to show.
+     *
+     * <p>Grouped by {@code (role, shiftType)} since 2026-09-04. Grouping by role alone would now be
+     * satisfied by the grid itself: DOCTOR has five rows because it is priced for five shift types,
+     * and the check would pass with nothing superseded at all.
      */
     @Test
     void shouldSeedARateThatHasBeenSuperseded() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        Map<ProfessionalRole, Long> perRole = test
+        Map<String, Long> perCell = test
             .getWageRates()
             .stream()
-            .collect(Collectors.groupingBy(WageRate::getRole, Collectors.counting()));
+            .collect(Collectors.groupingBy(rate -> rate.getRole() + "/" + rate.getShiftType(), Collectors.counting()));
 
-        assertThat(perRole).containsEntry(ProfessionalRole.DOCTOR, 2L).containsEntry(ProfessionalRole.NURSE, 2L);
+        assertThat(perCell).containsEntry("DOCTOR/NIGHT", 2L).containsEntry("NURSE/NIGHT", 2L);
         assertThat(test.getWageRates().stream().map(WageRate::getValidFrom).distinct()).hasSizeGreaterThan(1);
+    }
+
+    /**
+     * Every {@code (role, shiftType)} cell is priced, in both profiles.
+     *
+     * <p>The lookup is exact — there is no fallback from an unpriced shift type to the role's other
+     * rates — so an unfilled cell is a clinician whose earnings screen reports shifts worked and
+     * nothing accrued. That reads like a bug in the pay service rather than a hole in a fixture, so
+     * the fixture fills the grid.
+     *
+     * <p>Includes {@code OFF}, which is never read: {@code ShiftValuationService} drops an off day
+     * before resolving any rate. The go-live pricing ask is the whole five-by-five grid so that
+     * whoever owns pricing is asked once, and the fixture is the shape of the thing being asked for.
+     */
+    @Test
+    void shouldPriceEveryRoleAndShiftTypeCombinationInBothProfiles() throws Exception {
+        Map<String, DevelopmentDataInitializer.ProfileData> seed = readSeedData();
+
+        for (String profile : List.of("dev", "test")) {
+            assertThat(seed.get(profile).getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct())
+                .as("%s prices every (role, shiftType) cell", profile)
+                .hasSize(ProfessionalRole.values().length * ShiftType.values().length);
+        }
     }
 
     /**

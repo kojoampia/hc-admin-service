@@ -137,41 +137,226 @@
     ],
     "wageRates": [
       {
-        "id": "wage-caregiver-2026-01",
+        "id": "wage-caregiver-day-2026-01",
         "role": "CAREGIVER",
+        "shiftType": "DAY",
         "amount": 200,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-paramedic-2026-01",
+        "id": "wage-caregiver-evening-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "EVENING",
+        "amount": 240,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-caregiver-night-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "NIGHT",
+        "amount": 300,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-caregiver-off-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-caregiver-flexible-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "FLEXIBLE",
+        "amount": 120,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-day-2026-01",
         "role": "PARAMEDIC",
+        "shiftType": "DAY",
         "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-therapist-2026-01",
+        "id": "wage-paramedic-evening-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "EVENING",
+        "amount": 360,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-night-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "NIGHT",
+        "amount": 450,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-off-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-flexible-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "FLEXIBLE",
+        "amount": 180,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-day-2026-01",
         "role": "THERAPIST",
+        "shiftType": "DAY",
         "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-nurse-2026-01",
+        "id": "wage-therapist-evening-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "EVENING",
+        "amount": 360,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-night-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "NIGHT",
+        "amount": 450,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-off-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-flexible-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "FLEXIBLE",
+        "amount": 180,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-day-2026-01",
         "role": "NURSE",
+        "shiftType": "DAY",
         "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-doctor-2026-01",
+        "id": "wage-nurse-evening-2026-01",
+        "role": "NURSE",
+        "shiftType": "EVENING",
+        "amount": 360,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-night-2026-01",
+        "role": "NURSE",
+        "shiftType": "NIGHT",
+        "amount": 450,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-off-2026-01",
+        "role": "NURSE",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-flexible-2026-01",
+        "role": "NURSE",
+        "shiftType": "FLEXIBLE",
+        "amount": 180,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-day-2026-01",
         "role": "DOCTOR",
+        "shiftType": "DAY",
         "amount": 500,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-evening-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "EVENING",
+        "amount": 600,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-night-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "NIGHT",
+        "amount": 750,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-off-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-flexible-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "FLEXIBLE",
+        "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
@@ -16393,57 +16578,244 @@
     ],
     "wageRates": [
       {
-        "id": "wage-caregiver-2026-01",
+        "id": "wage-caregiver-day-2026-01",
         "role": "CAREGIVER",
+        "shiftType": "DAY",
         "amount": 200,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-paramedic-2026-01",
+        "id": "wage-caregiver-evening-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "EVENING",
+        "amount": 240,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-caregiver-night-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "NIGHT",
+        "amount": 300,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-caregiver-off-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-caregiver-flexible-2026-01",
+        "role": "CAREGIVER",
+        "shiftType": "FLEXIBLE",
+        "amount": 120,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-day-2026-01",
         "role": "PARAMEDIC",
+        "shiftType": "DAY",
         "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-therapist-2026-01",
+        "id": "wage-paramedic-evening-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "EVENING",
+        "amount": 360,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-night-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "NIGHT",
+        "amount": 450,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-off-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-paramedic-flexible-2026-01",
+        "role": "PARAMEDIC",
+        "shiftType": "FLEXIBLE",
+        "amount": 180,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-day-2026-01",
         "role": "THERAPIST",
+        "shiftType": "DAY",
         "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-nurse-2026-01",
+        "id": "wage-therapist-evening-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "EVENING",
+        "amount": 360,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-night-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "NIGHT",
+        "amount": 450,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-off-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-therapist-flexible-2026-01",
+        "role": "THERAPIST",
+        "shiftType": "FLEXIBLE",
+        "amount": 180,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-day-2026-01",
         "role": "NURSE",
+        "shiftType": "DAY",
         "amount": 300,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-doctor-2026-01",
+        "id": "wage-nurse-evening-2026-01",
+        "role": "NURSE",
+        "shiftType": "EVENING",
+        "amount": 360,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-night-2026-01",
+        "role": "NURSE",
+        "shiftType": "NIGHT",
+        "amount": 450,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-off-2026-01",
+        "role": "NURSE",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-nurse-flexible-2026-01",
+        "role": "NURSE",
+        "shiftType": "FLEXIBLE",
+        "amount": 180,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-day-2026-01",
         "role": "DOCTOR",
+        "shiftType": "DAY",
         "amount": 500,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
       },
       {
-        "id": "wage-doctor-2026-07",
+        "id": "wage-doctor-evening-2026-01",
         "role": "DOCTOR",
-        "amount": 550,
+        "shiftType": "EVENING",
+        "amount": 600,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-night-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "NIGHT",
+        "amount": 750,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-off-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "OFF",
+        "amount": 0,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-flexible-2026-01",
+        "role": "DOCTOR",
+        "shiftType": "FLEXIBLE",
+        "amount": 300,
+        "currency": "GHS",
+        "validFrom": "2026-01-01",
+        "note": "Opening rate"
+      },
+      {
+        "id": "wage-doctor-night-2026-07",
+        "role": "DOCTOR",
+        "shiftType": "NIGHT",
+        "amount": 825,
         "currency": "GHS",
         "validFrom": "2026-07-01",
         "note": "July 2026 market review"
       },
       {
-        "id": "wage-nurse-2026-07",
+        "id": "wage-nurse-night-2026-07",
         "role": "NURSE",
-        "amount": 330,
+        "shiftType": "NIGHT",
+        "amount": 495,
         "currency": "GHS",
         "validFrom": "2026-07-01",
         "note": "July 2026 market review"

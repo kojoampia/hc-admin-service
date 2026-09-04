@@ -27,7 +27,7 @@
       "fieldName": "shift",
       "fieldType": "ShiftType",
       "fieldValidateRules": ["required"],
-      "fieldValues": "DAY,EVENING,NIGHT,OFF"
+      "fieldValues": "DAY,EVENING,NIGHT,OFF,FLEXIBLE"
     }
   ],
   "microserviceName": "hcAdminService",
