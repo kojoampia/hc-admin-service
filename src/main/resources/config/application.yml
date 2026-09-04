@@ -111,13 +111,36 @@ spring:
         watch:
           enabled: false
     function:
-      definition: kafkaConsumer;kafkaProducer
+      # A function absent from this list is not bound, and nothing says so: the application starts,
+      # serves, reports healthy, and subscribes to nothing. That is how this service came to consume
+      # no domain events at all — `patient-events` and `hc.professional.registration` were carrying
+      # traffic while the only subscription here was to `sse-topic`, its own UI fan-out channel.
+      #
+      # Deployments that override SPRING_CLOUD_FUNCTION_DEFINITION replace this value entirely rather
+      # than adding to it, so a new function has to be added there too. quality/compose.yml and
+      # deploy/docker-compose.yml both set it.
+      definition: kafkaConsumer;kafkaProducer;patientDirectoryConsumer;professionalDirectoryConsumer
     stream:
       kafka:
         binder:
           replicationFactor: 1
           auto-create-topics: true
           brokers: localhost:9092
+        bindings:
+          # Read the topic from the beginning the first time this group exists, which is what makes
+          # the accounts registered before this consumer shipped visible at all. `resetOffsets: false`
+          # is the other half and matters more: with it, startOffset applies only when the group has
+          # no committed offset, so a restart resumes where it left off. Setting it true would replay
+          # the whole topic on every boot — harmless for the counts, because the write is idempotent,
+          # and a growing cost on every deploy for no benefit.
+          patientDirectoryConsumer-in-0:
+            consumer:
+              startOffset: earliest
+              resetOffsets: false
+          professionalDirectoryConsumer-in-0:
+            consumer:
+              startOffset: earliest
+              resetOffsets: false
       bindings:
         binding-out-0:
           # The destination is the whole point of this binding and it was missing.
@@ -150,6 +173,28 @@ spring:
           destination: professional-verification
           content-type: text/plain
           group: hc-admin-service
+        # THE TWO DOMAIN SUBSCRIPTIONS. Everything above this line is either outbound or the SSE
+        # fan-out; these are the only bindings on which this service learns anything from another.
+        #
+        # Each names its own group, and neither may be left to inherit one. Without a group Spring
+        # Cloud Stream generates an anonymous one per instance, which commits no offsets — a
+        # restarted container then resumes at the end of the log and every account created during the
+        # deploy is invisible for ever, with nothing logged. And the quality stack sets
+        # SPRING_CLOUD_STREAM_DEFAULT_GROUP=hc-admin-service, which applies to any binding that does
+        # not name one: inheriting it would put these two in the SSE consumer's group on a shared
+        # broker, where they would split partitions and each see part of the traffic.
+        #
+        # A group per subscriber, not one shared between them, for the same reason hc-professional
+        # gives its two consumers of one topic different groups: they are independent readers and
+        # each needs its own copy of every event.
+        patientDirectoryConsumer-in-0:
+          destination: patient-events
+          content-type: application/json
+          group: hc-admin-directory-patient
+        professionalDirectoryConsumer-in-0:
+          destination: hc.professional.registration
+          content-type: application/json
+          group: hc-admin-directory-professional
   profiles:
     # The commented value for `active` can be replaced with valid Spring profiles to load.
     # Otherwise, it will be filled in by maven when building the JAR file
