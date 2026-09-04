@@ -13,7 +13,6 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Component;
-import tech.jhipster.config.JHipsterConstants;
 
 /**
  * Brings stored shift data up to the 2026-09-04 model: backfills the {@code wage_rate} column that
@@ -70,12 +69,30 @@ import tech.jhipster.config.JHipsterConstants;
  * matches nothing; the reporting half reads and never writes. Neither can be wrong about whether it
  * has run.
  *
- * <p>Excluded from the test profile so its logging and its write cannot fire against an integration
- * test's fixtures mid-run. {@code ShiftTypeMigrationIT} constructs it directly instead, which is also
- * the only way to hand it a value the enum cannot express.
+ * <h2>Which profiles it is excluded from, and which it must not be</h2>
+ *
+ * <p>The exclusion is {@code !testdev & !testprod} — the two profiles {@code pom.xml} actually
+ * activates for an integration-test run, via {@code -Dspring.profiles.active=${profile.test}} on
+ * surefire/failsafe. It said {@code !test} until 2026-09-04, and <b>that expression excluded nothing
+ * from a build and disabled the one deployment that needed it</b>: the Spring profile {@code test} is
+ * never active under {@code ./mvnw verify}, while {@code dev,test} is exactly what the quality stack
+ * runs. Twelve {@code wage_rate} rows kept a null {@code shift_type} through every restart there and
+ * the wage-rates and earnings screens answered 500 until the stack was reseeded.
+ *
+ * <p><b>Nothing about an integration test ever depended on that annotation, and the next reader
+ * should not re-derive that it did.</b> Spring Boot does not invoke {@link ApplicationRunner} beans
+ * under {@code @SpringBootTest} at all — it is {@code SpringApplication.run} that calls them, and a
+ * test context is built without it — so an IT's fixtures were never reachable from here whatever the
+ * profile said. The expression above is the house idiom ({@code AsyncConfiguration} beside it) and is
+ * strictly the safer of the two: it starts genuinely excluding IT contexts, which {@code !test} never
+ * did, while letting the bean register on {@code dev,test} where the migration is the point.
+ *
+ * <p>{@code ShiftTypeMigrationIT} constructs the class directly rather than relying on either, which
+ * is also the only way to hand it a value the enum cannot express.
+ * {@code ShiftTypeMigrationProfileTest} pins the registration itself.
  */
 @Component
-@Profile("!" + JHipsterConstants.SPRING_PROFILE_TEST)
+@Profile("!testdev & !testprod")
 public class ShiftTypeMigration implements ApplicationRunner {
 
     private static final Logger LOG = LoggerFactory.getLogger(ShiftTypeMigration.class);

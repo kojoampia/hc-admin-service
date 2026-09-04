@@ -368,26 +368,54 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
-     * Every {@code (role, shiftType)} cell is priced, in both profiles.
+     * <b>{@code dev} prices every {@code (role, shiftType)} cell.</b>
      *
      * <p>The lookup is exact — there is no fallback from an unpriced shift type to the role's other
      * rates — so an unfilled cell is a clinician whose earnings screen reports shifts worked and
-     * nothing accrued. That reads like a bug in the pay service rather than a hole in a fixture, so
-     * the fixture fills the grid.
+     * nothing accrued. Against a fully-priced fixture that reads like a bug in the pay service
+     * rather than a hole in the data, so one profile fills the grid and stays the baseline.
      *
      * <p>Includes {@code OFF}, which is never read: {@code ShiftValuationService} drops an off day
      * before resolving any rate. The go-live pricing ask is the whole five-by-five grid so that
      * whoever owns pricing is asked once, and the fixture is the shape of the thing being asked for.
      */
     @Test
-    void shouldPriceEveryRoleAndShiftTypeCombinationInBothProfiles() throws Exception {
-        Map<String, DevelopmentDataInitializer.ProfileData> seed = readSeedData();
+    void shouldPriceEveryRoleAndShiftTypeCombinationUnderDev() throws Exception {
+        DevelopmentDataInitializer.ProfileData dev = readSeedData().get("dev");
 
-        for (String profile : List.of("dev", "test")) {
-            assertThat(seed.get(profile).getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct())
-                .as("%s prices every (role, shiftType) cell", profile)
-                .hasSize(ProfessionalRole.values().length * ShiftType.values().length);
-        }
+        assertThat(dev.getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct())
+            .as("dev prices every (role, shiftType) cell")
+            .hasSize(ProfessionalRole.values().length * ShiftType.values().length);
+    }
+
+    /**
+     * <b>{@code test} deliberately leaves two cells unpriced, and this asserts which two.</b>
+     *
+     * <p>This test asserted the full grid for both profiles until 2026-09-04, and that was the defect
+     * rather than the guard: with all 25 cells priced the unpriced rendering — {@code wage-rates.html}'s
+     * "Not set" branch, and every {@code unpricedShifts} count on the earnings screens — was
+     * <b>unreachable on the quality stack</b>, so the one state the distinct rendering exists to
+     * express could not be looked at. Worse, the case a reader did see was {@code OFF} at
+     * {@code 0 GHS}, which is precisely the state "Not set" exists to be told apart from.
+     *
+     * <p>{@code CAREGIVER} is the role, and the pair is chosen rather than arbitrary.
+     * {@code EVENING} has 45 assignments in the roster fixture, so the counts move and the screens
+     * have something to report; {@code FLEXIBLE} has none anywhere, so it exercises the rendering
+     * without touching a total. {@code dev} stays whole, which is what keeps
+     * {@link #shouldPriceEveryRoleAndShiftTypeCombinationUnderDev} meaningful as the baseline.
+     *
+     * <p>Named explicitly rather than counted: "23 of 25 cells" would go on passing if a different
+     * two went missing, and an accidental hole in the grid is exactly what the old assertion was
+     * there to catch. Only the deliberateness has changed.
+     */
+    @Test
+    void shouldLeaveTwoNamedCellsUnpricedUnderTest() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        List<String> priced = test.getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct().toList();
+
+        assertThat(priced).doesNotContain("CAREGIVER/EVENING", "CAREGIVER/FLEXIBLE");
+        assertThat(priced).hasSize(ProfessionalRole.values().length * ShiftType.values().length - 2);
     }
 
     /**

@@ -33,8 +33,20 @@ package net.jojoaddison.domain.enumeration;
  * contract this service serves to hc-professional could not previously express a shift that stack
  * routinely rosters.
  *
- * <p><b>Adding a value rewrote no stored document</b>, so {@code ShiftTypeMigration} beside this
- * enum is deliberately a no-op. Read its Javadoc before deleting it.
+ * <p><b>Adding a value rewrote no stored document — but the release it came in did, and
+ * {@code ShiftTypeMigration} beside this enum is what does the rewriting.</b> The first half still
+ * holds: {@code FLEXIBLE} retired no value and renamed none, so every stored {@code shift} string
+ * still parses and the roster collections needed nothing. The second half is why the class must not
+ * be deleted — the same change gave {@code WageRate} a <b>required</b> {@code shift_type}, and the
+ * migration is the only thing that backfills a row written before it. Without it, one such row makes
+ * {@code WageRateService.rateTableUpTo} build an {@code EnumMap} on a null key and every wage-rates
+ * and earnings screen answers 500.
+ *
+ * <p>This paragraph called the migration "deliberately a no-op" until 2026-09-04 — written before the
+ * backfill landed, left standing after it, and directly contradicted by the migration's own Javadoc.
+ * The stale half was the dangerous one: "a no-op … read its Javadoc before deleting it" reads as
+ * permission to delete the only backfill for a required money field. Read that Javadoc; do not
+ * delete the class.
  *
  * <p>This enum is a <b>cross-repo invariant</b>, and the list below is the whole of it. In this
  * repository: {@code jdl/hc-admin-console.jdl}'s {@code enum ShiftType} <b>and</b> its
