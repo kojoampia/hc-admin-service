@@ -29,12 +29,20 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 ## 📋 Core Responsibilities
 
 1.  **Duty Roster Management**:
-    - Managing professional shifts. `ShiftType` is **`DAY`, `EVENING`, `NIGHT`, `OFF`** — see
-      `domain/enumeration/ShiftType.java`. This said `MORNING, AFTERNOON, NIGHT` until 2026-09-01;
-      only `NIGHT` was ever real on this side. (`MORNING`/`AFTERNOON` did exist in
+    - Managing professional shifts. `ShiftType` is **`DAY`, `EVENING`, `NIGHT`, `OFF`, `FLEXIBLE`** —
+      see `domain/enumeration/ShiftType.java`. This said `MORNING, AFTERNOON, NIGHT` until
+      2026-09-01; only `NIGHT` was ever real on this side. (`MORNING`/`AFTERNOON` did exist in
       **hc-professional**, which retired them on 2026-08-20 — that is where the names came from.)
+      `FLEXIBLE` arrived on 2026-09-04, when the estate settled on **one** shift vocabulary rather
+      than two four-value enums differing by one value at each end: hc-professional declares the
+      same five in the same order. This service never creates a `FLEXIBLE` row itself, but it can
+      now receive, store, price and value one, which it could not before.
     - The weekly grid is `RosterWeek` + `ShiftAssignment`, and it is what `ShiftValuationService`
-      turns into pay. A shift is payable once its date is past and its type is not `OFF`.
+      turns into pay. A shift is payable once its date is past and its type is not `OFF`, and it is
+      valued at the `WageRate` in force for its **`(role, shiftType, date)`** — a night is not paid
+      what a day is. The match is exact: there is no fallback from an unpriced shift type to the
+      role's other rates, so an unpriced cell reports its shifts as _unpriced_ rather than borrowing
+      a neighbour's figure.
     - **Nothing reads roster changes.** This claimed a `roster` Kafka topic; no such destination
       is declared in any `.yml` and nothing consumes one. The grid contains no `StreamBridge` call
       at all. `DutyRosterService`'s `streamBridge.send("roster-events", …)` does publish — Spring
