@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Objects;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
+import net.jojoaddison.domain.enumeration.ShiftType;
 
 /**
  * A DTO for the {@link net.jojoaddison.domain.WageRate} entity.
@@ -18,6 +19,13 @@ public class WageRateDTO implements Serializable {
 
     @NotNull
     private ProfessionalRole role;
+
+    /**
+     * Which shift the rate prices. Required, and matched exactly — there is no "any shift type"
+     * row and no fallback to a role-only rate. See {@link net.jojoaddison.domain.WageRate}.
+     */
+    @NotNull
+    private ShiftType shiftType;
 
     @NotNull
     @DecimalMin(value = "0")
@@ -55,6 +63,14 @@ public class WageRateDTO implements Serializable {
 
     public void setRole(ProfessionalRole role) {
         this.role = role;
+    }
+
+    public ShiftType getShiftType() {
+        return shiftType;
+    }
+
+    public void setShiftType(ShiftType shiftType) {
+        this.shiftType = shiftType;
     }
 
     public BigDecimal getAmount() {
@@ -131,6 +147,7 @@ public class WageRateDTO implements Serializable {
         return "WageRateDTO{" +
             "id='" + getId() + "'" +
             ", role='" + getRole() + "'" +
+            ", shiftType='" + getShiftType() + "'" +
             ", amount=" + getAmount() +
             ", currency='" + getCurrency() + "'" +
             ", validFrom='" + getValidFrom() + "'" +

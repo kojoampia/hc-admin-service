@@ -17,10 +17,17 @@ import net.jojoaddison.domain.enumeration.ProfessionalRole;
  *     would otherwise label a chart with a range it does not contain.
  * @param shiftsCompleted payable shifts in the window — worked, and not an off day.
  * @param totalAccrued the sum of the buckets.
- * @param unpricedShifts shifts that fell before any rate was configured for the role. They are
- *     counted in {@code shiftsCompleted} and contribute nothing to {@code totalAccrued}, so a
- *     non-zero value here is the difference between "earned nothing" and "we never set a price" —
- *     the console needs to say which.
+ * @param unpricedShifts shifts no rate covered: the {@code (role, shiftType)} cell had no rate in
+ *     force on the day the shift was worked. They are counted in {@code shiftsCompleted} and
+ *     contribute nothing to {@code totalAccrued}, so a non-zero value here is the difference between
+ *     "earned nothing" and "we never set a price" — the console needs to say which.
+ *     <p><b>Two states produce it and this count does not distinguish them.</b> Until 2026-09-04
+ *     there was only one — a shift worked before any rate existed for the role — and this
+ *     description said so. A rate is keyed on the shift type now, so the second is a role priced for
+ *     days and not for nights, which makes every night worked unpriced however old the day rate is.
+ *     Describing only the first sends an administrator to look at {@code validFrom} when the answer
+ *     is an empty cell in the pricing grid, and tells a clinician something false about dates.
+ *     Anything rendering this must say "no rate", not "before a rate".
  * @param currency the currency the rates were denominated in, or null when nothing was priced.
  * @param archived whether the professional has been archived out of the directory. Reported rather
  *     than filtered on: archiving removes somebody from the lists you browse, and says nothing

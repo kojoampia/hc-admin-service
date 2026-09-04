@@ -51,7 +51,7 @@ enum MessageStatus { NEW, READ, REPLIED }
 enum Priority { HIGH, NORMAL, LOW }
 
 enum TaskState { TODO, DOING, DONE }
-enum ShiftType { DAY, EVENING, NIGHT, OFF }
+enum ShiftType { DAY, EVENING, NIGHT, OFF, FLEXIBLE }
 
 enum PlanTier { ESSENTIAL, PLUS, FAMILY }
 enum ServiceHealth { HEALTHY, DEGRADED, DOWN }
@@ -132,6 +132,7 @@ entity Hub {
     remain plain string ids from the earlier model rather than references; they
     are left alone deliberately, since nothing reads them yet. */
 entity Facility {
+  id String
   name String required
   description String
   type FacilityType required
@@ -308,6 +309,7 @@ entity ShiftAssignment {
 entity WageRate {
   id String
   role ProfessionalRole required
+  shiftType ShiftType required
   amount BigDecimal required min(0)
   currency String required minlength(3) maxlength(3)
   validFrom LocalDate required
