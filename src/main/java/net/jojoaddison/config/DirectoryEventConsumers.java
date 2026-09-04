@@ -45,15 +45,36 @@ import org.springframework.messaging.Message;
  *       warns about at length, and it is silent.</li>
  * </ul>
  *
- * <h2>Nothing thrown from here reaches the binder</h2>
+ * <h2>A bad message is refused by the parser; a failed write is retried and dead-lettered</h2>
  *
- * <p>An exception out of a Spring Cloud Stream consumer is retried and then, by default, dropped
- * after three attempts — and while that is happening the partition it arrived on makes no progress,
- * so one message this service cannot handle stalls every subject whose key hashes to it. These
- * topics belong to other products and carry event types added without reference to this consumer, so
- * meeting something unusable is a normal condition rather than an incident. Both handlers therefore
- * catch everything, log it, and let the offset advance. The parser is written to the same rule and
- * explains it further.
+ * <p>These two are not the same thing and were treated as one until 2026-09-05, when this method
+ * caught every {@code RuntimeException}, logged a {@code warn}, and let the offset advance. The
+ * justification was the right one for a bad message and wrong for everything else:
+ * {@code projection.apply} makes three Mongo writes, and <b>any {@code DataAccessException} — a
+ * failover, a connection reset, memory pressure — is a {@code RuntimeException}</b>. During a Mongo
+ * restart every event in that window was dropped with a {@code WARN}, the offset committed, and
+ * {@code /reconcile} could not recover it either, because no link had been written to reconcile
+ * against. The event was gone for good.
+ *
+ * <p>The split now is:
+ *
+ * <ul>
+ *   <li><b>A message this service cannot use never reaches an exception at all.</b>
+ *       {@code SiblingEventParser} answers {@code Optional.empty()} for an unreadable envelope, a
+ *       missing subject key, an unreadable timestamp and a type neither producer has published, and
+ *       that is where the leniency belongs — at the point the frame is being read, not wrapped around
+ *       everything downstream of it.</li>
+ *   <li><b>Anything that does throw is rethrown</b>, so the binder retries it and, when the retries
+ *       are exhausted, dead-letters it. There is no list of exceptions to keep up to date here, and
+ *       nothing is judged at the moment it is least knowable.</li>
+ * </ul>
+ *
+ * <p>The retry is bounded and the DLQ is configured, in {@code config/application.yml}:
+ * {@code maxAttempts: 5} over an exponential back-off from two seconds to thirty, so a partition
+ * pauses for at most about a minute and a half rather than for ever, and {@code enableDlq: true} with
+ * a {@code dlqName} of this service's own so the frames that still fail are recoverable rather than a
+ * line in a log that rotates. Without a DLQ the binder default is three fast attempts and then
+ * log-and-skip, which buys about two seconds of tolerance and pays permanent loss for it.
  *
  * <h2>Why this is not in {@code ..broker..}, which is where it obviously belongs</h2>
  *
@@ -132,13 +153,21 @@ public class DirectoryEventConsumers {
             handle("hc.professional.registration", () -> parser.parseProfessionalEvent(message.getPayload()).map(projection::apply));
     }
 
+    /**
+     * Logs what failed, then <b>lets it out</b>.
+     *
+     * <p>The rethrow is the point of this method, not an oversight in it. See the class javadoc: a
+     * frame this service cannot use has already been refused by the parser and never gets here, so
+     * anything reaching this catch is a write that did not happen — and swallowing it commits the
+     * offset over an event nothing can then recover. The log line exists because the binder's own
+     * message names the binding rather than the topic.
+     */
     private void handle(String topic, Runnable body) {
         try {
             body.run();
         } catch (RuntimeException e) {
-            // See the class javadoc. The offset advances either way; what must not happen is the
-            // partition stalling on a message this service cannot use.
-            LOG.warn("A frame on {} could not be applied to the directory — skipping it", topic, e);
+            LOG.warn("A frame on {} could not be applied to the directory — retrying, then dead-lettering it", topic, e);
+            throw e;
         }
     }
 

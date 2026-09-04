@@ -271,6 +271,42 @@ class ConfigurationBindingTest {
     }
 
     /**
+     * A write that fails is retried and then dead-lettered, rather than logged and lost.
+     *
+     * <p>{@code DirectoryEventConsumers} rethrows anything that fails downstream of the parser, which
+     * is only ever a Mongo write — a bad message is refused inside the parser without an exception.
+     * These settings are what that rethrow turns into: without them the binder makes three attempts
+     * about a second apart and then logs and skips, which is shorter than any database restart, and
+     * every event in the window is lost with the offset committed behind it. {@code /reconcile}
+     * cannot recover those, because no link was written to reconcile against.
+     *
+     * <p>Asserted here rather than in an integration test because the test profile deliberately sets
+     * {@code maxAttempts: 1} — a consumer that throws has to fail a test immediately rather than
+     * after a minute of real back-off — so nothing that boots a context can see these values.
+     */
+    @Test
+    void theDirectorySubscriptionsRetryAndThenDeadLetter() throws IOException {
+        Map<String, Object> properties = propertiesOf("config/application.yml");
+
+        for (String binding : List.of("patientDirectoryConsumer-in-0", "professionalDirectoryConsumer-in-0")) {
+            Object attempts = properties.get("spring.cloud.stream.bindings." + binding + ".consumer.maxAttempts");
+            assertThat(attempts)
+                .as("%s leaves maxAttempts at the binder default of 3 — about two seconds, shorter than any restart", binding)
+                .isNotNull();
+            assertThat(Integer.parseInt(String.valueOf(attempts)))
+                .as("%s must retry more than the default before giving up on a database that is coming back", binding)
+                .isGreaterThan(3);
+
+            assertThat(properties.get("spring.cloud.stream.kafka.bindings." + binding + ".consumer.enableDlq"))
+                .as("%s has no dead-letter queue, so an event that cannot be written is lost for ever", binding)
+                .isEqualTo(true);
+            assertThat(String.valueOf(properties.get("spring.cloud.stream.kafka.bindings." + binding + ".consumer.dlqName")))
+                .as("%s dead-letters onto a topic that does not name this service — these topics are shared", binding)
+                .contains("hc-admin");
+        }
+    }
+
+    /**
      * Read from {@code src/main/resources} on disk, NOT from the classpath.
      *
      * <p>This is the difference between a guard and a decoration. Under surefire,

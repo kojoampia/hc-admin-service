@@ -133,14 +133,25 @@ spring:
           # no committed offset, so a restart resumes where it left off. Setting it true would replay
           # the whole topic on every boot — harmless for the counts, because the write is idempotent,
           # and a growing cost on every deploy for no benefit.
+          #
+          # enableDlq is the other half of the retry settings below, and the half that decides
+          # whether a frame is recoverable. Without it the binder logs and skips once the attempts
+          # are exhausted, so a Mongo failover that outlasts them loses every event in the window
+          # permanently — /reconcile cannot help, because no link was written to reconcile against.
+          # The dlq topic is named for this service, not for the producer: these topics belong to
+          # other products and a dead letter of ours must be obviously ours on a shared broker.
           patientDirectoryConsumer-in-0:
             consumer:
               startOffset: earliest
               resetOffsets: false
+              enableDlq: true
+              dlqName: patient-events.hc-admin-dlq
           professionalDirectoryConsumer-in-0:
             consumer:
               startOffset: earliest
               resetOffsets: false
+              enableDlq: true
+              dlqName: hc.professional.registration.hc-admin-dlq
       bindings:
         binding-out-0:
           # The destination is the whole point of this binding and it was missing.
@@ -187,14 +198,32 @@ spring:
         # A group per subscriber, not one shared between them, for the same reason hc-professional
         # gives its two consumers of one topic different groups: they are independent readers and
         # each needs its own copy of every event.
+        #
+        # The retry window is set deliberately and is not the default. DirectoryEventConsumers
+        # rethrows anything that fails downstream of the parser — which is a Mongo write, never a bad
+        # message, because the parser refuses those without throwing — so these numbers decide how
+        # long a partition tolerates the database being away. The binder's default of three attempts
+        # with a one-second back-off spans about two seconds, which is shorter than any restart;
+        # five attempts from 2s at x3 to a 30s ceiling is roughly ninety, which covers one. Longer
+        # than that is an outage rather than a blip, and the dead-letter queue is the answer to it.
         patientDirectoryConsumer-in-0:
           destination: patient-events
           content-type: application/json
           group: hc-admin-directory-patient
+          consumer:
+            maxAttempts: 5
+            backOffInitialInterval: 2000
+            backOffMultiplier: 3
+            backOffMaxInterval: 30000
         professionalDirectoryConsumer-in-0:
           destination: hc.professional.registration
           content-type: application/json
           group: hc-admin-directory-professional
+          consumer:
+            maxAttempts: 5
+            backOffInitialInterval: 2000
+            backOffMultiplier: 3
+            backOffMaxInterval: 30000
   profiles:
     # The commented value for `active` can be replaced with valid Spring profiles to load.
     # Otherwise, it will be filled in by maven when building the JAR file
