@@ -162,6 +162,24 @@ class ProfessionalEarningsIT {
     /**
      * An OFF cell is a real row in the roster grid. Counting it would inflate both the shift count
      * and the wage bill, and nothing about the record says "unpaid" except its type.
+     *
+     * <p><b>This is the only test in the repository that covers the OFF exclusion, and since
+     * 2026-09-04 it also covers the case a priced OFF rate creates.</b> The exclusion lives in
+     * {@code payableShifts}'s query — {@code .and("shift").ne(ShiftType.OFF)} — so it only runs
+     * against a real Mongo, and the fixture here prices <em>every</em> shift type including
+     * {@code OFF} (see {@link #ratesAtEveryShiftType}). The two OFF days below are therefore both
+     * rostered and priced at 550, and contribute nothing: the row is inert rather than a
+     * zero-valued contribution, and it does not reach {@code unpricedShifts} either, because it is
+     * not a shift anybody expects to be paid for. That last assertion is why the count is checked
+     * here and not only the total.
+     *
+     * <p>{@code ShiftValuationServiceTest} carried a unit test named
+     * {@code neverValuesARestDayEvenWhenOneHasBeenPriced} until 2026-09-04, and it was deleted
+     * rather than kept: {@code MongoTemplate} is mocked there, so the criteria never execute and the
+     * body asserted three zeros over an empty stubbed roster — it passed identically with the
+     * {@code ne(OFF)} clause deleted from the source. What that clause is still <em>built</em> is
+     * pinned by {@code excludesOffDaysAndFutureDatesInTheQueryItself}, which reads the captured
+     * {@link org.springframework.data.mongodb.core.query.Query}. That it <em>works</em> is here.
      */
     @Test
     void offDaysAreNeitherCountedNorPaid() throws Exception {
@@ -173,7 +191,8 @@ class ProfessionalEarningsIT {
             .perform(get("/api/professionals/{id}/earnings?granularity=MONTHLY", doctor.getId()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.shiftsCompleted").value(1))
-            .andExpect(jsonPath("$.totalAccrued").value(550));
+            .andExpect(jsonPath("$.totalAccrued").value(550))
+            .andExpect(jsonPath("$.unpricedShifts").value(0));
     }
 
     /**

@@ -190,8 +190,23 @@ class ShiftValuationServiceTest {
      *       indistinguishable from a professional who has not worked.
      * </ul>
      *
-     * <p>{@code ProfessionalEarningsIT} exercises the same exclusion against real Mongo. This pins
-     * that the criteria are still being built, which is the part a refactor can drop.
+     * <p>{@code ProfessionalEarningsIT.offDaysAreNeitherCountedNorPaid} exercises the same exclusion
+     * against real Mongo. This pins that the criteria are still being <em>built</em>, which is the
+     * part a refactor can drop.
+     *
+     * <p><b>A second OFF test was deleted from this class on 2026-09-04 rather than repaired</b>, and
+     * it is worth saying where it went. {@code neverValuesARestDayEvenWhenOneHasBeenPriced} claimed
+     * that a priced {@code OFF} rate contributes nothing — but with {@code MongoTemplate} mocked the
+     * criteria never execute, so its body stubbed an empty roster and asserted three zeros, which is
+     * true of any service at all. Its own comment admitted it encoded the assumption rather than
+     * checking it. Repairing it would have meant asserting the built {@code Query}, which is this
+     * test; so the coverage moved instead of doubling. {@code ProfessionalEarningsIT} prices every
+     * shift type including {@code OFF} and asserts the count, the total and {@code unpricedShifts}
+     * across two rostered rest days, which is the claim the deleted name was making.
+     *
+     * <p>The general rule it came from is worth more than the case: <b>a test whose name promises
+     * what its body cannot check inflates a count this estate already reads sceptically.</b> Deleting
+     * one and saying so beats leaving it green.
      */
     @Test
     void excludesOffDaysAndFutureDatesInTheQueryItself() {
@@ -563,29 +578,5 @@ class ShiftValuationServiceTest {
 
         assertThat(earnings.totalAccrued()).isEqualByComparingTo("60");
         assertThat(earnings.shiftsCompleted()).isEqualTo(1);
-    }
-
-    /**
-     * A priced {@code OFF} row is never reached, and the grid is not the reason.
-     *
-     * <p>The pricing grid offers all five shift types so that whoever owns pricing is asked once, so
-     * an {@code OFF} rate can exist. It must still contribute nothing: {@code payableShifts} drops
-     * {@code OFF} before any rate is resolved, so the row is inert rather than a zero-value
-     * contribution — and the shift does not count toward {@code unpricedShifts} either, because it
-     * is not a shift anybody expects to be paid for.
-     */
-    @Test
-    void neverValuesARestDayEvenWhenOneHasBeenPriced() {
-        Map<ShiftType, List<WageRate>> byShift = new EnumMap<>(ShiftType.class);
-        byShift.put(ShiftType.OFF, List.of(rate(ShiftType.OFF, "999", LocalDate.of(2020, 1, 1))));
-        install(byShift);
-        // payableShifts filters OFF in the query, so this is what the roster read actually returns.
-        rosterReturns();
-
-        ProfessionalEarningsDTO earnings = service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY);
-
-        assertThat(earnings.totalAccrued()).isEqualByComparingTo("0");
-        assertThat(earnings.shiftsCompleted()).isZero();
-        assertThat(earnings.unpricedShifts()).isZero();
     }
 }
