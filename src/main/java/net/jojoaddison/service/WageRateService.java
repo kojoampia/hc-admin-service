@@ -72,10 +72,20 @@ public class WageRateService {
      * A resolver for valuing many shifts at once. Loads every rate in force on or before
      * {@code upTo} once, then answers from memory — the alternative is a query per shift, and a
      * month of roster for one professional is already tens of shifts.
+     *
+     * <p><b>A stored row missing {@code role} or {@code shiftType} fails here, by name.</b> Both are
+     * {@code @NotNull} on the document, so such a row is corrupt rather than merely old — but an
+     * {@code EnumMap} rejects a null key with a bare {@code NullPointerException}, and this method is
+     * behind {@code earningsFor}, {@code currentCurrencyFor} and {@code GET /api/wage-rates/current}.
+     * One row therefore turned the wage-rates screen and every earnings screen into a 500 whose stack
+     * trace named an {@code EnumMap} and nothing else — a data problem reported as a collections
+     * problem. {@code ShiftTypeMigration} backfills the rows that the 2026-09-04 dimension left
+     * behind; this is what the next one looks like if anything survives it.
      */
     public RateTable rateTableUpTo(LocalDate upTo) {
         Map<ProfessionalRole, Map<ShiftType, List<WageRate>>> byRole = new EnumMap<>(ProfessionalRole.class);
         for (WageRate rate : wageRateRepository.findByValidFromLessThanEqualOrderByValidFromDesc(upTo)) {
+            requireKey(rate);
             byRole
                 .computeIfAbsent(rate.getRole(), r -> new EnumMap<>(ShiftType.class))
                 .computeIfAbsent(rate.getShiftType(), s -> new ArrayList<>())
@@ -87,6 +97,26 @@ public class WageRateService {
             .values()
             .forEach(byShift -> byShift.values().forEach(rates -> rates.sort(Comparator.comparing(WageRate::getValidFrom).reversed())));
         return new RateTable(byRole);
+    }
+
+    /**
+     * Refuses a rate whose lookup key is incomplete, naming the row and what to do about it.
+     *
+     * <p>The message has to carry the id: "a wage rate has no shift type" sends a reader to the
+     * screen, and the row is not on the screen — it is the reason the screen is not there.
+     */
+    private static void requireKey(WageRate rate) {
+        if (rate.getRole() == null || rate.getShiftType() == null) {
+            throw new IllegalStateException(
+                ("Stored wage_rate %s has role=%s and shift_type=%s; both are required to price a shift. " +
+                    "A row written before the shift-type dimension of 2026-09-04 is backfilled by " +
+                    "ShiftTypeMigration on startup — run it, or set the field on this row.").formatted(
+                        rate.getId(),
+                        rate.getRole(),
+                        rate.getShiftType()
+                    )
+            );
+        }
     }
 
     /**

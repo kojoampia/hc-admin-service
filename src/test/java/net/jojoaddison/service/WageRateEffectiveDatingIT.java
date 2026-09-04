@@ -1,9 +1,12 @@
 package net.jojoaddison.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.Date;
 import java.util.List;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.WageRate;
@@ -13,6 +16,7 @@ import net.jojoaddison.repository.WageRateRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
 
 /**
  * Rates are effective-dated, and this is the property that decision buys: <b>raising a rate must not
@@ -36,6 +40,9 @@ class WageRateEffectiveDatingIT {
 
     @Autowired
     private WageRateService wageRateService;
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @BeforeEach
     void seedRates() {
@@ -155,6 +162,46 @@ class WageRateEffectiveDatingIT {
                 }
             }
         }
+    }
+
+    /**
+     * A stored row with no shift type fails by name, not as an {@code EnumMap} null key.
+     *
+     * <p>Such a row is what every {@code wage_rate} looked like before 2026-09-04, and
+     * {@code rateTableUpTo} groups into an {@code EnumMap}, which rejects a null key with a bare
+     * {@code NullPointerException}. Since that method is behind {@code earningsFor},
+     * {@code currentCurrencyFor} and {@code GET /api/wage-rates/current}, one row turned the
+     * wage-rates screen and every earnings screen into a 500 whose stack trace named a collections
+     * class and never the data.
+     *
+     * <p>{@code ShiftTypeMigration} backfills those rows on startup and {@code ShiftTypeMigrationIT}
+     * covers that; this is the belt to its braces, for a row that reaches the service anyway —
+     * written by something that bypassed the migration, or by a client against a database nobody
+     * restarted. The assertion is on the <b>message</b> rather than only the type, because the whole
+     * point is that a reader is told which row and what to do; a legible failure that says nothing
+     * useful is the same defect one layer up.
+     *
+     * <p>Inserted as a raw document rather than through the repository: {@code shiftType} is
+     * {@code @NotNull}, so the mapped entity is the one shape that cannot express the state being
+     * tested. {@code valid_from} has to be a real {@code Date} rather than the ISO string it looks
+     * like in the file — MongoDB's comparison operators are type-bracketed, so a {@code $lte}
+     * against a date never matches a string, and the row would simply not be loaded. The test then
+     * passes for the wrong reason: nothing thrown, because nothing was read.
+     */
+    @Test
+    void refusesAStoredRateWithNoShiftTypeAndSaysWhichRow() {
+        mongoTemplate.insert(
+            new org.bson.Document("_id", "wr-legacy")
+                .append("role", "NURSE")
+                .append("valid_from", Date.from(LocalDate.of(2026, 1, 1).atStartOfDay(ZoneOffset.UTC).toInstant())),
+            "wage_rate"
+        );
+
+        assertThatThrownBy(() -> wageRateService.rateTableUpTo(LocalDate.of(2026, 9, 30)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("wr-legacy")
+            .hasMessageContaining("shift_type")
+            .hasMessageContaining("ShiftTypeMigration");
     }
 
     private BigDecimal amountOn(ProfessionalRole role, ShiftType shiftType, LocalDate date) {
