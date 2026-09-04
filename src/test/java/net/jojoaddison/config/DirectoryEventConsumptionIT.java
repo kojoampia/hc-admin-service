@@ -16,6 +16,8 @@ import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.ProfessionalRepository;
 import net.jojoaddison.service.DirectoryProjectionService;
+import net.jojoaddison.service.SiblingEventParser;
+import net.jojoaddison.service.dto.SiblingDomainEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,6 +72,9 @@ class DirectoryEventConsumptionIT {
 
     @Autowired
     private DirectoryProjectionService projection;
+
+    @Autowired
+    private SiblingEventParser parser;
 
     @BeforeEach
     @AfterEach
@@ -408,6 +413,40 @@ class DirectoryEventConsumptionIT {
 
         assertThat(directoryLinkRepository.count()).isZero();
         assertThat(patientRepository.count()).isZero();
+    }
+
+    /**
+     * What {@code apply} answers, which the consumer now logs and nothing used to read.
+     *
+     * <p>{@code Outcome} was dead: {@code handle} discarded it, so the enum described behaviour rather
+     * than reporting it — and it was wrong about one case, answering {@code IGNORED} for a
+     * clinician's first sighting even though it had created a link. {@code IGNORED} means nothing was
+     * written, and a reader chasing "why did that registration not appear" needs those two apart.
+     */
+    @Test
+    void sayingWhatItDidDistinguishesLinkingFromIgnoring() {
+        assertThat(apply(parser.parseProfessionalEvent(bytes(registrationCreated()))))
+            .as("a clinician's first sighting writes a link — deliberately no local row, but not nothing")
+            .isEqualTo(DirectoryProjectionService.Outcome.LINKED);
+        assertThat(apply(parser.parseProfessionalEvent(bytes(onboardingState("COMPLETED")))))
+            .isEqualTo(DirectoryProjectionService.Outcome.UPDATED);
+
+        assertThat(apply(parser.parsePatientEvent(bytes(accountCreated("2026-09-01T08:00:00Z", false)), EMAIL)))
+            .isEqualTo(DirectoryProjectionService.Outcome.CREATED);
+        assertThat(apply(parser.parsePatientEvent(bytes(careAngelNominated("2026-09-02T08:00:00Z")), "angel@example.com")))
+            .as("a nomination is linked, not ignored — the link is what stops the activation behind it creating one")
+            .isEqualTo(DirectoryProjectionService.Outcome.LINKED);
+        assertThat(apply(parser.parsePatientEvent(bytes(accountActivated("2026-09-01T09:00:00Z")), "nobody@example.com")))
+            .as("an update for a subject that was never seen writes nothing at all")
+            .isEqualTo(DirectoryProjectionService.Outcome.IGNORED);
+    }
+
+    private DirectoryProjectionService.Outcome apply(Optional<SiblingDomainEvent> event) {
+        return projection.apply(event.orElseThrow());
+    }
+
+    private static byte[] bytes(String json) {
+        return json.getBytes(StandardCharsets.UTF_8);
     }
 
     /** One subject on each stream is two links, never one — the sources are separate key spaces. */

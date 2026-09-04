@@ -1,7 +1,9 @@
 package net.jojoaddison.config;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import net.jojoaddison.service.DirectoryProjectionService;
 import net.jojoaddison.service.SiblingEventParser;
 import org.slf4j.Logger;
@@ -120,11 +122,17 @@ public class DirectoryEventConsumers {
     /**
      * {@code patient-events} — hc-patient's gateway and api, one topic, keyed on the lowercased email.
      *
-     * <p>Bound as {@code patientDirectoryConsumer-in-0}. The bean name is the binding name, so
-     * renaming this method silently unsubscribes the service: the function disappears from
-     * {@code spring.cloud.function.definition}, the binding has nothing to attach to, and the
-     * application starts and serves as though nothing were wrong. {@code ConfigurationBindingTest}
-     * asserts the names against the shipped configuration for that reason.
+     * <p>Bound as {@code patientDirectoryConsumer-in-0}. <b>The bean name is the binding name, so
+     * renaming this method silently unsubscribes the service</b>: the function named in
+     * {@code spring.cloud.function.definition} no longer resolves to anything, the binding has nothing
+     * to attach to, and the application starts and serves as though nothing were wrong.
+     *
+     * <p>The guard for that is {@code DirectoryEventConsumptionIT}, which sends a frame and finds no
+     * channel — it translates the binder's own {@code NullPointerException} into a message naming the
+     * topic. {@code ConfigurationBindingTest} does <em>not</em> catch a rename: it compares the
+     * binding name in the YAML against the function list in the same YAML, so renaming this method
+     * leaves both sides agreeing with each other and disagreeing with the code. It guards the other
+     * half — a binding with no destination, no group, or no entry in the function list.
      */
     @Bean
     public Consumer<Message<byte[]>> patientDirectoryConsumer() {
@@ -154,17 +162,26 @@ public class DirectoryEventConsumers {
     }
 
     /**
-     * Logs what failed, then <b>lets it out</b>.
+     * Runs one delivery, says what it did, then — if it failed — <b>lets the failure out</b>.
      *
      * <p>The rethrow is the point of this method, not an oversight in it. See the class javadoc: a
      * frame this service cannot use has already been refused by the parser and never gets here, so
      * anything reaching this catch is a write that did not happen — and swallowing it commits the
      * offset over an event nothing can then recover. The log line exists because the binder's own
      * message names the binding rather than the topic.
+     *
+     * <p>The empty answer is the parser declining a frame — an unreadable envelope, no subject key, no
+     * readable timestamp, or a type neither producer has published. Normal on somebody else's topic,
+     * and already logged where the decision was taken.
+     *
+     * <p><b>The outcome is read here, and it used to be discarded.</b> {@code apply} has always
+     * returned one and nothing looked at it, so the enum described behaviour rather than reporting it —
+     * and "a care angel was linked and no record made" is exactly the kind of thing that has to be
+     * visible in a log when somebody asks why a registration did not appear.
      */
-    private void handle(String topic, Runnable body) {
+    private void handle(String topic, Supplier<Optional<DirectoryProjectionService.Outcome>> body) {
         try {
-            body.run();
+            body.get().ifPresent(outcome -> LOG.debug("A frame on {} was applied — {}", topic, outcome));
         } catch (RuntimeException e) {
             LOG.warn("A frame on {} could not be applied to the directory — retrying, then dead-lettering it", topic, e);
             throw e;

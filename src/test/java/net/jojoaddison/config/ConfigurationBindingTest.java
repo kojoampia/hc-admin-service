@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -195,8 +196,11 @@ class ConfigurationBindingTest {
                 )
                 .isNotNull();
 
+            // Split on the separator rather than asking whether the string contains the name.
+            // `.contains("patientDirectoryConsumer")` is satisfied by `patientDirectoryConsumerXYZ`,
+            // which is a different bean and binds nothing — the exact failure this assertion is for.
             String function = name.substring(0, name.indexOf("-in-"));
-            assertThat(definition)
+            assertThat(Arrays.stream(definition.split(";")).map(String::trim).toList())
                 .as(
                     "%s is not in spring.cloud.function.definition (%s), so nothing is bound to it and no message is ever delivered",
                     function,
