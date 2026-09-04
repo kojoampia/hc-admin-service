@@ -3,6 +3,7 @@ package net.jojoaddison.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import net.jojoaddison.IntegrationTest;
@@ -10,9 +11,11 @@ import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.ProfessionalRepository;
+import net.jojoaddison.service.DirectoryProjectionService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,6 +67,9 @@ class DirectoryEventConsumptionIT {
 
     @Autowired
     private DirectoryLinkRepository directoryLinkRepository;
+
+    @Autowired
+    private DirectoryProjectionService projection;
 
     @BeforeEach
     @AfterEach
@@ -168,7 +174,12 @@ class DirectoryEventConsumptionIT {
      */
     @Test
     void anOlderEventDoesNotWindTheRecordBack() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
         sendPatient(accountActivated("2026-09-02T09:00:00Z"));
+
+        // The registration comes round again, after the activation. On a group reading from the
+        // earliest offset that is the ordinary case, not the exotic one: the gateway's two frames and
+        // the api's onboarding frames are re-read in log order, and a redelivery can land anywhere.
         sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
 
         DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
@@ -227,6 +238,155 @@ class DirectoryEventConsumptionIT {
 
         assertThat(professionalRepository.count()).isZero();
         assertThat(patientRepository.count()).as("and a clinician is certainly not a patient").isZero();
+    }
+
+    /**
+     * <b>The care-angel defect, end to end.</b>
+     *
+     * <p>hc-patient's {@code CareAngelResource.nominate} publishes {@code AccountCreated} and then
+     * {@code AccountActivated}, both keyed on the <em>angel's</em> address. Until 2026-09-05 this
+     * consumer read only the type, so every nomination on that stack became an ACTIVE patient here —
+     * counted on the dashboard tile, drawn on the account-mix chart, listed in the directory as a
+     * nameless row, and unremovable, because the merge rule forbids the consumer to delete.
+     *
+     * <p>An angel is not a patient in this service: hc-admin models one as its own {@code Angel}
+     * entity, joined to the patient who nominated them, and neither half of that join is on the wire.
+     * So the nomination is recorded as a link — the same answer as for a clinician, for the same
+     * reason — and no {@code Patient} is created by either frame.
+     */
+    @Test
+    void aCareAngelNominationDoesNotBecomeAPatient() {
+        sendPatient(careAngelNominated("2026-09-01T08:00:00Z"));
+        sendPatient(accountActivated("2026-09-01T08:00:01Z"));
+
+        assertThat(patientRepository.count()).as("a care angel is not a patient and must not be counted as one").isZero();
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getSubjectKind())
+            .as("the link records what they are, so nothing later mistakes them for a patient")
+            .isEqualTo(DirectorySubjectKind.CARE_ANGEL);
+        assertThat(link.getLocalId()).as("no local row, deliberately — the same answer as for a clinician").isNull();
+        assertThat(link.getLastEventType())
+            .as("the activation still lands on the link; it simply may not create")
+            .isEqualTo("AccountActivated");
+    }
+
+    /**
+     * The reconciliation must not undo it either.
+     *
+     * <p>It walks links whose local record is missing and rebuilds them, and a care angel's link is
+     * missing one <em>by design</em> — so without the kind stored on the document, one press of
+     * {@code /reconcile} would recreate every patient the consumer had just refused to create. That
+     * is the whole reason {@code subject_kind} is persisted rather than re-derived: the reconciliation
+     * has no event in front of it to read the authorities out of.
+     */
+    @Test
+    void reconcilingDoesNotResurrectACareAngelAsAPatient() {
+        sendPatient(careAngelNominated("2026-09-01T08:00:00Z"));
+
+        projection.reconcile();
+
+        assertThat(patientRepository.count()).as("the backfill path must refuse exactly what the consumer refuses").isZero();
+    }
+
+    /** An angel who later registers or onboards in their own right is a patient, and becomes one. */
+    @Test
+    void anAngelWhoLaterOnboardsBecomesAPatient() {
+        sendPatient(careAngelNominated("2026-09-01T08:00:00Z"));
+        sendPatient(onboardingStarted("2026-09-05T10:00:00Z", "p-9999"));
+
+        assertThat(patientRepository.count()).isEqualTo(1);
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getSubjectKind())
+            .as("CARE_ANGEL is promoted to PATIENT, never the reverse")
+            .isEqualTo(DirectorySubjectKind.PATIENT);
+        assertThat(link.getLocalId()).isEqualTo(patientRepository.findAll().get(0).getId());
+    }
+
+    /**
+     * <b>The erasure, which is the sharpest case on the stream.</b>
+     *
+     * <p>{@code DeletionRequestChanged/COMPLETED} is published <em>after</em> hc-patient has erased
+     * the profile — its own javadoc says the address has to be read off the stored request because
+     * there is nothing left to look it up on, and that "a consumer must not try to resolve the
+     * patient". With no type filter on the creation path, that event was what made this service start
+     * storing somebody's address and open a nameless directory row for them: the one frame whose
+     * entire meaning is "erase this person" was the one that made hc-admin remember them.
+     */
+    @Test
+    void anErasureForAnUnknownSubjectStoresNothingAtAll() {
+        sendPatient(deletionRequestChanged("2026-09-01T12:00:00Z", "COMPLETED"));
+
+        assertThat(directoryLinkRepository.count())
+            .as("the event that says a person has been erased may not be the event that starts storing them")
+            .isZero();
+        assertThat(patientRepository.count()).isZero();
+    }
+
+    /**
+     * For a subject already known, the erasure marks the link and leaves the record alone.
+     *
+     * <p>Neither is deleted, and each for its own reason. The {@code Patient} is an administrator's
+     * record with an operational history the far side knows nothing about — the merge rule has said
+     * from the start that a deletion there is not a deletion here. The <b>link</b> is not deleted
+     * because it holds the watermark: dropping it would let the whole of that subject's retained
+     * history replay into a fresh link on the next backfill and undo the marker, which is exactly the
+     * property that makes deletion the one operation that is not idempotent against a replayed stream.
+     */
+    @Test
+    void anErasureMarksTheLinkAndRemovesNothing() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
+        sendPatient(onboardingStarted("2026-09-01T10:00:00Z", "p-1234"));
+        String patientId = patientRepository.findAll().get(0).getId();
+
+        sendPatient(deletionRequestChanged("2026-09-01T12:00:00Z", "COMPLETED"));
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getErasedAt()).isEqualTo(Instant.parse("2026-09-01T12:00:00Z"));
+        assertThat(link.getExternalId()).as("the patientId is a handle into a record that no longer exists").isNull();
+        assertThat(link.getLogin()).isNull();
+        assertThat(patientRepository.findById(patientId)).as("hc-admin's own record is not deleted by an event, ever").isPresent();
+
+        // And the reconciliation does not rebuild a record for somebody the far side has erased.
+        patientRepository.deleteById(patientId);
+        projection.reconcile();
+        assertThat(patientRepository.count()).isZero();
+    }
+
+    /**
+     * A type neither producer has published creates nothing.
+     *
+     * <p>Both producers state the contract in their own javadoc — <em>a consumer meeting something it
+     * does not recognise must ignore it</em> — and until 2026-09-05 this consumer did the opposite:
+     * any type at all, on a frame with a resolvable subject key, opened a {@code Patient}.
+     */
+    @Test
+    void aTypeThisServiceDoesNotModelCreatesNothing() {
+        sendPatient(
+            "{\"eventId\":\"evt-x\",\"type\":\"SomethingAddedNextYear\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\"},\"data\":{}}"
+        );
+
+        assertThat(patientRepository.count()).isZero();
+        assertThat(directoryLinkRepository.count()).as("nor a link — this service has no idea who or what that frame is about").isZero();
+    }
+
+    /**
+     * An {@code UPDATE_ONLY} event for a subject whose arrival was missed writes nothing.
+     *
+     * <p>A record invented from an onboarding step or a delegation change is a row nothing can ever
+     * complete: the events that carry identity are the ones that open a record, and this is not one
+     * of them. It is also what stops a topic gap — a retention window rolling over the account events
+     * while keeping the later ones — from producing a directory of half-people.
+     */
+    @Test
+    void anUpdateOnlyEventForAnUnknownSubjectWritesNothing() {
+        sendPatient(accountActivated("2026-09-01T09:00:00Z"));
+
+        assertThat(directoryLinkRepository.count()).isZero();
+        assertThat(patientRepository.count()).isZero();
     }
 
     /** One subject on each stream is two links, never one — the sources are separate key spaces. */
@@ -330,6 +490,32 @@ class DirectoryEventConsumptionIT {
             patientId +
             "\"},\"data\":{\"startedAt\":\"" +
             occurredAt +
+            "\"}}"
+        );
+    }
+
+    /** hc-patient's {@code CareAngelResource.nominate}, first frame — keyed on the ANGEL's address. */
+    private static String careAngelNominated(String occurredAt) {
+        return (
+            "{\"eventId\":\"evt-angel\",\"type\":\"AccountCreated\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"patientGateway\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":\"aangel\",\"patientId\":null}," +
+            "\"data\":{\"authorities\":\"ROLE_USER,ROLE_ANGEL\",\"activated\":true,\"reason\":\"careAngelNomination\"}}"
+        );
+    }
+
+    /** {@code DeletionRequestService.announce}. {@code COMPLETED} is published after the erasure. */
+    private static String deletionRequestChanged(String occurredAt, String change) {
+        return (
+            "{\"eventId\":\"evt-deletion\",\"type\":\"DeletionRequestChanged\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":\"amensah\",\"patientId\":\"p-1234\"}," +
+            "\"data\":{\"requestId\":\"req-1\",\"change\":\"" +
+            change +
             "\"}}"
         );
     }

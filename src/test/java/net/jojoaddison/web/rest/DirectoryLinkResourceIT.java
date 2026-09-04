@@ -14,6 +14,7 @@ import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -92,7 +93,8 @@ class DirectoryLinkResourceIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.examined").value(1))
             .andExpect(jsonPath("$.created").value(1))
-            .andExpect(jsonPath("$.alreadyPresent").value(0));
+            .andExpect(jsonPath("$.alreadyPresent").value(0))
+            .andExpect(jsonPath("$.skipped").value(0));
 
         assertThat(patientRepository.count()).isEqualTo(1);
         assertThat(directoryLinkRepository.findSubject(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getLocalId())
@@ -140,6 +142,34 @@ class DirectoryLinkResourceIT {
         assertThat(after.getJoinedOn()).isEqualTo(LocalDate.of(2026, 1, 1));
     }
 
+    /**
+     * A link that keeps no local record is not one the reconciliation rebuilds.
+     *
+     * <p>Its {@code localId} is null, which is the shape the loop is looking for, and rebuilding it
+     * would put back exactly what the consumer refuses to create — a care angel as a patient, or
+     * somebody hc-patient has erased. Reported as {@code skipped} rather than folded into
+     * {@code alreadyPresent}, because those links have no record and are supposed not to.
+     */
+    @Test
+    void reconcileSkipsTheLinksThatKeepNoRecord() throws Exception {
+        DirectoryLink angel = link("angel@" + EMAIL, null);
+        angel.setSubjectKind(DirectorySubjectKind.CARE_ANGEL);
+        directoryLinkRepository.save(angel);
+
+        DirectoryLink erased = link("erased@" + EMAIL, null);
+        erased.setErasedAt(Instant.parse("2026-08-21T10:00:00Z"));
+        directoryLinkRepository.save(erased);
+
+        mvc
+            .perform(post("/api/directory-links/reconcile"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.examined").value(2))
+            .andExpect(jsonPath("$.created").value(0))
+            .andExpect(jsonPath("$.skipped").value(2));
+
+        assertThat(patientRepository.count()).as("neither an angel nor an erased subject is rebuilt as a patient").isZero();
+    }
+
     private DirectoryLink link(String externalKey, String localId) {
         DirectoryLink link = new DirectoryLink();
         link.setSource(DirectorySource.HC_PATIENT);
@@ -147,6 +177,7 @@ class DirectoryLinkResourceIT {
         link.setEmail(externalKey);
         link.setLogin("kasante");
         link.setState("AccountActivated");
+        link.setSubjectKind(DirectorySubjectKind.PATIENT);
         link.setLocalId(localId);
         link.setFirstSeenAt(Instant.parse("2026-08-20T10:00:00Z"));
         link.setLastEventAt(Instant.parse("2026-08-20T10:00:00Z"));

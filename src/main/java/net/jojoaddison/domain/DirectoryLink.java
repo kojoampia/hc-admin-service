@@ -4,6 +4,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -95,13 +96,45 @@ public class DirectoryLink implements Serializable {
     private String state;
 
     /**
+     * What kind of account this is, and therefore whether a local record is kept for it.
+     *
+     * <p><b>Stored rather than re-derived, and that is the point of it.</b> A care angel and a
+     * patient arrive on the same topic under the same {@code AccountCreated} type, distinguishable
+     * only by a field in the event's {@code data} — which the reconciliation endpoint does not have
+     * in front of it. Without this on the document, a reconciliation would rebuild a {@code Patient}
+     * for every angel. See {@link DirectorySubjectKind}.
+     *
+     * <p>Null on links written before 2026-09-05, which is read as {@link DirectorySubjectKind#PATIENT}
+     * for {@link DirectorySource#HC_PATIENT}: those are exactly the rows created back when every
+     * patient-stream subject became a patient.
+     */
+    @Field("subject_kind")
+    private DirectorySubjectKind subjectKind;
+
+    /**
+     * When the far side told this service it had erased the subject, and null for everybody else.
+     *
+     * <p>Set from hc-patient's {@code DeletionRequestChanged} with {@code change=COMPLETED}, which
+     * is published <em>after</em> the profile has already gone. It is a marker and not a deletion:
+     * this service does not delete the {@code Patient} (an administrator's record with an
+     * operational history of its own) and does not delete the link either, because the link holds
+     * the watermark — dropping it would let the whole of that subject's retained history replay into
+     * a fresh one and undo the marker. What it does is stop the reconciliation rebuilding a record
+     * for somebody whose far side is gone, and tell a reader why the row looks the way it does.
+     */
+    @Field("erased_at")
+    private Instant erasedAt;
+
+    /**
      * The local document this subject produced, when it produced one.
      *
-     * <p>Null for every {@link DirectorySource#HC_PROFESSIONAL} link today, and that is stated
-     * rather than pending: {@code Professional} requires a {@code role} and a {@code licenceNumber},
-     * neither of which is on a registration event nor could be — they are what credentialing
-     * collects. A row invented with a fabricated licence number in a directory whose whole purpose
-     * is verification is worse than no row.
+     * <p>Null for every {@link DirectorySource#HC_PROFESSIONAL} link, and that is stated rather than
+     * pending: {@code Professional} requires a {@code role} and a {@code licenceNumber}, neither of
+     * which is on a registration event nor could be — they are what credentialing collects. A row
+     * invented with a fabricated licence number in a directory whose whole purpose is verification is
+     * worse than no row. Null for a {@link DirectorySubjectKind#CARE_ANGEL} too, for the same shape of
+     * reason: hc-admin models an angel as its own entity joined to the patient who nominated them,
+     * and an account event carries neither half of that.
      */
     @Field("local_id")
     private String localId;
@@ -182,6 +215,22 @@ public class DirectoryLink implements Serializable {
         this.state = state;
     }
 
+    public DirectorySubjectKind getSubjectKind() {
+        return subjectKind;
+    }
+
+    public void setSubjectKind(DirectorySubjectKind subjectKind) {
+        this.subjectKind = subjectKind;
+    }
+
+    public Instant getErasedAt() {
+        return erasedAt;
+    }
+
+    public void setErasedAt(Instant erasedAt) {
+        this.erasedAt = erasedAt;
+    }
+
     public String getLocalId() {
         return localId;
     }
@@ -247,6 +296,7 @@ public class DirectoryLink implements Serializable {
             ", externalKey='" + getExternalKey() + "'" +
             ", externalId='" + getExternalId() + "'" +
             ", login='" + getLogin() + "'" +
+            ", subjectKind='" + getSubjectKind() + "'" +
             ", state='" + getState() + "'" +
             ", localId='" + getLocalId() + "'" +
             ", lastEventAt='" + getLastEventAt() + "'" +

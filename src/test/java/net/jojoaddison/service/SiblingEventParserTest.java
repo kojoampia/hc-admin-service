@@ -6,7 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
+import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -62,8 +64,126 @@ class SiblingEventParserTest {
         assertThat(
             parser.parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)), null).orElseThrow().activated()
         )
-            .as("a care-angel account is created already activated, and says so in its data")
+            .as("an account created already activated says so in its data")
             .isTrue();
+    }
+
+    /**
+     * <b>The care-angel trap.</b> hc-patient publishes {@code AccountCreated} for a nomination too,
+     * keyed on the angel's own address, with {@code ROLE_ANGEL} among the authorities and
+     * {@code reason: careAngelNomination} — and then an {@code AccountActivated} straight after it,
+     * because an angel's account is created already activated.
+     *
+     * <p>Until 2026-09-05 the parser named two types and read them only for {@code activated}, so
+     * both frames went down the creation path and every nomination became an ACTIVE patient: on the
+     * count, in the directory, on the account-mix chart, on the weekly-joins tile. An angel is not a
+     * patient here — hc-admin has a separate {@code Angel} entity — so the nomination is a link and
+     * nothing else, and the activation that follows it may only update.
+     */
+    @Test
+    void aCareAngelNominationIsALinkAndNeverAPatient() {
+        SiblingDomainEvent nomination = parser.parsePatientEvent(bytes(careAngelNominated(PATIENT_EMAIL)), null).orElseThrow();
+
+        assertThat(nomination.disposition())
+            .as("a nomination may not open a patient record; it is a link and nothing more")
+            .isEqualTo(Disposition.LINK_ONLY);
+        assertThat(nomination.subjectKind()).isEqualTo(DirectorySubjectKind.CARE_ANGEL);
+        assertThat(nomination.activated()).as("an angel's account being activated is not a patient becoming active").isFalse();
+
+        // The second frame the same call site emits. It carries no ROLE_ANGEL and no reason — only
+        // an activatedAt — so nothing in it says who it is about. UPDATE_ONLY is what stops it.
+        assertThat(parser.parsePatientEvent(bytes(accountActivated(PATIENT_EMAIL)), null).orElseThrow().disposition())
+            .as("the nomination's activation frame carries no marker at all, so it must not create either")
+            .isEqualTo(Disposition.UPDATE_ONLY);
+    }
+
+    /** Either marker alone is enough; they are set at one call site and one could outlive the other. */
+    @Test
+    void recognisesANominationFromEitherMarkerAlone() {
+        String byAuthority = accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)
+            .replace("\"authorities\":\"ROLE_USER\"", "\"authorities\":\"ROLE_USER,ROLE_ANGEL\"");
+        String byReason = accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)
+            .replace("\"langKey\":\"en\"", "\"reason\":\"careAngelNomination\"");
+
+        assertThat(parser.parsePatientEvent(bytes(byAuthority), null).orElseThrow().disposition()).isEqualTo(Disposition.LINK_ONLY);
+        assertThat(parser.parsePatientEvent(bytes(byReason), null).orElseThrow().disposition()).isEqualTo(Disposition.LINK_ONLY);
+    }
+
+    /**
+     * <b>All seven types hc-patient publishes, and what each may do.</b>
+     *
+     * <p>Enumerated from {@code PatientEventType} in that repository rather than from the frames that
+     * happen to be in a topic. The entry that closed this work claimed the sweep had been done and it
+     * had been done for hc-professional only: the parser named two of these seven and there was no
+     * type filter on the creation path at all, so the other five — and every type either product adds
+     * next — opened a {@code Patient}.
+     */
+    @Test
+    void modelsEveryTypeHcPatientPublishes() {
+        assertThat(dispositionOf("AccountCreated")).isEqualTo(Disposition.CREATE);
+        assertThat(dispositionOf("OnboardingStarted"))
+            .as("the one event that proves a profile exists on the far side, and the only one carrying the patientId")
+            .isEqualTo(Disposition.CREATE);
+        assertThat(dispositionOf("AccountActivated")).isEqualTo(Disposition.UPDATE_ONLY);
+        assertThat(dispositionOf("OnboardingStepCompleted")).isEqualTo(Disposition.UPDATE_ONLY);
+        assertThat(dispositionOf("OnboardingCompleted")).isEqualTo(Disposition.UPDATE_ONLY);
+        assertThat(dispositionOf("CareDelegationChanged"))
+            .as("keyed on the PATIENT's address, with the angel's in data — it changes a subject already known")
+            .isEqualTo(Disposition.UPDATE_ONLY);
+        assertThat(dispositionOf("DeletionRequestChanged")).isEqualTo(Disposition.UPDATE_ONLY);
+    }
+
+    /**
+     * The sharpest case on the stream, and the one an untyped creation path got exactly backwards.
+     *
+     * <p>{@code DeletionRequestChanged/COMPLETED} is published <em>after</em> the profile has been
+     * erased — hc-patient's own javadoc says the email has to be read off the stored request because
+     * the profile is already gone and "a consumer must not try to resolve the patient". So the event
+     * whose entire meaning is "erase this person" was, for a subject with no link, the thing that made
+     * this service start storing their address and open a nameless directory row for them.
+     */
+    @Test
+    void marksTheCompletedErasureAndNeverOpensARecordForIt() {
+        SiblingDomainEvent completed = parser.parsePatientEvent(bytes(deletionRequest(PATIENT_EMAIL, "COMPLETED")), null).orElseThrow();
+
+        assertThat(completed.disposition()).isEqualTo(Disposition.UPDATE_ONLY);
+        assertThat(completed.erased()).as("the far side has already deleted this person's profile").isTrue();
+
+        // The other three changes are ordinary lifecycle news about somebody who still exists.
+        for (String change : new String[] { "RAISED", "CANCELLED", "REJECTED" }) {
+            assertThat(parser.parsePatientEvent(bytes(deletionRequest(PATIENT_EMAIL, change)), null).orElseThrow().erased())
+                .as("%s is a request, not an erasure", change)
+                .isFalse();
+        }
+    }
+
+    /**
+     * A type neither producer has published is ignored, which is the contract both of them state in
+     * their own javadoc: <em>a consumer meeting something it does not recognise must ignore it.</em>
+     */
+    @Test
+    void ignoresATypeItDoesNotModel() {
+        assertThat(parser.parsePatientEvent(bytes(typed("SomethingAddedNextYear", PATIENT_EMAIL)), null))
+            .as("hc-patient may add a type without reference to this consumer, and it must not become a patient")
+            .isEmpty();
+        assertThat(parser.parseProfessionalEvent(bytes(professionalTyped("compliance.alert"))))
+            .as("hc-professional owns its topic and may add to it too")
+            .isEmpty();
+    }
+
+    /** Both clinician types are links and nothing more; no {@code Professional} is ever invented. */
+    @Test
+    void keepsNoLocalRecordForEitherProfessionalType() {
+        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().disposition())
+            .isEqualTo(Disposition.LINK_ONLY);
+        assertThat(parser.parseProfessionalEvent(bytes(onboardingState("acc-1", "COMPLETED"))).orElseThrow().disposition())
+            .isEqualTo(Disposition.LINK_ONLY);
+        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().subjectKind())
+            .isEqualTo(DirectorySubjectKind.PROFESSIONAL);
+    }
+
+    private Disposition dispositionOf(String type) {
+        return parser.parsePatientEvent(bytes(typed(type, PATIENT_EMAIL)), null).orElseThrow().disposition();
     }
 
     /**
@@ -159,6 +279,53 @@ class SiblingEventParserTest {
             "\"data\":{\"authorities\":\"ROLE_USER\",\"langKey\":\"en\",\"activated\":" +
             activated +
             "}}"
+        );
+    }
+
+    /** hc-patient's {@code CareAngelResource.nominate}, first frame, verbatim from that call site. */
+    private static String careAngelNominated(String email) {
+        return (
+            "{\"eventId\":\"evt-angel\",\"type\":\"AccountCreated\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"patientGateway\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":\"aangel\",\"patientId\":null}," +
+            "\"data\":{\"authorities\":\"ROLE_USER,ROLE_ANGEL\",\"activated\":true,\"reason\":\"careAngelNomination\"}}"
+        );
+    }
+
+    /** {@code DeletionRequestService.announce} — one type, a {@code change} discriminator. */
+    private static String deletionRequest(String email, String change) {
+        return (
+            "{\"eventId\":\"evt-deletion\",\"type\":\"DeletionRequestChanged\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T12:00:00Z\",\"source\":\"hcPatientService\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":\"amensah\",\"patientId\":\"p-1234\"}," +
+            "\"data\":{\"requestId\":\"req-1\",\"change\":\"" +
+            change +
+            "\"}}"
+        );
+    }
+
+    /** A minimal well-formed envelope of an arbitrary type, for sweeping the disposition table. */
+    private static String typed(String type, String email) {
+        return (
+            "{\"eventId\":\"evt-typed\",\"type\":\"" +
+            type +
+            "\",\"version\":1,\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hcPatientService\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":\"amensah\",\"patientId\":null},\"data\":{}}"
+        );
+    }
+
+    private static String professionalTyped(String eventType) {
+        return (
+            "{\"eventId\":\"evt-other\",\"eventType\":\"" +
+            eventType +
+            "\",\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hc-professional-service\",\"actor\":\"system\"," +
+            "\"payload\":{\"accountId\":\"acc-1\",\"alertType\":\"LICENCE_EXPIRING\"}}"
         );
     }
 

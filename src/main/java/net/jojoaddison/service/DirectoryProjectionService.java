@@ -8,10 +8,12 @@ import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.service.dto.DirectoryReconciliationDTO;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
+import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
@@ -65,6 +67,32 @@ import org.springframework.stereotype.Service;
  * number in the directory that exists to verify licences would be the worst possible kind of
  * plausible.
  *
+ * <h2>Not every subject on a stream is one of this service's people</h2>
+ *
+ * <p><b>Which events may open a record is decided by the event type, and nothing here defaults.</b>
+ * Every event arrives carrying a {@link Disposition}, resolved in {@code SiblingEventParser} from the
+ * producer's own published vocabulary; a type neither producer has published never reaches this
+ * class at all. The rule this encodes:
+ *
+ * <ul>
+ *   <li>{@link Disposition#CREATE} — {@code AccountCreated} for a registration, and
+ *       {@code OnboardingStarted}. These may bring a subject into existence here.</li>
+ *   <li>{@link Disposition#UPDATE_ONLY} — everything else on the patient stream. It updates a
+ *       subject this service already knows and, for one this service does not, <b>writes
+ *       nothing at all</b>.</li>
+ *   <li>{@link Disposition#LINK_ONLY} — a care angel, and every clinician. A link, deliberately no
+ *       local record.</li>
+ * </ul>
+ *
+ * <p>Two of those exist because of what happened without them, and both are worth keeping named.
+ * <b>A care-angel nomination publishes {@code AccountCreated} keyed on the angel's own address</b>,
+ * so a creation path that read only the type made every nomination an {@code ACTIVE} patient — on
+ * the count, in the directory, on the account-mix chart and on the weekly-joins tile. And
+ * <b>{@code DeletionRequestChanged} with {@code change=COMPLETED} is published after the profile has
+ * been erased</b>: for a subject with no link, the event whose entire meaning is "erase this person"
+ * was what made this service start storing their address. It now marks a link it already has and
+ * opens nothing.
+ *
  * <h2>Idempotency, and why it is not keyed on {@code eventId}</h2>
  *
  * <p>Delivery is at least once and the consumer groups read from the earliest offset, so both a
@@ -90,11 +118,22 @@ public class DirectoryProjectionService {
     public enum Outcome {
         /** A local record was created for a subject this service had never seen. */
         CREATED,
+        /**
+         * A subject this service had never seen is now linked, and <b>deliberately has no local
+         * record</b> — a care angel, or a clinician. Distinct from {@link #IGNORED}, which wrote
+         * nothing at all: something did happen here, and the link is what stops a later event on the
+         * same subject mistaking them for a patient.
+         */
+        LINKED,
         /** The subject was already known; the link and any shared fields were brought up to date. */
         UPDATED,
         /** Older than what has already been applied to this subject. Nothing was written. */
         STALE,
-        /** Not addressable — no subject key, or a source with no local record to keep. */
+        /**
+         * Nothing was written. No subject key, or an {@link Disposition#UPDATE_ONLY} event for a
+         * subject this service has never seen — which is a fact about somebody whose arrival was
+         * missed, and not a licence to invent them.
+         */
         IGNORED,
     }
 
@@ -125,12 +164,34 @@ public class DirectoryProjectionService {
             return Outcome.IGNORED;
         }
 
-        // The upsert and the read of the previous state are one operation, deliberately.
-        // `returnNew(false)` hands back the document as it was *before* this call, or null when this
-        // call is what created it — so the watermark being compared against is the one that was
-        // stored, and no second reader can slip an insert in between. Two consumers, or a consumer
-        // and the reconciliation endpoint, cannot both create a link for the same subject.
-        DirectoryLink previous = upsertLink(event);
+        DirectoryLink previous;
+        if (event.disposition() == Disposition.UPDATE_ONLY) {
+            // An UPDATE_ONLY event may not open a record, so the link is READ rather than upserted:
+            // an erasure, a delegation change or an onboarding step for somebody this service has
+            // never seen is a fact about a subject whose arrival was missed, and a link written from
+            // it would be a row with an address on it that nothing can ever complete.
+            //
+            // Reading where the other branch upserts is not a race worth closing. Every event about
+            // one subject carries the same partition key, so the broker delivers them in order on
+            // one thread; the only way a CREATE and an UPDATE_ONLY for one subject run concurrently
+            // is a rebalance mid-partition, where the loser is redelivered anyway.
+            previous = directoryLinkRepository.findSubject(event.source(), event.subjectKey()).orElse(null);
+            if (previous == null) {
+                LOG.debug(
+                    "Ignoring {} for {} — this service has no link for that subject and {} does not open one",
+                    event.type(),
+                    event.subjectKey(),
+                    event.type()
+                );
+                return Outcome.IGNORED;
+            }
+        } else {
+            // The upsert and the read of the previous state are one operation, deliberately.
+            // `returnNew(false)` hands back the document as it was *before* this call, or null when
+            // this call is what created it — so the watermark being compared against is the one that
+            // was stored, and no second reader can slip an insert in between.
+            previous = upsertLink(event);
+        }
         boolean firstSighting = previous == null;
 
         if (!firstSighting && isStale(previous, event)) {
@@ -144,17 +205,19 @@ public class DirectoryProjectionService {
             return Outcome.STALE;
         }
 
+        boolean hadRecord = !firstSighting && previous.getLocalId() != null;
         String localId = ensureLocalRecord(event, firstSighting ? null : previous.getLocalId());
-        boolean created = firstSighting && localId != null;
 
         recordEvent(event, localId);
 
         LOG.debug("Applied {} for {} from {}", event.type(), event.subjectKey(), event.source());
-        if (event.source() == DirectorySource.HC_PROFESSIONAL) {
-            // The link is kept and the local row deliberately is not; see the class javadoc.
-            return firstSighting ? Outcome.IGNORED : Outcome.UPDATED;
+        if (localId != null && !hadRecord) {
+            return Outcome.CREATED;
         }
-        return created ? Outcome.CREATED : Outcome.UPDATED;
+        // A first sighting that keeps no local record is still something happening — a care angel or
+        // a clinician is now known, and the link is what stops the next event on them being read as
+        // a patient arriving.
+        return firstSighting ? Outcome.LINKED : Outcome.UPDATED;
     }
 
     /**
@@ -183,11 +246,21 @@ public class DirectoryProjectionService {
         List<DirectoryLink> links = directoryLinkRepository.findBySource(DirectorySource.HC_PATIENT);
         int created = 0;
         int alreadyPresent = 0;
+        int skipped = 0;
 
         for (DirectoryLink link : links) {
             boolean present = link.getLocalId() != null && patientRepository.findById(link.getLocalId()).isPresent();
             if (present) {
                 alreadyPresent++;
+                continue;
+            }
+            if (!keepsAPatientRecord(link)) {
+                // A care angel, or somebody hc-patient has already erased. Both are links with no
+                // local record BY DESIGN, so "the record is missing" is their normal state and
+                // rebuilding it here would recreate exactly what the consumer refuses to create.
+                // This loop is the reason the kind is stored on the document at all: there is no
+                // event in front of it to re-read the authorities out of.
+                skipped++;
                 continue;
             }
             Patient patient = createPatient(
@@ -202,8 +275,29 @@ public class DirectoryProjectionService {
             created++;
         }
 
-        LOG.info("Directory reconciliation examined {} links, created {}, left {} alone", links.size(), created, alreadyPresent);
-        return new DirectoryReconciliationDTO(links.size(), created, alreadyPresent);
+        LOG.info(
+            "Directory reconciliation examined {} links, created {}, left {} alone, skipped {} that keep no record",
+            links.size(),
+            created,
+            alreadyPresent,
+            skipped
+        );
+        return new DirectoryReconciliationDTO(links.size(), created, alreadyPresent, skipped);
+    }
+
+    /**
+     * Whether this link is one this service keeps a {@code Patient} for.
+     *
+     * <p>A null {@code subjectKind} reads as {@code PATIENT}: links written before 2026-09-05 carry
+     * no kind, and every one of them was created by the path that turned any patient-stream subject
+     * into a patient. Defaulting the other way would make the reconciliation stop rebuilding the
+     * records it exists to rebuild.
+     */
+    private boolean keepsAPatientRecord(DirectoryLink link) {
+        if (link.getErasedAt() != null) {
+            return false;
+        }
+        return link.getSubjectKind() == null || link.getSubjectKind() == DirectorySubjectKind.PATIENT;
     }
 
     /**
@@ -219,7 +313,11 @@ public class DirectoryProjectionService {
         Update onInsert = new Update()
             .setOnInsert("source", event.source())
             .setOnInsert("external_key", event.subjectKey())
-            .setOnInsert("first_seen_at", event.occurredAt());
+            .setOnInsert("first_seen_at", event.occurredAt())
+            // On insert only. A CREATE event promotes an existing CARE_ANGEL link to PATIENT in
+            // recordEvent below — an angel who later registers in their own right is a patient — and
+            // the reverse must never happen, so LINK_ONLY writes its kind here and not there.
+            .setOnInsert("subject_kind", event.subjectKind());
 
         return mongoTemplate.findAndModify(
             query,
@@ -241,9 +339,20 @@ public class DirectoryProjectionService {
      * second partition's consumer may be writing the same link, and a whole-document save would
      * carry back whatever this thread happened to read.
      *
-     * <p>Identity fields are only ever set when the event carries them, never cleared. hc-patient's
-     * stream is explicit that a {@code patientId} does not exist until onboarding step 1, so a later
-     * account event with no patient id must not erase the one {@code OnboardingStarted} published.
+     * <p>Identity fields are only ever set when the event carries them, never cleared — with one
+     * exception, below. hc-patient's stream is explicit that a {@code patientId} does not exist until
+     * onboarding step 1, so a later account event with no patient id must not erase the one
+     * {@code OnboardingStarted} published.
+     *
+     * <p><b>The exception is the erasure.</b> {@code DeletionRequestChanged/COMPLETED} says the far
+     * side has already deleted the subject's profile, and it carries their address and login in order
+     * to say so. What this service can drop, it drops: the {@code login} and the {@code patientId},
+     * the latter being a handle into a record that no longer exists. What it cannot drop is the
+     * address, because the address <em>is</em> {@code external_key} — the correlation key, and the
+     * key the watermark hangs on. Clearing the {@code email} field while the same string sits in
+     * {@code external_key} would be theatre, so it is not done, and whether hc-admin should erase its
+     * own copy when hc-patient erases theirs is a retention decision with an owner rather than a line
+     * of code: backlog item 28.
      */
     private void recordEvent(SiblingDomainEvent event, String localId) {
         Update update = new Update()
@@ -253,8 +362,18 @@ public class DirectoryProjectionService {
 
         setIfPresent(update, "last_event_id", event.eventId());
         setIfPresent(update, "email", event.email());
-        setIfPresent(update, "login", event.login());
-        setIfPresent(update, "external_id", event.externalId());
+        if (event.erased()) {
+            update.set("erased_at", event.occurredAt()).unset("login").unset("external_id");
+        } else {
+            setIfPresent(update, "login", event.login());
+            setIfPresent(update, "external_id", event.externalId());
+        }
+        if (event.disposition() == Disposition.CREATE) {
+            // The only promotion there is: a link first seen as a care angel becomes a patient when
+            // that person registers or begins onboarding in their own right. Never the other way —
+            // upsertLink writes the kind on insert only.
+            update.set("subject_kind", event.subjectKind());
+        }
         setIfPresent(update, "local_id", localId);
 
         mongoTemplate.updateFirst(
@@ -280,13 +399,19 @@ public class DirectoryProjectionService {
             return null;
         }
         Patient existing = knownLocalId == null ? null : patientRepository.findById(knownLocalId).orElse(null);
-        if (existing == null) {
-            Patient patient = createPatient(event.activated(), event.occurredAt());
-            LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), event.subjectKey(), patient.getId());
-            return patient.getId();
+        if (existing != null) {
+            merge(existing, event);
+            return knownLocalId;
         }
-        merge(existing, event);
-        return knownLocalId;
+        if (event.disposition() != Disposition.CREATE) {
+            // A care angel's nomination, and every event that only updates. Neither may bring a
+            // patient into existence, and returning the id unchanged rather than null leaves a
+            // dangling reference for the reconciliation to rebuild instead of silently dropping it.
+            return knownLocalId;
+        }
+        Patient patient = createPatient(event.activated(), event.occurredAt());
+        LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), event.subjectKey(), patient.getId());
+        return patient.getId();
     }
 
     /**
