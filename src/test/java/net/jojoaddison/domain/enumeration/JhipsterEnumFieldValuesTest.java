@@ -48,7 +48,7 @@ import org.junit.jupiter.api.Test;
  * list of twenty-three paths and eight endpoints went unpaginated behind it for a fortnight.
  *
  * <p><b>"Any enum a generator input names" is narrower than "any enum in this package."</b>
- * {@code EarningsGranularity}, {@code MessageType}, {@code RoleType}, {@code ShiftStatus} and
+ * {@code EarningsGranularity}, {@code MessageType}, {@code RoleType} and
  * {@code UnavailabilityReason} are named by no {@code .jhipster} file and no JDL enum declaration,
  * so adding a value to one of them fails nothing here and nothing else covers them either. That is
  * the honest state rather than a gap to paper over — they belong to hand-written DTOs and

@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
@@ -115,7 +116,8 @@ public class Professional implements Serializable {
      * {@code .jhipster/} config and in no {@code jdl/} file — so a relationship to it cannot be
      * expressed in {@code .jhipster/Professional.json}, and a regeneration would drop it in silence.
      * Every other reference to this collection in the service is already an opaque id
-     * ({@code Team.geographicSpaceIds}, {@code DutyRoster.geographicSpaceId}). And
+     * ({@code Team.geographicSpaceIds}, and hc-professional's {@code DutyRoster.geographicSpaceId}
+     * across the stack boundary). And
      * {@code ProfessionalResource} serialises this entity directly with no DTO, so a {@code @DBRef}
      * would put a whole space — and, once the tree is walked for display, its ancestry — into every
      * row of the directory listing.
@@ -127,7 +129,71 @@ public class Professional implements Serializable {
     @Field("home_space_id")
     private String homeSpaceId;
 
+    /**
+     * When this professional cannot be planned — leave, sickness, training.
+     *
+     * <p><b>Moved here from {@code HCProfile} on 2026-09-04, with the planner.</b> The old
+     * auto-scheduler ranked {@code HCProfile} documents and read their unavailability through
+     * {@code HCProfile.isAvailable(date)}; the planner that replaced it ranks {@code Professional},
+     * because that is the directory the console actually holds — the {@code test} profile seeds
+     * nine professionals and <em>zero</em> {@code HCProfile}s, which is one reason the scheduler
+     * could never have run against the console's own data. Leaving the rule on the other document
+     * would have dropped it silently: every candidate would read as available, for ever, and no
+     * test would have said so.
+     *
+     * <p>Embedded rather than a collection of its own, exactly as on {@code HCProfile}: a period
+     * has no identity outside the person it belongs to, and nothing ever queries periods across
+     * professionals. {@code UnavailabilityPeriod} lives in {@code net.jojoaddison.domain}, so
+     * {@code JdlEntityFieldsTest} reads this as an association and the live JDL does not have to
+     * declare it — the same treatment {@code HCProfile}'s copy gets.
+     */
+    @Field("unavailability_periods")
+    private List<UnavailabilityPeriod> unavailabilityPeriods;
+
     // jhipster-needle-entity-add-field - JHipster will add fields here
+
+    /**
+     * Whether this professional can be planned on a date.
+     *
+     * <p>Two rules, and they are {@code HCProfile.isAvailable}'s unchanged: the account has to be
+     * {@code ACTIVE}, and the date must fall outside every unavailability period. A period with no
+     * {@code toDate} is open-ended and excludes every date from its start onwards.
+     *
+     * <p><b>The status half is not the same expression it was and is the same rule.</b>
+     * {@code HCProfile.status} is a {@code Boolean}; this one is an {@link AccountStatus}, and only
+     * {@code ACTIVE} may be planned — {@code SUSPENDED}, {@code PENDING} and {@code INACTIVE} are
+     * all "not workable" for a planner, which is also what the console's own auto-fill already
+     * assumes when it skips anyone who is not {@code ACTIVE}.
+     */
+    public boolean isAvailable(LocalDate date) {
+        if (status != AccountStatus.ACTIVE) {
+            return false;
+        }
+        if (unavailabilityPeriods == null || unavailabilityPeriods.isEmpty()) {
+            return true;
+        }
+        for (UnavailabilityPeriod period : unavailabilityPeriods) {
+            if (period.getFromDate() != null && !date.isBefore(period.getFromDate())) {
+                if (period.getToDate() == null || !date.isAfter(period.getToDate())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public List<UnavailabilityPeriod> getUnavailabilityPeriods() {
+        return this.unavailabilityPeriods;
+    }
+
+    public Professional unavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
+        this.setUnavailabilityPeriods(unavailabilityPeriods);
+        return this;
+    }
+
+    public void setUnavailabilityPeriods(List<UnavailabilityPeriod> unavailabilityPeriods) {
+        this.unavailabilityPeriods = unavailabilityPeriods;
+    }
 
     public String getId() {
         return this.id;

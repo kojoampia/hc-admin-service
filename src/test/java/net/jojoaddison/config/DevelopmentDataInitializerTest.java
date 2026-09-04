@@ -17,10 +17,9 @@ import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.WageRate;
-import net.jojoaddison.domain.enumeration.DutyRole;
+import net.jojoaddison.domain.enumeration.BillingType;
 import net.jojoaddison.domain.enumeration.MessageStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
-import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.domain.enumeration.ShiftType;
 import net.jojoaddison.domain.enumeration.TaskState;
 import net.jojoaddison.domain.enumeration.VerificationStatus;
@@ -69,7 +68,6 @@ class DevelopmentDataInitializerTest {
         assertThat(dev.getPersons()).hasSize(1);
         assertThat(dev.getTeams()).hasSize(1);
         assertThat(dev.getGeographicSpaces()).hasSize(2);
-        assertThat(dev.getDutyRosters()).hasSize(1);
         assertThat(dev.getPricingPlans()).hasSize(1);
         assertThat(dev.getSystemCatalogs()).hasSize(1);
     }
@@ -78,13 +76,21 @@ class DevelopmentDataInitializerTest {
     void shouldBindScalarsEnumsAndDatesOnDomainObjects() throws Exception {
         DevelopmentDataInitializer.ProfileData dev = readSeedData().get("dev");
 
-        var roster = dev.getDutyRosters().get(0);
-        assertThat(roster.getId()).isEqualTo("dr-001");
-        assertThat(roster.getDate()).isEqualTo(LocalDate.of(2026, 6, 10));
-        assertThat(roster.getDuty()).isEqualTo(DutyRole.DOCTOR);
-        assertThat(roster.getShift()).isEqualTo(ShiftType.DAY);
-        assertThat(roster.getStatus()).isEqualTo(ShiftStatus.ASSIGNED);
-        assertThat(roster.getPatientId()).isEqualTo("pat-001");
+        // This read a dutyRosters row until 2026-09-04 — the one record in the dev seed that
+        // carried a String, a LocalDate, two enums and an id in one document, which is what made it
+        // the natural subject here. It went with the entity when hc-professional became the roster
+        // of record. The pricing plan is the replacement and covers the same four shapes: an id, a
+        // String, a BigDecimal and an enum.
+        var plan = dev.getPricingPlans().get(0);
+        assertThat(plan.getId()).isEqualTo("plan-basic");
+        assertThat(plan.getName()).isEqualTo("Basic Health Plan");
+        assertThat(plan.getPrice()).isEqualByComparingTo("29.99");
+        assertThat(plan.getBillingCycle()).isEqualTo(BillingType.MONTHLY);
+        assertThat(plan.getActive()).isTrue();
+
+        var space = dev.getGeographicSpaces().get(0);
+        assertThat(space.getId()).isEqualTo("building-a");
+        assertThat(space.getParentId()).isNull();
 
         assertThat(dev.getAddresses().get(0).getStreetAddress()).isEqualTo("123 Main St");
         assertThat(dev.getAudits().get(0).getCreatedDate()).isNotNull();

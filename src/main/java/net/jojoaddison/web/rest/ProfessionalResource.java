@@ -136,6 +136,15 @@ public class ProfessionalResource {
             professional.setHomeSpaceId(stored.getHomeSpaceId());
         }
 
+        // unavailabilityPeriods is the same shape and arrived for the same reason: the planner
+        // reads it through Professional.isAvailable(date) and the console's edit form has no field
+        // for it, so a PUT would silently return everyone on leave to the candidate pool. Null is
+        // an omission here; an empty list is a deliberate clear, which is Team's rule rather than
+        // homeSpaceId's, and a list can express the difference where a String cannot.
+        if (professional.getUnavailabilityPeriods() == null) {
+            professional.setUnavailabilityPeriods(stored.getUnavailabilityPeriods());
+        }
+
         professional = professionalRepository.save(professional);
         return ResponseEntity
             .ok()

@@ -41,7 +41,7 @@ public class Team implements Serializable {
      * The geographic spaces this team covers.
      *
      * <p>Not part of the console model — it is carried here because it is the hard geographic
-     * constraint in {@code DutyRosterService.autoScheduleShifts}, reached through
+     * constraint in {@code RoundPlanningService.plan}, reached through
      * {@code TeamRepository.findByGeographicSpaceIdsContaining}. Dropping it does not fail the
      * build: Spring Data derives that query from the property name, so a missing field is a startup
      * failure, not a compile error.

@@ -384,24 +384,60 @@ class ApiAuthorizationIT {
             .containsExactlyInAnyOrder("/api/geographic-spaces", "/api/geographic-spaces/{id}");
     }
 
-    // --- the patient carve-out --------------------------------------------------------------------
+    // --- the patient carve-out, and its removal ---------------------------------------------------
 
     /**
-     * {@code ROLE_PATIENT} is never issued by this stack's gateway; it arrives on tokens from
-     * hc-patient-ms, which shares the signing key. It is honoured on exactly one path, and the rule
-     * has to sit above the blanket ones or the chain rejects it before
-     * {@code DutyRosterResource}'s narrower {@code @PreAuthorize} ever runs.
+     * <b>There is no patient carve-out any more, as of 2026-09-04.</b>
+     *
+     * <p>{@code ROLE_PATIENT} is never issued by this stack's gateway; it arrives on tokens from
+     * hc-patient-ms, which shares the signing key. It used to be honoured on exactly one path —
+     * {@code GET /api/duty-rosters/patient/{patientId}} — by a matcher sitting above the blanket
+     * rules, and this class asserted it reached that and nothing else. The endpoint moved to
+     * {@code professionalservice} with the roster of record, and the matcher went with it.
+     *
+     * <p>The old assertion is <b>replaced rather than deleted</b>, for the reason the carve-out
+     * existed at all: a matcher above the blanket rules is invisible to every other test in this
+     * repository, so a re-added one would be caught by nothing. This asserts the whole surface,
+     * including the path the exception used to be on.
      */
     @Test
-    void patientCanReadTheirOwnDailyPlan() throws Exception {
-        mvc
-            .perform(get("/api/duty-rosters/patient/some-profile-id").param("date", "2026-08-05").with(as(AuthoritiesConstants.PATIENT)))
-            .andExpect(status().isOk());
-    }
-
-    @Test
-    void patientReachesNothingElse() throws Exception {
+    void patientReachesNothingAtAll() throws Exception {
         mvc.perform(get(ENTITY_PATH).with(as(AuthoritiesConstants.PATIENT))).andExpect(status().isForbidden());
         mvc.perform(get("/api/duty-rosters").with(as(AuthoritiesConstants.PATIENT))).andExpect(status().isForbidden());
+        mvc
+            .perform(get("/api/duty-rosters/patient/some-profile-id").param("date", "2026-08-05").with(as(AuthoritiesConstants.PATIENT)))
+            .andExpect(status().isForbidden());
+    }
+
+    /**
+     * The duty-roster surface is gone from this service, not merely closed off.
+     *
+     * <p>An admin gets {@code 404} rather than {@code 200}: the rules still admit them, and there is
+     * no handler behind any of it. Asserted with the authority that <em>could</em> have reached it,
+     * because a 403 for everybody would look identical whether the resource existed or not — and
+     * "deleted" and "locked" are different claims. Planning is {@code POST /api/roster-plans} now,
+     * and rounds are read back from {@code professionalservice} directly.
+     */
+    @Test
+    void theDutyRosterSurfaceNoLongerExists() throws Exception {
+        mvc.perform(get("/api/duty-rosters").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/duty-rosters/anything").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isNotFound());
+        mvc
+            .perform(post("/api/duty-rosters/auto-schedule").param("date", "2026-08-05").with(as(AuthoritiesConstants.ADMIN)))
+            .andExpect(status().isNotFound());
+    }
+
+    /** Planning is a write, so it is admin-only and an operator's read authority is not enough. */
+    @Test
+    void planningIsAdminOnly() throws Exception {
+        mvc
+            .perform(
+                post("/api/roster-plans")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"date\":\"2026-08-12\",\"rounds\":[]}")
+                    .with(as(AuthoritiesConstants.OPERATOR))
+            )
+            .andExpect(status().isForbidden());
+        mvc.perform(post("/api/roster-plans").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
     }
 }

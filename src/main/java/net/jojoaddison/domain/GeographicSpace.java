@@ -30,8 +30,10 @@ public class GeographicSpace implements Serializable {
      * unrelated rows that happened to be named after each other. Proximity — "same space, then same
      * parent, then same ancestor" — is a walk up this chain and cannot be computed without it.
      *
-     * <p>An opaque id rather than a {@code @DBRef}, matching {@code DutyRoster.geographicSpaceId}
-     * and {@code Team.geographicSpaceIds}, which are the only other references to this collection.
+     * <p>An opaque id rather than a {@code @DBRef}, matching {@code Team.geographicSpaceIds} and
+     * {@code Professional.homeSpaceId}, which are the only other references to this collection —
+     * and hc-professional's {@code DutyRoster.geographicSpaceId}, which is opaque over there for
+     * the same reason.
      * A {@code @DBRef} would also make every read of a leaf space load its whole ancestry, which is
      * the opposite of what the reference read below wants.
      *

@@ -133,7 +133,21 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
-# application:
+application:
+  professionalservice:
+    # OFF for every integration test, deliberately and in the shared config rather than per class.
+    #
+    # ProfessionalServiceClient writes rounds to hc-professional over HTTP. A test suite that can
+    # reach a sibling stack is a suite whose result depends on what is running on the machine, and
+    # one that cannot reach it spends a connect timeout per attempt discovering that. Disabled, the
+    # client raises RosterServiceUnavailableException immediately, which is the same path an outage
+    # takes — so RosterPlanResourceIT exercises the outage state for free and nothing here ever
+    # opens a socket to another product.
+    #
+    # The planned path is covered by RoundPlanningServiceTest, which mocks the client. That split is
+    # the honest one: whether a round is really accepted is a question only the running sibling can
+    # answer, and it belongs to the quality stack.
+    enabled: false
 management:
   health:
     mail:

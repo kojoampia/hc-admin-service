@@ -14,7 +14,6 @@ import net.jojoaddison.domain.AuditLog;
 import net.jojoaddison.domain.CareActivity;
 import net.jojoaddison.domain.Category;
 import net.jojoaddison.domain.Contact;
-import net.jojoaddison.domain.DutyRoster;
 import net.jojoaddison.domain.Facility;
 import net.jojoaddison.domain.GeographicSpace;
 import net.jojoaddison.domain.HCProfile;
@@ -46,7 +45,6 @@ import net.jojoaddison.repository.CareActivityRepository;
 import net.jojoaddison.repository.CategoryRepository;
 import net.jojoaddison.repository.ContactRepository;
 import net.jojoaddison.repository.DocumentRepository;
-import net.jojoaddison.repository.DutyRosterRepository;
 import net.jojoaddison.repository.FacilityRepository;
 import net.jojoaddison.repository.GeographicSpaceRepository;
 import net.jojoaddison.repository.HCProfileRepository;
@@ -128,7 +126,6 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
     private final TeamRepository teamRepository;
     private final GeographicSpaceRepository geographicSpaceRepository;
     private final HCProfileRepository profileRepository;
-    private final DutyRosterRepository dutyRosterRepository;
     private final PricingPlanRepository pricingPlanRepository;
     private final SystemCatalogRepository systemCatalogRepository;
 
@@ -144,7 +141,6 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         TeamRepository teamRepository,
         GeographicSpaceRepository geographicSpaceRepository,
         HCProfileRepository profileRepository,
-        DutyRosterRepository dutyRosterRepository,
         PricingPlanRepository pricingPlanRepository,
         SystemCatalogRepository systemCatalogRepository,
         ProfileRepository profileRecordRepository,
@@ -180,7 +176,6 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         this.teamRepository = teamRepository;
         this.geographicSpaceRepository = geographicSpaceRepository;
         this.profileRepository = profileRepository;
-        this.dutyRosterRepository = dutyRosterRepository;
         this.pricingPlanRepository = pricingPlanRepository;
         this.systemCatalogRepository = systemCatalogRepository;
         this.profileRecordRepository = profileRecordRepository;
@@ -246,7 +241,6 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         save("geographicSpaces", geographicSpaceRepository, profileData.getGeographicSpaces());
         save("teams", teamRepository, profileData.getTeams());
         save("profiles", profileRepository, profileData.getProfiles());
-        save("dutyRosters", dutyRosterRepository, profileData.getDutyRosters());
         save("pricingPlans", pricingPlanRepository, profileData.getPricingPlans());
         save("systemCatalogs", systemCatalogRepository, profileData.getSystemCatalogs());
         save("personProfiles", profileRecordRepository, profileData.getPersonProfiles());
@@ -328,7 +322,6 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         private List<Team> teams = new ArrayList<>();
         private List<GeographicSpace> geographicSpaces = new ArrayList<>();
         private List<HCProfile> profiles = new ArrayList<>();
-        private List<DutyRoster> dutyRosters = new ArrayList<>();
         private List<PricingPlan> pricingPlans = new ArrayList<>();
         private List<SystemCatalog> systemCatalogs = new ArrayList<>();
         // Fully qualified: this file imports Spring's @Profile, which shadows the domain type.
@@ -426,14 +419,6 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
 
         public void setProfiles(List<HCProfile> profiles) {
             this.profiles = nullSafe(profiles);
-        }
-
-        public List<DutyRoster> getDutyRosters() {
-            return dutyRosters;
-        }
-
-        public void setDutyRosters(List<DutyRoster> dutyRosters) {
-            this.dutyRosters = nullSafe(dutyRosters);
         }
 
         public List<PricingPlan> getPricingPlans() {

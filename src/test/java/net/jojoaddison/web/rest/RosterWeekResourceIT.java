@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
@@ -40,9 +39,6 @@ class RosterWeekResourceIT {
     private static final Boolean DEFAULT_PUBLISHED = false;
     private static final Boolean UPDATED_PUBLISHED = true;
 
-    private static final Instant DEFAULT_PUBLISHED_AT = Instant.ofEpochMilli(0L);
-    private static final Instant UPDATED_PUBLISHED_AT = Instant.ofEpochMilli(1711489506648L);
-
     private static final String ENTITY_API_URL = "/api/roster-weeks";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -66,11 +62,11 @@ class RosterWeekResourceIT {
      * if they test an entity which requires the current entity.
      */
     public static RosterWeek createEntity() {
-        return new RosterWeek()
-            .label(DEFAULT_LABEL)
-            .startDate(DEFAULT_START_DATE)
-            .published(DEFAULT_PUBLISHED)
-            .publishedAt(DEFAULT_PUBLISHED_AT);
+        // No publishedAt. It is server-derived from `published` (RosterWeekLifecycleCallback), so a
+        // fixture that set it would be asserting a value the server is entitled to ignore — and,
+        // with DEFAULT_PUBLISHED false, one the callback clears on the way in. RosterWeekPublishedAtIT
+        // is where the field is exercised.
+        return new RosterWeek().label(DEFAULT_LABEL).startDate(DEFAULT_START_DATE).published(DEFAULT_PUBLISHED);
     }
 
     /**
@@ -80,11 +76,7 @@ class RosterWeekResourceIT {
      * if they test an entity which requires the current entity.
      */
     public static RosterWeek createUpdatedEntity() {
-        return new RosterWeek()
-            .label(UPDATED_LABEL)
-            .startDate(UPDATED_START_DATE)
-            .published(UPDATED_PUBLISHED)
-            .publishedAt(UPDATED_PUBLISHED_AT);
+        return new RosterWeek().label(UPDATED_LABEL).startDate(UPDATED_START_DATE).published(UPDATED_PUBLISHED);
     }
 
     @BeforeEach
@@ -195,8 +187,7 @@ class RosterWeekResourceIT {
             .andExpect(jsonPath("$.[*].id").value(hasItem(rosterWeek.getId())))
             .andExpect(jsonPath("$.[*].label").value(hasItem(DEFAULT_LABEL)))
             .andExpect(jsonPath("$.[*].startDate").value(hasItem(DEFAULT_START_DATE.toString())))
-            .andExpect(jsonPath("$.[*].published").value(hasItem(DEFAULT_PUBLISHED)))
-            .andExpect(jsonPath("$.[*].publishedAt").value(hasItem(DEFAULT_PUBLISHED_AT.toString())));
+            .andExpect(jsonPath("$.[*].published").value(hasItem(DEFAULT_PUBLISHED)));
     }
 
     @Test
@@ -212,8 +203,7 @@ class RosterWeekResourceIT {
             .andExpect(jsonPath("$.id").value(rosterWeek.getId()))
             .andExpect(jsonPath("$.label").value(DEFAULT_LABEL))
             .andExpect(jsonPath("$.startDate").value(DEFAULT_START_DATE.toString()))
-            .andExpect(jsonPath("$.published").value(DEFAULT_PUBLISHED))
-            .andExpect(jsonPath("$.publishedAt").value(DEFAULT_PUBLISHED_AT.toString()));
+            .andExpect(jsonPath("$.published").value(DEFAULT_PUBLISHED));
     }
 
     @Test
@@ -231,7 +221,7 @@ class RosterWeekResourceIT {
 
         // Update the rosterWeek
         RosterWeek updatedRosterWeek = rosterWeekRepository.findById(rosterWeek.getId()).orElseThrow();
-        updatedRosterWeek.label(UPDATED_LABEL).startDate(UPDATED_START_DATE).published(UPDATED_PUBLISHED).publishedAt(UPDATED_PUBLISHED_AT);
+        updatedRosterWeek.label(UPDATED_LABEL).startDate(UPDATED_START_DATE).published(UPDATED_PUBLISHED);
 
         restRosterWeekMockMvc
             .perform(
@@ -305,7 +295,7 @@ class RosterWeekResourceIT {
         RosterWeek partialUpdatedRosterWeek = new RosterWeek();
         partialUpdatedRosterWeek.setId(rosterWeek.getId());
 
-        partialUpdatedRosterWeek.startDate(UPDATED_START_DATE).published(UPDATED_PUBLISHED).publishedAt(UPDATED_PUBLISHED_AT);
+        partialUpdatedRosterWeek.startDate(UPDATED_START_DATE).published(UPDATED_PUBLISHED);
 
         restRosterWeekMockMvc
             .perform(
@@ -335,11 +325,7 @@ class RosterWeekResourceIT {
         RosterWeek partialUpdatedRosterWeek = new RosterWeek();
         partialUpdatedRosterWeek.setId(rosterWeek.getId());
 
-        partialUpdatedRosterWeek
-            .label(UPDATED_LABEL)
-            .startDate(UPDATED_START_DATE)
-            .published(UPDATED_PUBLISHED)
-            .publishedAt(UPDATED_PUBLISHED_AT);
+        partialUpdatedRosterWeek.label(UPDATED_LABEL).startDate(UPDATED_START_DATE).published(UPDATED_PUBLISHED);
 
         restRosterWeekMockMvc
             .perform(

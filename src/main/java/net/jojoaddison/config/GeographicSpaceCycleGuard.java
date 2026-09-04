@@ -69,7 +69,7 @@ import org.springframework.stereotype.Component;
  *
  * <p>It does not check that the parent exists. Nothing else in this service enforces referential
  * integrity between collections — {@code Team.geographicSpaceIds} and
- * {@code DutyRoster.geographicSpaceId} are both unvalidated ids — and inventing that rule here would
+ * {@code Professional.homeSpaceId} are both unvalidated ids — and inventing that rule here would
  * make this the one collection whose seed order matters.
  */
 @Component

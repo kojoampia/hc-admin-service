@@ -1,9 +1,11 @@
 package net.jojoaddison.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.Team;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -59,4 +61,18 @@ public interface ProfessionalRepository extends MongoRepository<Professional, St
      * {@code ShiftValuationService.payableShifts}.
      */
     Optional<Professional> findByProfile(Profile profile);
+
+    /**
+     * Everybody on any of these teams — the planner's candidate pool.
+     *
+     * <p>Derived and taking {@link Team} entities rather than ids, for the same reason
+     * {@link #findByProfile} does: {@code Professional.team} is a {@code @DBRef}, so the value to
+     * match is a reference document and only the mapping context writes it the way the converter
+     * stored it. A hand-written {@code { 'team': { '$in': ?0 } }} over id strings compiles, runs,
+     * and matches nothing — an empty candidate pool, which reads exactly like a team with no
+     * members and would leave every round unplanned for a reason the log does not give.
+     *
+     * <p>Bounded by the teams that cover the round's space, so this is never a whole-directory read.
+     */
+    List<Professional> findByTeamIn(Collection<Team> teams);
 }

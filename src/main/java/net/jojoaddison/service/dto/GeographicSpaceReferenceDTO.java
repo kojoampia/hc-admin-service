@@ -19,8 +19,8 @@ import net.jojoaddison.domain.GeographicSpace;
  * what {@code ProfessionalResource} and {@code OrganisationResource} do, would have exactly that
  * property.
  *
- * @param id the space's identifier, as stored on {@code DutyRoster.geographicSpaceId} and
- *     {@code Professional.homeSpaceId}
+ * @param id the space's identifier, as stored on {@code Professional.homeSpaceId} here and on
+ *     hc-professional's {@code DutyRoster.geographicSpaceId} across the stack boundary
  * @param name what to call it on screen
  * @param type the kind of area it is — free text here, not an enumeration
  * @param parentId the space that contains this one, or null at the root

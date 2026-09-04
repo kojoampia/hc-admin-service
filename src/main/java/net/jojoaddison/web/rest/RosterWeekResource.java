@@ -61,6 +61,7 @@ public class RosterWeekResource {
         if (rosterWeek.getId() != null) {
             throw new BadRequestAlertException("A new rosterWeek cannot already have an ID", ENTITY_NAME, "idexists");
         }
+        stripServerOwnedFields(rosterWeek);
         rosterWeek = rosterWeekRepository.save(rosterWeek);
         return ResponseEntity
             .created(new URI("/api/roster-weeks/" + rosterWeek.getId()))
@@ -95,11 +96,34 @@ public class RosterWeekResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
+        stripServerOwnedFields(rosterWeek);
         rosterWeek = rosterWeekRepository.save(rosterWeek);
         return ResponseEntity
             .ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, rosterWeek.getId()))
             .body(rosterWeek);
+    }
+
+    /**
+     * Drops what the client is not allowed to say.
+     *
+     * <p>{@code publishedAt} is derived from {@code published} by
+     * {@code RosterWeekLifecycleCallback} (decision 8 of {@code duty-roster-resolution.md} § 9.1).
+     * {@code RosterWeek} is serialised as the domain entity with no DTO, so — unlike
+     * {@code Message.readAt} and {@code Task.closedAt}, which are simply absent from their DTOs —
+     * the field is on the wire and has to be discarded here.
+     *
+     * <p><b>Discarded rather than ignored, and the two are not the same.</b> {@code PUT} sends a
+     * whole document: leaving the value alone writes it straight through. This is the rule
+     * {@code AuditingEntityCallback} applies to {@code createdBy} and
+     * {@code ProfessionalResource.updateProfessional} applies to {@code verification}, for the same
+     * reason — a timestamp the client can set is not evidence that anything happened when it says.
+     *
+     * <p>Nulling it is safe because the callback reads the stored value back: an edit to a
+     * published week keeps the date it was published on, and does not restamp it to now.
+     */
+    private static void stripServerOwnedFields(RosterWeek rosterWeek) {
+        rosterWeek.setPublishedAt(null);
     }
 
     /**
@@ -136,8 +160,11 @@ public class RosterWeekResource {
                 updateIfPresent(existingRosterWeek::setLabel, rosterWeek.getLabel());
                 updateIfPresent(existingRosterWeek::setStartDate, rosterWeek.getStartDate());
                 updateIfPresent(existingRosterWeek::setPublished, rosterWeek.getPublished());
-                updateIfPresent(existingRosterWeek::setPublishedAt, rosterWeek.getPublishedAt());
-
+                // publishedAt is deliberately not copied. It is server-derived from `published` —
+                // see stripServerOwnedFields and RosterWeekLifecycleCallback. The console's publish
+                // button used to PATCH { published: true, publishedAt: now } and this line believed
+                // the second half; it now sends only the first, and a client that still sends both
+                // gets the same answer as one that sends neither.
                 return existingRosterWeek;
             })
             .map(rosterWeekRepository::save);
