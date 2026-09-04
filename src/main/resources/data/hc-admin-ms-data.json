@@ -16587,15 +16587,6 @@
         "note": "Opening rate"
       },
       {
-        "id": "wage-caregiver-evening-2026-01",
-        "role": "CAREGIVER",
-        "shiftType": "EVENING",
-        "amount": 240,
-        "currency": "GHS",
-        "validFrom": "2026-01-01",
-        "note": "Opening rate"
-      },
-      {
         "id": "wage-caregiver-night-2026-01",
         "role": "CAREGIVER",
         "shiftType": "NIGHT",
@@ -16609,15 +16600,6 @@
         "role": "CAREGIVER",
         "shiftType": "OFF",
         "amount": 0,
-        "currency": "GHS",
-        "validFrom": "2026-01-01",
-        "note": "Opening rate"
-      },
-      {
-        "id": "wage-caregiver-flexible-2026-01",
-        "role": "CAREGIVER",
-        "shiftType": "FLEXIBLE",
-        "amount": 120,
         "currency": "GHS",
         "validFrom": "2026-01-01",
         "note": "Opening rate"
