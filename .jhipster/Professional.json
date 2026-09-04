@@ -14,7 +14,7 @@
       "fieldName": "role",
       "fieldType": "ProfessionalRole",
       "fieldValidateRules": ["required"],
-      "fieldValues": "CAREGIVER,PARAMEDIC,NURSE,DOCTOR"
+      "fieldValues": "CAREGIVER,PARAMEDIC,THERAPIST,NURSE,DOCTOR"
     },
     {
       "fieldName": "speciality",
@@ -32,7 +32,7 @@
       "fieldName": "verification",
       "fieldType": "VerificationStatus",
       "fieldValidateRules": ["required"],
-      "fieldValues": "VERIFIED,PENDING,REJECTED"
+      "fieldValues": "VERIFIED,PENDING,REJECTED,REVOKED,EXPIRED"
     },
     {
       "fieldName": "status",

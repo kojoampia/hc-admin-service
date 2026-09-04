@@ -36,11 +36,22 @@ package net.jojoaddison.domain.enumeration;
  * <p><b>Adding a value rewrote no stored document</b>, so {@code ShiftTypeMigration} beside this
  * enum is deliberately a no-op. Read its Javadoc before deleting it.
  *
- * <p>This enum is a <b>cross-repo invariant</b>. Its mirrors are {@code jdl/hc-admin-console.jdl},
- * {@code .jhipster/{DutyRoster,ShiftAssignment}.json}, the console's {@code shift-type.model.ts},
- * {@code SHIFT_CYCLE} and {@code i18n/en/operations-shiftType.json}, and — across the estate —
- * hc-professional's {@code ShiftType}, its web and mobile unions and their eight catalogues. Change
- * it here and all of them move in the same change.
+ * <p>This enum is a <b>cross-repo invariant</b>, and the list below is the whole of it. In this
+ * repository: {@code jdl/hc-admin-console.jdl}'s {@code enum ShiftType} <b>and</b> its
+ * {@code entity WageRate}, plus {@code .jhipster/{DutyRoster,ShiftAssignment}.json}. In
+ * {@code app/}: {@code hc-admin.jdl}, {@code .jhipster/ShiftAssignment.json},
+ * {@code shift-type.model.ts}, {@code SHIFT_CYCLE} and {@code i18n/en/operations-shiftType.json}.
+ * Across the estate: hc-professional's {@code ShiftType}, its web and mobile unions and their eight
+ * catalogues. Change it here and all of them move in the same change.
+ *
+ * <p><b>The two {@code app/} generator inputs were missing from this list until 2026-09-04, and a
+ * reader following it missed them exactly as the change that wrote it did.</b> They are the
+ * dangerous pair rather than an omission of detail: regenerating {@code ShiftAssignment} in
+ * {@code app/} rewrites {@code shift-type.model.ts} and {@code operations-shiftType.json}
+ * <em>together</em>, so both sides agree at four values and {@code enum-coverage.spec.ts} stays
+ * green while the console loses {@code FLEXIBLE}. {@code JhipsterEnumFieldValuesTest} here and
+ * {@code generator-inputs.spec.ts} in {@code app/} now hold both repositories' inputs to the code,
+ * so the list is a reading aid and no longer the only thing looking.
  */
 public enum ShiftType {
     DAY,
