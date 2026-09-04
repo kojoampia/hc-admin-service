@@ -16,9 +16,13 @@ import org.springframework.data.mongodb.core.MongoTemplate;
  * {@link ShiftTypeMigration} backfills the one column the 2026-09-04 change added, reports
  * unparseable stored shift values, and rewrites nothing else.
  *
- * <p>The class is profile-excluded from {@code test} so it cannot log or write against another
- * test's fixtures mid-run, so this constructs it directly — which is also the only way to hand it a
- * value the enum cannot express, since the enum is the only way to write one otherwise.
+ * <p>This constructs the class directly rather than letting the context run it. That was described
+ * here as a consequence of the profile exclusion until 2026-09-04 and it never was one: Spring Boot
+ * does not invoke {@link org.springframework.boot.ApplicationRunner} beans under
+ * {@code @SpringBootTest}, whatever profile the bean registers on, so calling {@code run} is the only
+ * way to exercise it from a test at all. It is also the only way to hand it a value the enum cannot
+ * express, since the enum is the only way to write one otherwise. See
+ * {@link ShiftTypeMigrationProfileTest} for what the annotation does and does not exclude.
  *
  * <p><b>Two assertions matter and they pull opposite ways</b>, which is why both are here. On the
  * roster collections the negative one is the point: adding {@code FLEXIBLE} rewrote nothing, and a
