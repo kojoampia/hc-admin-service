@@ -97,20 +97,6 @@
       }
     ],
     "profiles": [],
-    "dutyRosters": [
-      {
-        "id": "dr-001",
-        "date": "2026-06-10",
-        "duty": "DOCTOR",
-        "professionalId": "prof-001",
-        "shift": "DAY",
-        "name": "Morning Ward Round",
-        "description": "Routine checkups",
-        "patientId": "pat-001",
-        "geographicSpaceId": "room-101",
-        "status": "ASSIGNED"
-      }
-    ],
     "pricingPlans": [
       {
         "id": "plan-basic",

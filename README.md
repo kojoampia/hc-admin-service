@@ -139,7 +139,7 @@ Conventions:
 
 Spring Cloud Stream bindings live in `application.yml` with `spring.cloud.function.definition: kafkaConsumer;kafkaProducer`. `HcAdminServiceKafkaResource` publishes through `StreamBridge`, and `broker/KafkaConsumer` fans inbound messages out to registered `SseEmitter` clients.
 
-The declared destinations are **`sse-topic`** and **`professional-verification`**. This section claimed until 2026-09-01 that roster changes broadcast on a `roster` topic and that profile syncs arrive on `profile-updates`; neither string appears as a `destination:` in any `.yml` here, in `hc-professional` or in `hc-patient`, and nothing consumes either. The grid has no `StreamBridge` call at all; `DutyRosterService`'s `roster-events` send names an undeclared binding, which Spring Cloud Stream resolves to a dynamically-created destination — so it publishes, to a topic nobody reads.
+The declared destinations are **`sse-topic`** and **`professional-verification`**. This section claimed until 2026-09-01 that roster changes broadcast on a `roster` topic and that profile syncs arrive on `profile-updates`; neither string appears as a `destination:` in any `.yml` here, in `hc-professional` or in `hc-patient`, and nothing consumes either. The grid has no `StreamBridge` call at all; `DutyRosterService`'s `roster-events` send named an undeclared binding, which Spring Cloud Stream resolves to a dynamically-created destination — so it published, to a topic nobody read. That class was deleted on 2026-09-04 when hc-professional became the roster of record, and `broker/RosterEvent` with it; planning is now a synchronous HTTP write to that service.
 
 ## Others
 

@@ -49,8 +49,11 @@ public class RosterWeekAsserts {
             .as("Verify RosterWeek relevant properties")
             .satisfies(a -> assertThat(a.getLabel()).as("check label").isEqualTo(expected.getLabel()))
             .satisfies(a -> assertThat(a.getStartDate()).as("check startDate").isEqualTo(expected.getStartDate()))
-            .satisfies(a -> assertThat(a.getPublished()).as("check published").isEqualTo(expected.getPublished()))
-            .satisfies(a -> assertThat(a.getPublishedAt()).as("check publishedAt").isEqualTo(expected.getPublishedAt()));
+            .satisfies(a -> assertThat(a.getPublished()).as("check published").isEqualTo(expected.getPublished()));
+        // publishedAt is deliberately absent, since 2026-09-04. It is server-derived from
+        // `published` by RosterWeekLifecycleCallback, so asserting that it round-trips is asserting
+        // the vulnerability the derivation exists to close — the same reason the entity ITs do not
+        // round-trip createdBy/createdDate. RosterWeekPublishedAtIT covers the behaviour instead.
     }
 
     /**

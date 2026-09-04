@@ -37,16 +37,26 @@ public class SecurityConfiguration {
                     .requestMatchers(mvc.matcher(HttpMethod.POST, "/api/authenticate")).permitAll()
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/authenticate")).permitAll()
                     .requestMatchers(mvc.matcher("/api/admin/**")).hasAuthority(AuthoritiesConstants.ADMIN)
-                    // A patient reading their own daily plan is the one path that accepts a token this
-                    // gateway never issues. It has to precede the blanket rules below, which would
-                    // otherwise reject ROLE_PATIENT here before DutyRosterResource's @PreAuthorize
-                    // — the narrower gate — ever runs.
-                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/duty-rosters/patient/**"))
-                        .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR, AuthoritiesConstants.PATIENT)
+                    // THERE IS DELIBERATELY NO ROLE_PATIENT RULE HERE, as of 2026-09-04.
+                    //
+                    // One used to sit at this line, admitting a patient token to
+                    // GET /api/duty-rosters/patient/** — the only path in this service that accepted
+                    // an authority this gateway never issues. It went with the endpoint. A patient's
+                    // day plan is now GET /api/duty-roster/customer/{customerId} on
+                    // professionalservice, which owns the roster of record and holds the visits it is
+                    // derived from, reached through hc-patient's own gateway.
+                    //
+                    // Do not put it back to "fix" a 403 from this service. The endpoint took its
+                    // subject from the path and checked nothing about who was asking, so the rule was
+                    // only ever safe because ROLE_PATIENT was rare; hc-professional refuses a caller
+                    // who is not that customer with a 403 that an unknown id gets identically, which
+                    // is the check this service had no relationship to perform.
+                    // ApiAuthorizationIT asserts a patient token now reaches nothing at all here.
+                    //
                     // A professional reading their OWN roster and earnings. Like the patient rule
-                    // above, this has to precede the blanket rules below: a clinician holds none of
-                    // the authorities those require, so the request would be rejected here before
-                    // ProfessionalSelfResource was ever reached.
+                    // that used to sit above it, this has to precede the blanket rules below: a
+                    // clinician holds none of the authorities those require, so the request would be
+                    // rejected here before ProfessionalSelfResource was ever reached.
                     //
                     // Authentication alone is the whole gate, on purpose. These endpoints take no
                     // subject — ProfessionalSelfResource resolves the caller from the token, and no

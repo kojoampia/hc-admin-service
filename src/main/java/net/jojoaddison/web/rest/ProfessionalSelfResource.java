@@ -29,8 +29,13 @@ import org.springframework.web.bind.annotation.RestController;
  * entitled to <em>an</em> earnings figure, just not that one. Here there is no id to edit. The
  * subject of the read is the authenticated caller and there is no parameter that can change it.
  *
- * <p>This is deliberately not the shape of {@code GET /api/duty-rosters/patient/{patientId}}, which
- * takes the subject from the path and checks only that the caller holds {@code ROLE_PATIENT}.
+ * <p>This was deliberately not the shape of {@code GET /api/duty-rosters/patient/{patientId}},
+ * which took the subject from the path and checked only that the caller held {@code ROLE_PATIENT} —
+ * so any patient could read any patient's plan by editing the id. That endpoint was deleted on
+ * 2026-09-04 when hc-professional became the roster of record. Its replacement over there takes the
+ * subject from the path too and <em>does</em> check it, refusing a caller who is not that customer
+ * with the same 403 an unknown id gets. The contrast is worth keeping: an id in the path is not the
+ * defect, an id in the path that nothing compares against the caller is.
  *
  * <p><b>Read-only, and structurally so.</b> Wage rates are the administrator's to set — see {@code
  * WageRateResource}, which stays admin-gated. Nothing here exposes a rate as a rate: a professional

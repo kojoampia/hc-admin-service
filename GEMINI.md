@@ -24,7 +24,9 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 | [`admin-api.md`](admin-api.md)                                       | **Design plans and blueprints** — the consolidated history of every brief that produced this service |
 | [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | Condensed conventions for Copilot                                                                    |
 
-`admin-api.md` replaced `admin-core-ms.md`, `duty-roster.md`, and `hc-admin-ms-data.md`. **Its contents are historical — do not execute them as prompts.** Consult it for the [duty roster scheduling heuristic](admin-api.md#2-duty-roster-auto-schedule), and for the [seed-data section](admin-api.md#3-development-seed-data), which documents the seed file's shape and the four defects that previously stopped it loading.
+`admin-api.md` replaced `admin-core-ms.md`, `duty-roster.md`, and `hc-admin-ms-data.md`. **Its contents are historical — do not execute them as prompts.** Consult it for the [seed-data section](admin-api.md#3-development-seed-data), which documents the seed file's shape and the four defects that previously stopped it loading.
+
+**Its § 2, the duty-roster auto-schedule, describes code that no longer exists.** `DutyRoster` and `DutyRosterService` were deleted on 2026-09-04: hc-professional owns the roster of record, and this service plans rounds and files them there. The four constraints that section describes — team→space coverage, availability, no double-booking, fairness by fewest shifts this week — all survive in `service/RoundPlanningService`, which is the thing to read instead. The two the section is wrong about are the role filter (both branches of its ternary returned the same value, so it narrowed nothing) and the absence of any proximity ranking.
 
 ## 📋 Core Responsibilities
 
@@ -37,17 +39,35 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
       than two four-value enums differing by one value at each end: hc-professional declares the
       same five in the same order. This service never creates a `FLEXIBLE` row itself, but it can
       now receive, store, price and value one, which it could not before.
+    - **This service does not hold the roster of record, as of 2026-09-04.** hc-professional's
+      `DutyRoster` — a round of visits, with times and customers — is the estate's; this one keeps
+      the _staffing grid_ (who works when) and the _pay_ derived from it, and plans rounds into the
+      sibling through `service/RoundPlanningService` and `POST /api/roster-plans`. Its own
+      `DutyRoster` entity, resource, service, mapper, DTO and repository were deleted, along with
+      the `ROLE_PATIENT` matcher that let a patient read a daily plan from here. A patient's day
+      plan is `GET /api/duty-roster/customer/{customerId}` on hc-professional now.
+    - **Planning can fail in a way local writing could not.** It is an HTTP call to another stack,
+      so `RoundPlanDtos.PlanReport` carries an explicit outcome per round and a
+      `rosterServiceReachable` flag, and the console renders an outage rather than an empty grid.
+      A round nobody can staff and a round nobody could file are different answers.
     - The weekly grid is `RosterWeek` + `ShiftAssignment`, and it is what `ShiftValuationService`
-      turns into pay. A shift is payable once its date is past and its type is not `OFF`, and it is
+      turns into pay. **`RosterWeek.publishedAt` is server-stamped** by
+      `config/RosterWeekLifecycleCallback` and is discarded on the way in — it joins
+      `Message.readAt`, `Task.closedAt` and `PlatformService.lastProbedAt`, and carries their trap:
+      the callback re-reads the stored value, because stamping "now" on finding it empty walks the
+      publication date forward on every edit. A shift is payable once its date is past and its type is not `OFF`, and it is
       valued at the `WageRate` in force for its **`(role, shiftType, date)`** — a night is not paid
       what a day is. The match is exact: there is no fallback from an unpriced shift type to the
       role's other rates, so an unpriced cell reports its shifts as _unpriced_ rather than borrowing
       a neighbour's figure.
-    - **Nothing reads roster changes.** This claimed a `roster` Kafka topic; no such destination
-      is declared in any `.yml` and nothing consumes one. The grid contains no `StreamBridge` call
-      at all. `DutyRosterService`'s `streamBridge.send("roster-events", …)` does publish — Spring
-      Cloud Stream creates a dynamic destination for an undeclared binding — to a topic no consumer
-      subscribes to. Do not write code against either name.
+    - **Nothing reads roster changes, and nothing publishes them either any more.** This claimed a
+      `roster` Kafka topic; no such destination is declared in any `.yml` and nothing consumes one.
+      The grid contains no `StreamBridge` call at all. `DutyRosterService`'s
+      `streamBridge.send("roster-events", …)` did publish — Spring Cloud Stream creates a dynamic
+      destination for an undeclared binding — to a topic no consumer subscribes to; it went with
+      that class on 2026-09-04, along with `broker/RosterEvent`. Planning writes to
+      hc-professional over HTTP and waits for the answer, which is what lets the console tell a
+      failed write from a quiet one. Do not write code against either topic name.
 2.  **System Catalog (CMS)**:
     - Managing features, product catalogs, and metadata.
 3.  **Pricing & Subscription**:
@@ -92,9 +112,9 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 ## 📂 Project Structure
 
 - `src/main/java/net/jojoaddison/`:
-  - `broker/`: Kafka producers and consumers (e.g., `RosterEvent`).
+  - `broker/`: Kafka producers and consumers (e.g., `VerificationEvent`).
   - `config/`: Spring Boot and JHipster configuration (including `DevelopmentDataInitializer`).
-  - `domain/`: MongoDB entities (e.g., `DutyRoster`, `SystemCatalog`, `PricingPlan`).
+  - `domain/`: MongoDB entities (e.g., `RosterWeek`, `SystemCatalog`, `PricingPlan`).
   - `repository/`: Spring Data MongoDB repositories.
   - `service/`: Business logic implementations.
   - `web/`: REST controllers.

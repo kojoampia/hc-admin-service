@@ -50,7 +50,8 @@ package net.jojoaddison.domain.enumeration;
  *
  * <p>This enum is a <b>cross-repo invariant</b>, and the list below is the whole of it. In this
  * repository: {@code jdl/hc-admin-console.jdl}'s {@code enum ShiftType} <b>and</b> its
- * {@code entity WageRate}, plus {@code .jhipster/{DutyRoster,ShiftAssignment}.json}. In
+ * {@code entity WageRate}, plus {@code .jhipster/ShiftAssignment.json} (there was a
+ * {@code .jhipster/DutyRoster.json} too, deleted with that entity on 2026-09-04). In
  * {@code app/}: {@code hc-admin.jdl}, {@code .jhipster/ShiftAssignment.json},
  * {@code shift-type.model.ts}, {@code SHIFT_CYCLE} and {@code i18n/en/operations-shiftType.json}.
  * Across the estate: hc-professional's {@code ShiftType}, its web and mobile unions and their eight

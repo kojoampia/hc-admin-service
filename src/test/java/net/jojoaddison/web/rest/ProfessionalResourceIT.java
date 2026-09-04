@@ -13,12 +13,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.UnavailabilityPeriod;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
+import net.jojoaddison.domain.enumeration.UnavailabilityReason;
 import net.jojoaddison.domain.enumeration.VerificationStatus;
 import net.jojoaddison.repository.ProfessionalRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -434,6 +437,95 @@ class ProfessionalResourceIT {
             .andExpect(status().isOk());
 
         assertThat(getPersistedProfessional(professional).getHomeSpaceId()).isEqualTo("gs-madina");
+    }
+
+    /**
+     * <b>And a PUT that says nothing about leave must not end it.</b>
+     *
+     * <p>The mirror of {@link #putWithoutAHomeSpaceKeepsTheStoredOne}, for the field beside it.
+     * {@code unavailabilityPeriods} is not in the console model either, so the generated edit form
+     * does not send it and a PUT arrives with the list null. Without the restore in
+     * {@code ProfessionalResource}, editing anybody's speciality returns them to the candidate pool:
+     * the planner reads leave through {@link Professional#isAvailable(LocalDate)}, so the next
+     * planning round rosters somebody who is on holiday, and nothing between the edit and the roster
+     * says anything happened.
+     *
+     * <p>Worth its own case rather than trusting the neighbour's: the two fields take
+     * <em>different</em> rules, and only one of them can be checked by reading the other's test.
+     * {@code homeSpaceId} is a String, where one absent value has to do both jobs, so null cannot
+     * clear it. A list can tell the difference, so here null is an omission and an empty list is a
+     * deliberate clear — which is {@code Team}'s rule, and which
+     * {@link #putWithAnEmptyUnavailabilityListClearsTheStoredOne} pins so the restore cannot quietly
+     * become a freeze.
+     */
+    @Test
+    void putWithoutUnavailabilityPeriodsKeepsTheStoredOnes() throws Exception {
+        List<UnavailabilityPeriod> onHoliday = List.of(
+            new UnavailabilityPeriod()
+                .reason(UnavailabilityReason.HOLIDAY)
+                .fromDate(LocalDate.of(2026, 9, 1))
+                .toDate(LocalDate.of(2026, 9, 30))
+        );
+        insertedProfessional = professionalRepository.save(professional.unavailabilityPeriods(onHoliday));
+
+        Professional withoutLeave = professionalRepository.findById(professional.getId()).orElseThrow();
+        withoutLeave.setUnavailabilityPeriods(null);
+        withoutLeave.setSpeciality(UPDATED_SPECIALITY);
+
+        restProfessionalMockMvc
+            .perform(
+                put(ENTITY_API_URL_ID, withoutLeave.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(om.writeValueAsBytes(withoutLeave))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.unavailabilityPeriods").isArray())
+            .andExpect(jsonPath("$.unavailabilityPeriods[0].reason").value(UnavailabilityReason.HOLIDAY.toString()));
+
+        Professional persisted = getPersistedProfessional(professional);
+        assertThat(persisted.getUnavailabilityPeriods()).hasSize(1);
+        assertThat(persisted.getUnavailabilityPeriods().get(0).getFromDate()).isEqualTo(LocalDate.of(2026, 9, 1));
+        assertThat(persisted.getUnavailabilityPeriods().get(0).getToDate()).isEqualTo(LocalDate.of(2026, 9, 30));
+        // The rest of the payload still lands — the restore is one field, not a rejection.
+        assertThat(persisted.getSpeciality()).isEqualTo(UPDATED_SPECIALITY);
+        // And the leave still means what it meant: the planner must still skip this date.
+        assertThat(persisted.isAvailable(LocalDate.of(2026, 9, 15))).isFalse();
+    }
+
+    /**
+     * And an empty list is a clear, not another omission — so the restore is not a freeze.
+     *
+     * <p>This is the half {@code homeSpaceId} cannot have, and the reason its rule is stated
+     * separately. Without this case the restore above would pass just as well if it had been written
+     * to ignore the field entirely, and there would then be no way at all to end somebody's leave
+     * through the API.
+     */
+    @Test
+    void putWithAnEmptyUnavailabilityListClearsTheStoredOne() throws Exception {
+        insertedProfessional =
+            professionalRepository.save(
+                professional.unavailabilityPeriods(
+                    List.of(
+                        new UnavailabilityPeriod()
+                            .reason(UnavailabilityReason.SICK_LEAVE)
+                            .fromDate(LocalDate.of(2026, 9, 1))
+                            .toDate(LocalDate.of(2026, 9, 30))
+                    )
+                )
+            );
+
+        Professional backAtWork = professionalRepository.findById(professional.getId()).orElseThrow();
+        backAtWork.setUnavailabilityPeriods(new ArrayList<>());
+
+        restProfessionalMockMvc
+            .perform(
+                put(ENTITY_API_URL_ID, backAtWork.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(backAtWork))
+            )
+            .andExpect(status().isOk());
+
+        Professional persisted = getPersistedProfessional(professional);
+        assertThat(persisted.getUnavailabilityPeriods()).isEmpty();
+        assertThat(persisted.isAvailable(LocalDate.of(2026, 9, 15))).isTrue();
     }
 
     @Test

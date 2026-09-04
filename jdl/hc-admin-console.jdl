@@ -172,11 +172,26 @@ entity Patient {
 // relationship on purpose: GeographicSpace is not a JHipster entity — it is in no
 // .jhipster/ config and in no JDL — so a relationship to it cannot be expressed
 // here at all, and every other reference to that collection is already an opaque id
-// (Team.geographicSpaceIds, DutyRoster.geographicSpaceId). It is what proximity
-// measures a candidate's distance from; without it the ranking has no origin. Keep
-// it whenever this file is regenerated, and note ProfessionalResource restores it on
-// PUT for the same reason TeamService restores geographicSpaceIds — the console does
-// not send a field it does not know about, and PUT sends a whole document.
+// (Team.geographicSpaceIds, and hc-professional's DutyRoster.geographicSpaceId across
+// the stack boundary). It is what proximity measures a candidate's distance from;
+// without it the ranking has no origin. Keep it whenever this file is regenerated,
+// and note ProfessionalResource restores it on PUT for the same reason TeamService
+// restores geographicSpaceIds — the console does not send a field it does not know
+// about, and PUT sends a whole document.
+//
+// THE DOMAIN CLASS ALSO CARRIES unavailabilityPeriods AND THIS FILE CANNOT DECLARE IT.
+// It is a List<UnavailabilityPeriod>, an embedded document that is not a JHipster
+// entity, and JDL has no way to say that — the same reason HCProfile's identical field
+// appears in no generator input either. It arrived on 2026-09-04 with the planner:
+// RoundPlanningService reads it through Professional.isAvailable(date), and it was
+// moved off HCProfile because the console dataset seeds none of those, so leaving the
+// rule there would have dropped it in silence.
+//
+// A regeneration DELETES the field and isAvailable with it, and nothing fails: every
+// candidate then reads as available for ever, on leave or not. JdlEntityFieldsTest
+// cannot see this — it excludes association-typed fields by design, which is what makes
+// the field legal here and also what makes it invisible. RESTORE IT BY HAND after any
+// regeneration of this entity, along with ProfessionalResource's PUT restore of it.
 entity Professional {
   id String
   role ProfessionalRole required
@@ -214,7 +229,7 @@ entity ProfessionalVerification {
 
 /** PDF: Team (Name, Description, Supervisor). */
 // geographicSpaceIds is NOT in the console's own hc-admin.jdl. It is declared here because
-// DutyRosterService.autoScheduleShifts reads it through
+// RoundPlanningService.plan reads it through
 // TeamRepository.findByGeographicSpaceIdsContaining, and the first application of this model
 // dropped it — which does not fail the build, only the context at startup, because Spring Data
 // derives that query from the property name. Keep it whenever this file is regenerated.

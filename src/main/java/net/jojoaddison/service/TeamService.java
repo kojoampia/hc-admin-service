@@ -60,8 +60,9 @@ public class TeamService {
      *
      * <p>PUT sends a whole document, so a client that does not know about the field erases it — and
      * the console client, generated from a JDL that does not declare it, is exactly such a client.
-     * The field is the auto-scheduler's only geography ({@code DutyRosterService}), and it fails
-     * silently: shifts stop matching any covering team and are skipped rather than erroring.
+     * The field is the planner's only geography ({@code RoundPlanningService}), and it fails
+     * silently: rounds stop matching any covering team and are reported unplanned rather than
+     * erroring.
      *
      * <p>Absent means absent. A caller that deliberately clears the coverage sends an empty list,
      * which is preserved.
