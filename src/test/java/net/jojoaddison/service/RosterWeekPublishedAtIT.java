@@ -32,7 +32,9 @@ import org.springframework.test.web.servlet.MockMvc;
  *   <li><b>An edit must not move the stamp.</b> A callback stamping "now" on finding it empty walks
  *       the publication date forward on every save, so a week published in May reports as published
  *       on whichever afternoon somebody last corrected its label — and nothing on screen looks
- *       wrong. {@link #anEditDoesNotWalkTheStampForward} is the case.
+ *       wrong. {@link #aPutEditDoesNotWalkTheStampForward} and
+ *       {@link #aPatchEditDoesNotWalkTheStampForward} are the cases — one per verb, because the two
+ *       arrive at the null by different routes and only {@code PATCH} ever copied the field.
  *   <li><b>Withdrawing must clear it.</b> A timestamp beside {@code published: false} says the week
  *       is out when it is not.
  *   <li><b>A client cannot set it.</b> Not on {@code PUT}, which sends a whole document, and not on
