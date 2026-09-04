@@ -100,6 +100,15 @@ public class ProfessionalServiceClient {
      * <p>Only the {@code id} is read back. The round as stored carries customer snapshots the far
      * service fetches for itself, and hc-admin has no use for them — reading them into this process
      * would put patient names into a stack that deliberately holds none.
+     *
+     * <p><b>Two of the three ways this throws are local misconfiguration, and the console cannot
+     * tell.</b> {@code enabled=false} and a missing caller token both raise
+     * {@link RosterServiceUnavailableException}, which {@code RoundPlanningService} reports as
+     * {@code ROSTER_SERVICE_UNREACHABLE} — so the screen says the roster service is down when
+     * nothing was ever dialled. The messages here distinguish them and the log line above names the
+     * far service only when one was actually contacted; a reader who has this endpoint's log has the
+     * answer, and a reader who has only the screen does not. Worth a distinct reason on the wire if
+     * this is ever mistaken for an outage.
      */
     public String fileRound(Map<String, Object> round) {
         if (!enabled) {
