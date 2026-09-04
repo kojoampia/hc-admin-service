@@ -103,6 +103,15 @@ public class ShiftTypeMigration implements ApplicationRunner {
      * <p>The three names differ and the difference is the bug this list was missing: the roster
      * collections call it {@code shift}, {@code wage_rate} calls it {@code shift_type}. A sweep that
      * assumed one name would have reported {@code wage_rate} as clean forever.
+     *
+     * <p><b>{@code duty_roster} stays, and that is a decision rather than an oversight.</b> The
+     * entity was deleted from this service on 2026-09-04; the collection was not, because deleting a
+     * {@code @Document} class deletes no documents. The database this sweep is written for — a
+     * pre-launch one that has not been started since before the model settled — is exactly the
+     * database still holding those rows, and the sweep's half that touches this collection only
+     * reports. Against a database that never had the collection it is one {@code count} returning
+     * zero at startup; against one that did, it is the only line anywhere that would say so. Dropping
+     * it would buy nothing and would silence the case it was written for.
      */
     private record ShiftColumn(String collection, String field) {}
 
