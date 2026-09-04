@@ -1,0 +1,354 @@
+package net.jojoaddison.domain;
+
+import java.io.Serial;
+import java.io.Serializable;
+import java.time.Instant;
+import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
+/**
+ * One account on a sibling stack, and what this directory has learned about it from the broker.
+ *
+ * <h2>Why this is a collection of its own rather than three fields on {@code Patient}</h2>
+ *
+ * <p>The obvious shape is to hang the sibling's identifiers off the local record. It was rejected
+ * for two reasons and both are worth keeping.
+ *
+ * <p>The first is that <b>how hc-admin should model a cross-stack patient identity is an open
+ * decision</b> — backlog item 22, which weighs a {@code patientId} field, a read across at use time,
+ * and not naming patients here at all. A field added here as a side effect of fixing a consumer
+ * would be populated only for accounts registered after this shipped, would look like the answer,
+ * and would be exactly the "plausible wrong id" failure that entry exists to prevent. This
+ * collection is deliberately <em>beside</em> the domain record, so item 22 is still free to decide.
+ *
+ * <p>The second is that <b>an event carries far less than a record.</b> {@code Patient} is an
+ * administrator's document — plan, hub, clinical lead, case count — and none of that is on the wire.
+ * Mixing the two on one document invites the next reader to write a merge that overwrites an edit.
+ * The rule instead lives in one place, {@link net.jojoaddison.service.DirectoryProjectionService},
+ * and this document is only ever the identity map and the watermark.
+ *
+ * <h2>Idempotency, and what the atomic upsert does and does not give</h2>
+ *
+ * <p>{@code (source, externalKey)} is the natural key. The write is {@code findAndModify} with
+ * {@code upsert}, which MongoDB serialises per document, so a redelivery of the same event produces
+ * one link and not two.
+ *
+ * <p><b>This paragraph used to say that made a unique index unnecessary, and that was wrong.</b>
+ * MongoDB documents the opposite: the operation is atomic per document, and two concurrent upserts
+ * that match nothing <em>can both insert</em> — the stated requirement for at-most-one is a unique
+ * index on the query field. It also named the wrong race as the one being defended against:
+ * {@code reconcile()} never upserts a link, so "a redelivery and the reconciliation racing each
+ * other" was not a thing that could happen. The index now exists, created explicitly at startup by
+ * {@link net.jojoaddison.config.DirectoryLinkIndexes} because this service creates none by
+ * convention, and it is a lookup index as well as a constraint — {@code (source, external_key)} is
+ * read on every message and this collection had no index at all.
+ *
+ * <p>Two things the index does not fix, stated rather than implied:
+ *
+ * <ul>
+ *   <li><b>The local record is a second write with no transaction around it.</b> Saving the
+ *       {@code Patient} and setting {@code local_id} on the link are separate operations, and Mongo
+ *       runs standalone here, so there is no transaction to hold them together. A crash between them
+ *       leaves an orphaned {@code Patient} and a link with no {@code local_id}; the redelivery then
+ *       creates a second record and claims the link, and the first is unreachable. The claim is at
+ *       least made atomically — see {@code DirectoryProjectionService.createAndClaim} — so two
+ *       writers cannot both attach a record to one link, which is the case that would have shown two
+ *       people on every tile.</li>
+ *   <li><b>"Equal is a redelivery" is equal to the millisecond.</b> MongoDB stores a date as
+ *       milliseconds since the epoch, so an {@code Instant} written with more precision comes back
+ *       truncated and the watermark comparison is a millisecond comparison. Harmless — two distinct
+ *       events about one subject in the same millisecond would have to arrive out of order to matter
+ *       — but it is not the nanosecond comparison the Java types suggest.</li>
+ * </ul>
+ */
+@Document(collection = "directory_link")
+public class DirectoryLink implements Serializable {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    @Id
+    private String id;
+
+    @Field("source")
+    private DirectorySource source;
+
+    /**
+     * The correlation key, and the half of the natural key that varies.
+     *
+     * <p>Lowercased email for {@link DirectorySource#HC_PATIENT} — hc-patient's own
+     * {@code PatientEvent} javadoc explains why it cannot be a patient id: there is no patient until
+     * onboarding step 1, and the two account events happen before that. It is also the value
+     * hc-patient sets as the Kafka partition key, so every event about one person arrives here in
+     * order, on one thread.
+     *
+     * <p>{@code accountId} for {@link DirectorySource#HC_PROFESSIONAL}, which is what that stream is
+     * keyed on throughout — registration and onboarding state alike.
+     */
+    @Field("external_key")
+    private String externalKey;
+
+    /**
+     * The sibling's own identifier for the subject, when the stream has published one.
+     *
+     * <p>For a patient this is the {@code patientId}, and it arrives only with
+     * {@code OnboardingStarted} — the one event that binds an email to a patient id. Null before
+     * that, which is a real state and not a defect. For a professional it is the {@code accountId},
+     * so it equals {@code externalKey}; carrying it anyway keeps a reader from having to know which
+     * source stores identity where.
+     */
+    @Field("external_id")
+    private String externalId;
+
+    @Field("login")
+    private String login;
+
+    @Field("email")
+    private String email;
+
+    /**
+     * The last lifecycle state this subject was reported in — an event type for hc-patient, the
+     * {@code state} payload field for hc-professional's {@code onboarding.state}.
+     *
+     * <p>A free string on purpose. Both producers say plainly that a consumer meeting a type it does
+     * not know must ignore it, so binding this to an enum here would turn "they added an event"
+     * into "this service refuses a message".
+     */
+    @Field("state")
+    private String state;
+
+    /**
+     * What kind of account this is, and therefore whether a local record is kept for it.
+     *
+     * <p><b>Stored rather than re-derived, and that is the point of it.</b> A care angel and a
+     * patient arrive on the same topic under the same {@code AccountCreated} type, distinguishable
+     * only by a field in the event's {@code data} — which the reconciliation endpoint does not have
+     * in front of it. Without this on the document, a reconciliation would rebuild a {@code Patient}
+     * for every angel. See {@link DirectorySubjectKind}.
+     *
+     * <p>Null on links written before 2026-09-05, which is read as {@link DirectorySubjectKind#PATIENT}
+     * for {@link DirectorySource#HC_PATIENT}: those are exactly the rows created back when every
+     * patient-stream subject became a patient.
+     */
+    @Field("subject_kind")
+    private DirectorySubjectKind subjectKind;
+
+    /**
+     * Whether the stream has ever said this account can sign in.
+     *
+     * <p><b>Stored so the reconciliation does not have to re-derive it, which it used to get wrong.</b>
+     * It read {@code state != "AccountCreated"} as "activated", so a link last seen in
+     * {@code OnboardingStarted}, {@code OnboardingStepCompleted}, {@code CareDelegationChanged},
+     * {@code DeletionRequestChanged} or anything it did not know rebuilt as {@code ACTIVE} — while the
+     * consumer, for those same events, says {@code activated == false}. Two derivations of one rule,
+     * disagreeing, under a javadoc claiming they were the same path.
+     *
+     * <p>Written monotonically — set true and never back to false — which is the link's copy of the
+     * {@code PENDING → ACTIVE} rule that governs the {@code Patient} it names.
+     */
+    @Field("activated")
+    private Boolean activated;
+
+    /**
+     * When the far side told this service it had erased the subject, and null for everybody else.
+     *
+     * <p>Set from hc-patient's {@code DeletionRequestChanged} with {@code change=COMPLETED}, which
+     * is published <em>after</em> the profile has already gone. It is a marker and not a deletion:
+     * this service does not delete the {@code Patient} (an administrator's record with an
+     * operational history of its own) and does not delete the link either, because the link holds
+     * the watermark — dropping it would let the whole of that subject's retained history replay into
+     * a fresh one and undo the marker. What it does is stop the reconciliation rebuilding a record
+     * for somebody whose far side is gone, and tell a reader why the row looks the way it does.
+     */
+    @Field("erased_at")
+    private Instant erasedAt;
+
+    /**
+     * The local document this subject produced, when it produced one.
+     *
+     * <p>Null for every {@link DirectorySource#HC_PROFESSIONAL} link, and that is stated rather than
+     * pending: {@code Professional} requires a {@code role} and a {@code licenceNumber}, neither of
+     * which is on a registration event nor could be — they are what credentialing collects. A row
+     * invented with a fabricated licence number in a directory whose whole purpose is verification is
+     * worse than no row. Null for a {@link DirectorySubjectKind#CARE_ANGEL} too, for the same shape of
+     * reason: hc-admin models an angel as its own entity joined to the patient who nominated them,
+     * and an account event carries neither half of that.
+     */
+    @Field("local_id")
+    private String localId;
+
+    @Field("first_seen_at")
+    private Instant firstSeenAt;
+
+    /**
+     * The watermark: {@code occurredAt} of the newest event applied to this subject.
+     *
+     * <p>What makes replay safe in the direction that matters. Delivery is at least once and a
+     * consumer group reading from the earliest offset re-reads the whole topic, so an older event
+     * arriving after a newer one is normal. Anything strictly older than this is not applied — which
+     * also protects an administrator's edit from being undone by a message from before they made it.
+     */
+    @Field("last_event_at")
+    private Instant lastEventAt;
+
+    @Field("last_event_id")
+    private String lastEventId;
+
+    @Field("last_event_type")
+    private String lastEventType;
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public DirectorySource getSource() {
+        return source;
+    }
+
+    public void setSource(DirectorySource source) {
+        this.source = source;
+    }
+
+    public String getExternalKey() {
+        return externalKey;
+    }
+
+    public void setExternalKey(String externalKey) {
+        this.externalKey = externalKey;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public void setLogin(String login) {
+        this.login = login;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getState() {
+        return state;
+    }
+
+    public void setState(String state) {
+        this.state = state;
+    }
+
+    public DirectorySubjectKind getSubjectKind() {
+        return subjectKind;
+    }
+
+    public void setSubjectKind(DirectorySubjectKind subjectKind) {
+        this.subjectKind = subjectKind;
+    }
+
+    public Boolean getActivated() {
+        return activated;
+    }
+
+    public void setActivated(Boolean activated) {
+        this.activated = activated;
+    }
+
+    public Instant getErasedAt() {
+        return erasedAt;
+    }
+
+    public void setErasedAt(Instant erasedAt) {
+        this.erasedAt = erasedAt;
+    }
+
+    public String getLocalId() {
+        return localId;
+    }
+
+    public void setLocalId(String localId) {
+        this.localId = localId;
+    }
+
+    public Instant getFirstSeenAt() {
+        return firstSeenAt;
+    }
+
+    public void setFirstSeenAt(Instant firstSeenAt) {
+        this.firstSeenAt = firstSeenAt;
+    }
+
+    public Instant getLastEventAt() {
+        return lastEventAt;
+    }
+
+    public void setLastEventAt(Instant lastEventAt) {
+        this.lastEventAt = lastEventAt;
+    }
+
+    public String getLastEventId() {
+        return lastEventId;
+    }
+
+    public void setLastEventId(String lastEventId) {
+        this.lastEventId = lastEventId;
+    }
+
+    public String getLastEventType() {
+        return lastEventType;
+    }
+
+    public void setLastEventType(String lastEventType) {
+        this.lastEventType = lastEventType;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof DirectoryLink)) {
+            return false;
+        }
+        return getId() != null && getId().equals(((DirectoryLink) o).getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+
+    // prettier-ignore
+    @Override
+    public String toString() {
+        return "DirectoryLink{" +
+            "id=" + getId() +
+            ", source='" + getSource() + "'" +
+            ", externalKey='" + getExternalKey() + "'" +
+            ", externalId='" + getExternalId() + "'" +
+            ", login='" + getLogin() + "'" +
+            ", subjectKind='" + getSubjectKind() + "'" +
+            ", state='" + getState() + "'" +
+            ", localId='" + getLocalId() + "'" +
+            ", lastEventAt='" + getLastEventAt() + "'" +
+            "}";
+    }
+}
