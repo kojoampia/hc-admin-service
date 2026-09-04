@@ -204,18 +204,39 @@ class DirectoryEventConsumptionIT {
     /**
      * A frame this service cannot read does not stop the ones after it.
      *
-     * <p>An exception out of a Spring Cloud Stream consumer is retried and then dropped, and while
-     * that happens the partition makes no progress — so one unusable message would freeze every
-     * subject whose key hashes to it. These topics belong to other products and gain event types
-     * without reference to this consumer.
+     * <p>An exception out of a Spring Cloud Stream consumer is retried, and while that happens the
+     * partition makes no progress — so one unusable message would hold up every subject whose key
+     * hashes to it. These topics belong to other products and gain event types without reference to
+     * this consumer.
+     *
+     * <p><b>Asserted on what the good frame wrote, not on a count, and the difference was a real
+     * defect in this test.</b> It used to send three frames and assert {@code count == 1}. The middle
+     * frame was not bad: {@code sendPatient} sets the {@code patientKey} header, so its subject key
+     * resolved, and it carried no {@code occurredAt} — which the parser then read as {@code now}. So
+     * it created the patient, the third frame was <em>older</em> than that watermark and was discarded
+     * as stale, and the 1 being asserted was the bad frame's row. The assertion said the good frame
+     * had arrived and would have passed identically if it had been dropped. A count is satisfied by
+     * anything; read the record.
      */
     @Test
     void anUnreadableFrameDoesNotStopTheConsumer() {
         sendPatient("this is not an envelope");
-        sendPatient("{\"type\":\"SomethingAddedNextYear\",\"subject\":{}}");
+        // The exact frame that used to poison the watermark: a well-formed envelope for this very
+        // subject whose timestamp cannot be read. It is now ignored, so the good frame behind it —
+        // which is dated in the past, and would have been stale against a "now" watermark — lands.
+        sendPatient(accountCreated("the day before yesterday", false));
         sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
 
-        assertThat(patientRepository.count()).as("the good frame after two bad ones still arrived").isEqualTo(1);
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getLastEventType()).as("the good frame after two bad ones is what wrote the link").isEqualTo("AccountCreated");
+        assertThat(link.getLastEventAt())
+            .as("and it is THAT frame: an unreadable timestamp read as `now` would leave a watermark of today")
+            .isEqualTo(Instant.parse("2026-09-01T08:00:00Z"));
+        assertThat(link.getLogin()).isEqualTo("amensah");
+        assertThat(patientRepository.findAll().get(0).getJoinedOn())
+            .as("the patient is dated from the good frame's occurredAt, not from when the run happened")
+            .isEqualTo(LocalDate.of(2026, 9, 1));
+        assertThat(patientRepository.count()).isEqualTo(1);
     }
 
     /**

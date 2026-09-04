@@ -243,6 +243,30 @@ class SiblingEventParserTest {
     }
 
     /**
+     * A frame with no readable {@code occurredAt} is ignored rather than stamped "now".
+     *
+     * <p><b>Watermark poisoning, and it is the failure the old fallback caused rather than avoided.</b>
+     * {@code occurredAt} is what {@code DirectoryLink.lastEventAt} is set from, and anything strictly
+     * older than that is discarded. Stamping an unreadable frame with the present therefore freezes
+     * its subject against every event older than the moment it arrived — and these consumer groups
+     * read from the earliest offset, so during the backfill "now" is later than every frame in the
+     * topic. One such frame would have discarded the rest of that person's history, silently, in the
+     * middle of the read that history exists for.
+     */
+    @Test
+    void ignoresAFrameWhoseTimestampItCannotRead() {
+        assertThat(parser.parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, null, false)), null))
+            .as("no occurredAt means no watermark to apply the event against")
+            .isEmpty();
+        assertThat(parser.parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "the day before yesterday", false)), null))
+            .as("an unparseable one is the same case, and used to be silently read as the present")
+            .isEmpty();
+        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1").replace("\"2026-09-01T08:00:00Z\"", "null"))))
+            .as("the same rule on the other stream")
+            .isEmpty();
+    }
+
+    /**
      * Anything unusable is ignored, never thrown.
      *
      * <p>An exception out of a Spring Cloud Stream consumer is retried and stalls the partition it

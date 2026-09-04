@@ -73,16 +73,29 @@ import org.springframework.stereotype.Component;
  * instead: it is the normal, expected condition on somebody else's topic, and a warn per frame would
  * fill the log during a backfill with something nobody should act on.
  *
- * <h2>Timestamps are parsed from both forms on purpose</h2>
+ * <h2>Timestamps are read from both forms, and a frame without one is not an event</h2>
  *
- * <p>hc-professional's gateway writes {@code Instant.now().toString()} into a {@code Map}, so its
- * {@code occurredAt} is always an ISO-8601 string. hc-patient's is a real {@code Instant} on a
- * record, serialised by whatever that application's ObjectMapper is configured to do — which is a
- * setting in a repository this one does not own and can change without anything failing here. Both
- * forms are read rather than one being assumed, because guessing wrong would not be a parse error:
- * a numeric epoch read as a missing field would fall back to "now", the watermark would jump to the
- * present, and every genuinely later event would then be discarded as stale. Silent, and it would
- * look like the consumer had stopped.
+ * <p>Both products put a real {@code Instant} on a record in one place and an
+ * {@code Instant.now().toString()} into a {@code Map} in another — hc-professional's api publishes
+ * the {@code DomainEventEnvelope} record while its gateway builds a {@code LinkedHashMap}, and
+ * hc-patient publishes the {@code PatientEvent} record from both of its applications. So
+ * {@code occurredAt} arrives as an ISO-8601 string from some producers and as whatever that
+ * application's ObjectMapper makes of an {@code Instant} — a string, or a numeric epoch — from
+ * others, and that is a setting in repositories this one does not own. Both forms are read rather
+ * than one being assumed.
+ *
+ * <p><b>A frame whose {@code occurredAt} cannot be read at all is ignored, and until 2026-09-05 it
+ * fell back to {@code Instant.now()}.</b> That fallback read as the cautious choice and was the
+ * opposite of one. {@code occurredAt} is the watermark, so stamping an unreadable frame with the
+ * present <b>freezes its subject against every event older than the moment it arrived</b> — and
+ * these consumer groups start at the earliest offset, so on the first run "now" is later than every
+ * frame in the topic. One frame with an unreadable timestamp would therefore discard the rest of
+ * that subject's history as stale, during exactly the backfill that history is being read for.
+ * Silent, and indistinguishable from the consumer having stopped.
+ *
+ * <p>Ignoring the frame loses one event. The fallback lost every event about that person that had
+ * not yet been applied, which is the strictly worse of the two, and it is a case neither producer can
+ * reach today: both always set the field.
  *
  * <h2>Why this is in {@code ..service..} rather than {@code ..broker..}</h2>
  *
@@ -171,6 +184,11 @@ public class SiblingEventParser {
             return Optional.empty();
         }
 
+        Instant occurredAt = occurredAt(node, type);
+        if (occurredAt == null) {
+            return Optional.empty();
+        }
+
         boolean careAngel = isCareAngelNomination(data);
         Disposition disposition = patientDisposition(type, careAngel);
         if (disposition == null) {
@@ -192,7 +210,7 @@ public class SiblingEventParser {
                 DirectorySource.HC_PATIENT,
                 text(node, "eventId"),
                 type,
-                occurredAt(node),
+                occurredAt,
                 key,
                 text(subject, "email"),
                 text(subject, "login"),
@@ -243,6 +261,11 @@ public class SiblingEventParser {
             return Optional.empty();
         }
 
+        Instant occurredAt = occurredAt(node, type);
+        if (occurredAt == null) {
+            return Optional.empty();
+        }
+
         // `state` where the event carries one (onboarding.state does, registration.created does
         // not), otherwise the type itself — so the link always records something a reader can act
         // on rather than sometimes recording null.
@@ -253,7 +276,7 @@ public class SiblingEventParser {
                 DirectorySource.HC_PROFESSIONAL,
                 text(node, "eventId"),
                 type,
-                occurredAt(node),
+                occurredAt,
                 accountId,
                 text(content, "email"),
                 text(content, "login"),
@@ -360,15 +383,15 @@ public class SiblingEventParser {
     }
 
     /**
-     * {@code occurredAt} as an instant, from a string or a numeric epoch, falling back to now.
+     * {@code occurredAt} as an instant, from a string or a numeric epoch — or null, which discards
+     * the frame.
      *
-     * <p>The fallback is safe in the direction that matters and unsafe in the other, so it is worth
-     * being explicit: an event stamped "now" is never discarded as stale, so nothing is lost, but it
-     * does advance the watermark past events that really are later. That only happens for a frame
-     * whose timestamp this could not read at all, which is a schema change rather than a normal
-     * message, and dropping such a frame entirely would be the worse of the two.
+     * <p>Null rather than {@code Instant.now()}, and the class javadoc gives the reason at length:
+     * this value is the watermark, and stamping an unreadable frame with the present freezes its
+     * subject against every event older than the moment it arrived. On a group reading from the
+     * earliest offset that is the rest of that subject's history.
      */
-    private Instant occurredAt(JsonNode node) {
+    private Instant occurredAt(JsonNode node, String type) {
         JsonNode value = node.path("occurredAt");
         if (value.isNumber()) {
             // Seconds with a fractional part is what Jackson writes for an Instant with
@@ -381,10 +404,12 @@ public class SiblingEventParser {
             try {
                 return Instant.parse(text);
             } catch (DateTimeParseException e) {
-                LOG.warn("Unreadable occurredAt '{}' — treating the event as current", text);
+                LOG.warn("Ignoring a {} frame: occurredAt '{}' is not a timestamp this service can read", type, text);
+                return null;
             }
         }
-        return Instant.now();
+        LOG.warn("Ignoring a {} frame with no occurredAt — there is no watermark to apply it against", type);
+        return null;
     }
 
     private String text(JsonNode node, String field) {
