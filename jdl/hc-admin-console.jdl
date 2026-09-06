@@ -269,6 +269,7 @@ entity Vendor {
   spendToDate BigDecimal min(0)
   rating BigDecimal min(0) max(5)
   isArchived Boolean
+  accountId String maxlength(50)
 }
 
 // ============================================================

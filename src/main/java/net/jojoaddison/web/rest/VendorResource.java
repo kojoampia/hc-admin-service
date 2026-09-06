@@ -21,6 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -69,6 +71,8 @@ public class VendorResource {
         if (vendor.getId() != null) {
             throw new BadRequestAlertException("A new vendor cannot already have an ID", ENTITY_NAME, "idexists");
         }
+        normaliseAccountId(vendor);
+        rejectDuplicateAccountId(vendor.getAccountId(), null);
         vendor = vendorRepository.save(vendor);
         return ResponseEntity
             .created(new URI("/api/vendors/" + vendor.getId()))
@@ -103,6 +107,8 @@ public class VendorResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
+        normaliseAccountId(vendor);
+        rejectDuplicateAccountId(vendor.getAccountId(), id);
         vendor = vendorRepository.save(vendor);
         return ResponseEntity
             .ok()
@@ -138,6 +144,9 @@ public class VendorResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
 
+        normaliseAccountId(vendor);
+        rejectDuplicateAccountId(vendor.getAccountId(), id);
+
         Optional<Vendor> result = vendorRepository
             .findById(vendor.getId())
             .map(existingVendor -> {
@@ -155,6 +164,7 @@ public class VendorResource {
                 updateIfPresent(existingVendor::setSpendToDate, vendor.getSpendToDate());
                 updateIfPresent(existingVendor::setRating, vendor.getRating());
                 updateIfPresent(existingVendor::setIsArchived, vendor.getIsArchived());
+                updateIfPresent(existingVendor::setAccountId, vendor.getAccountId());
 
                 return existingVendor;
             })
@@ -169,6 +179,7 @@ public class VendorResource {
      * @param pageable the pagination information.
      * @param isArchivedEquals when true, return only archived records; when false, only unarchived.
      * @param isArchivedNotEquals the inverse, sent by the console as {@code isArchived.notEquals=true}.
+     * @param accountIdEquals the vendor-gateway login to resolve to a directory record.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the list of Vendors in body.
      */
     @GetMapping("")
@@ -178,15 +189,35 @@ public class VendorResource {
         @RequestParam(name = "isArchived.notEquals", required = false) Boolean isArchivedNotEquals,
         // The directory tiles filter on these and read their counts from X-Total-Count. Undeclared,
         // Spring drops them and every tile reads the collection total.
-        @RequestParam(name = "status.equals", required = false) AccountStatus statusEquals
+        @RequestParam(name = "status.equals", required = false) AccountStatus statusEquals,
+        // hc-vendor resolves a portal login to a vendor here. Deliberately this filter rather than a
+        // /vendors/account/{login} route: a page is an unambiguous answer where a 404 is not. The
+        // vendor portal's own spec records the failure it is avoiding — in the sibling subsystems a
+        // login that names no record 404s exactly like a service that is down, and it reads to the
+        // user as "you have no vendor record". An empty page cannot be confused with either.
+        //
+        @RequestParam(name = "accountId.equals", required = false) String accountIdEquals
     ) {
         LOG.debug("REST request to get a page of Vendors");
-        // The two operators the console sends, and only those. This is not a criteria framework:
-        // every other entity here lists unfiltered, and inventing a general query language for one
-        // boolean would be a much larger surface than the screen that needs it.
+        // NamedFilters drops blank values as well as nulls, so a present-but-blank
+        // `?accountId.equals=` would silently become no filter and return the whole directory — a
+        // caller resolving an empty login would be handed the first vendor in the collection. On a
+        // filter that decides which vendor a portal caller is, that is worth an error rather than a
+        // note in the caller's documentation. Absent is still "no filter"; blank is now a mistake.
+        if (accountIdEquals != null && accountIdEquals.isBlank()) {
+            throw new BadRequestAlertException("accountId.equals was sent but is blank", ENTITY_NAME, "accountidblank");
+        }
+        // The operators the console and the vendor portal send, and only those. This is not a
+        // criteria framework: every other entity here lists unfiltered, and inventing a general
+        // query language would be a much larger surface than the screens that need it.
         Boolean archived = resolveArchivedFilter(isArchivedEquals, isArchivedNotEquals);
 
-        NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals);
+        // Normalised on the way in as well as on the way out: stored values are trimmed and
+        // lower-cased, so an exact-match filter on "Kaneshie " would resolve nothing and the portal
+        // would tell its user they have no vendor record. Symmetry is what keeps that from happening.
+        String accountId = accountIdEquals == null ? null : accountIdEquals.trim().toLowerCase(java.util.Locale.ROOT);
+
+        NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals).equals("account_id", accountId);
         // Archived stays `$ne: true` rather than `is(false)`: a document written before the field
         // existed does not carry it, and `is_archived: false` matches none of them.
         if (archived != null) {
@@ -260,6 +291,53 @@ public class VendorResource {
     private <T> void updateIfPresent(Consumer<T> setter, T value) {
         if (value != null) {
             setter.accept(value);
+        }
+    }
+
+    /**
+     * Trims and lower-cases {@code accountId}, and turns a blank one into null.
+     *
+     * <p>The field's only job is to equal a vendor-gateway login, and the gateway lower-cases every
+     * login it stores. So {@code "Kaneshie "} and {@code "kaneshie"} name the same account, but the
+     * resolution filter is an exact match and would resolve only the second — presenting to the
+     * vendor as "you have no vendor record", which is the failure this whole mechanism was shaped to
+     * avoid. Normalising on write is what keeps the exact match honest.
+     *
+     * <p>Blank becomes null because the two are different in MongoDB but the same to the filter:
+     * {@code NamedFilters} drops blank values, so a stored {@code ""} is a link that can never
+     * resolve while looking linked in the document.
+     */
+    private static void normaliseAccountId(Vendor vendor) {
+        String accountId = vendor.getAccountId();
+        if (accountId == null) {
+            return;
+        }
+        String trimmed = accountId.trim().toLowerCase(java.util.Locale.ROOT);
+        vendor.setAccountId(trimmed.isEmpty() ? null : trimmed);
+    }
+
+    /**
+     * Refuses to give one login to two vendors.
+     *
+     * <p>{@code accountId} decides which vendor a portal caller is, so a duplicate does not read as
+     * a data-quality problem — it shows one vendor another vendor's purchase orders and invoices.
+     * Nothing in MongoDB prevents it: no field in this domain is indexed. An admin pasting the wrong
+     * login into the console is the realistic way one appears, so the check belongs here, on the
+     * three handlers that write.
+     *
+     * @param excludedId the vendor being updated, whose own value must not count as a collision;
+     *                   null when creating.
+     */
+    private void rejectDuplicateAccountId(String accountId, String excludedId) {
+        if (accountId == null) {
+            return;
+        }
+        Query query = Query.query(Criteria.where("account_id").is(accountId));
+        if (excludedId != null) {
+            query.addCriteria(Criteria.where("_id").ne(excludedId));
+        }
+        if (mongoTemplate.exists(query, Vendor.class)) {
+            throw new BadRequestAlertException("That accountId already belongs to another vendor", ENTITY_NAME, "accountidexists");
         }
     }
 

@@ -20,6 +20,7 @@ public class VendorTestSamples {
             .email("email1")
             .city("city1")
             .contractNote("contractNote1")
+            .accountId("accountId1")
             .orderCount(1);
     }
 
@@ -34,6 +35,7 @@ public class VendorTestSamples {
             .email("email2")
             .city("city2")
             .contractNote("contractNote2")
+            .accountId("accountId2")
             .orderCount(2);
     }
 
@@ -48,6 +50,7 @@ public class VendorTestSamples {
             .email(UUID.randomUUID().toString())
             .city(UUID.randomUUID().toString())
             .contractNote(UUID.randomUUID().toString())
+            .accountId(UUID.randomUUID().toString())
             .orderCount(intCount.incrementAndGet());
     }
 }
