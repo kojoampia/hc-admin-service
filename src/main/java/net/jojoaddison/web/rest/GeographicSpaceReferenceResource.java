@@ -30,6 +30,15 @@ import tech.jhipster.web.util.ResponseUtil;
  * {@code GET /api/geographic-spaces} as existing generated CRUD gated on {@code ROLE_ADMIN} /
  * {@code ROLE_OPERATOR}. It did not exist at all.
  *
+ * <p><b>That citation is a permitted exception, not an oversight — do not delete it to satisfy the
+ * decision that appears to forbid it.</b> Decision 11 in {@code docs/duty-roster-resolution.md} § 9.1
+ * says the two roster documents are uncited from code, and it means <em>no further citations</em>:
+ * this class is named there as the one that exists and stays (settled 2026-09-06, {@code
+ * docs/backlog.md} item 13). What the reference above is worth is the divergence it records — the
+ * plan's entity surface never existed — which is the half that would be tidied away. It names a path
+ * rather than a bare filename, which is the safer of the two conventions in this workspace and is
+ * likewise deliberate.
+ *
  * <p>This is read-only and structurally so — there is no write mapping here. Should an administrator
  * ever need to edit the tree, the writes fall to {@code SecurityConfiguration}'s blanket
  * {@code /api/** -> ROLE_ADMIN} rule with nothing to relax, because the carve-out below is on
