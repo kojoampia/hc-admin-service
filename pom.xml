@@ -31,7 +31,7 @@
         <mongock.version>5.5.1</mongock.version>
         <springdoc.version>3.1.0</springdoc.version>
         <logstash-logback-encoder.version>9.0</logstash-logback-encoder.version>
-        <archunit-junit5.version>1.4.2</archunit-junit5.version>
+        <archunit-junit5.version>1.5.0</archunit-junit5.version>
         <checkstyle.version>10.21.4</checkstyle.version>
         <git-commit-id-maven-plugin.version>10.0.0</git-commit-id-maven-plugin.version>
         <jacoco-maven-plugin.version>0.8.15</jacoco-maven-plugin.version>
