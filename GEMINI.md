@@ -125,7 +125,13 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 - `src/main/resources/data/`: Development seed data.
 - `src/main/docker/`: Docker Compose files for infrastructure (consul, mongodb, kafka, prometheus/grafana, zipkin, sonar) and the app itself.
 - `.jhipster/`: Entity configuration files for JHipster.
-- `jdl/`: JDL definitions for the domain model (`admin-db.jdl`, `admin-ms.jdl`, `system.jdl`).
+- `jdl/`: JDL definitions. **`hc-admin-console.jdl` is the live model** — the only file here a
+  regeneration should read, and the one `JdlEntityFieldsTest` holds to the domain classes.
+  `admin-db.jdl` and `system.jdl` are **historical**: they predate the console model, every one of
+  their twelve entities disagrees with the class that carries its name, and each says so in its own
+  header. That test also fails on any `.jdl` here that declares itself neither, so a new file cannot
+  arrive unclassified. (`admin-ms.jdl` was listed here until 2026-09-06 and had been zero bytes since
+  the day it was created; it was deleted.)
 
 ## 🛠️ Key Commands
 

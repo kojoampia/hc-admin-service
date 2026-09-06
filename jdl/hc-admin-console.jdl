@@ -24,9 +24,19 @@
  *
  * FOUR ENTITY NAMES COLLIDE with this service's earlier model and are
  * replaced by the definitions below: Address, Message, Organisation, Team.
- * The earlier shapes remain in git and in jdl/admin-db.jdl, jdl/admin-ms.jdl
- * and jdl/system.jdl.
+ * The earlier shapes remain in git and in jdl/admin-db.jdl and jdl/system.jdl,
+ * both of which are HISTORICAL and say so in their own headers.
+ *
+ * THIS FILE IS THE ONLY LIVE MODEL in jdl/ — the one a regeneration would run,
+ * and the one JdlEntityFieldsTest holds to the domain classes. That test also
+ * requires every other .jdl beside it to declare itself historical, so the
+ * question "which of these four is real" cannot come back (backlog item 21).
+ * It said "jdl/admin-ms.jdl" here as well until 2026-09-06; that file was zero
+ * bytes from the day it was added and held no earlier shape of anything, so it
+ * was deleted rather than marked.
  */
+
+// JDL STATUS: LIVE
 
 // ============================================================
 // ENUMS

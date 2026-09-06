@@ -26,8 +26,8 @@ package net.jojoaddison.domain.enumeration;
  *
  * FOUR ENTITY NAMES COLLIDE with this service's earlier model and are
  * replaced by the definitions below: Address, Message, Organisation, Team.
- * The earlier shapes remain in git and in jdl/admin-db.jdl, jdl/admin-ms.jdl
- * and jdl/system.jdl.
+ * The earlier shapes remain in git and in jdl/admin-db.jdl and jdl/system.jdl,
+ * both of which are HISTORICAL and say so in their own headers.
  */
 public enum Title {
     MR,
