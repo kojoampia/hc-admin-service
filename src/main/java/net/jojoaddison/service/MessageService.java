@@ -3,6 +3,7 @@ package net.jojoaddison.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Optional;
+import net.jojoaddison.broker.OutboundEventPublisher;
 import net.jojoaddison.domain.Message;
 import net.jojoaddison.domain.enumeration.MessageChannel;
 import net.jojoaddison.domain.enumeration.MessageStatus;
@@ -14,7 +15,6 @@ import net.jojoaddison.service.dto.MessageSentEvent;
 import net.jojoaddison.service.mapper.MessageMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -35,7 +35,7 @@ public class MessageService {
 
     private final MessageMapper messageMapper;
 
-    private final StreamBridge streamBridge;
+    private final OutboundEventPublisher eventPublisher;
 
     private final ObjectMapper objectMapper;
 
@@ -44,13 +44,13 @@ public class MessageService {
     public MessageService(
         MessageRepository messageRepository,
         MessageMapper messageMapper,
-        StreamBridge streamBridge,
+        OutboundEventPublisher eventPublisher,
         ObjectMapper objectMapper,
         MongoTemplate mongoTemplate
     ) {
         this.messageRepository = messageRepository;
         this.messageMapper = messageMapper;
-        this.streamBridge = streamBridge;
+        this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
         this.mongoTemplate = mongoTemplate;
     }
@@ -71,6 +71,11 @@ public class MessageService {
      * <p>A failure to publish does not fail the send. The message is saved and readable on the desk;
      * losing the notification costs the recipient a live nudge, and unwinding a persisted message
      * because the bus was briefly down would cost them the message itself.
+     *
+     * <p><b>Nor does it cost the caller any time.</b> It did until 2026-09-06: the publish ran here,
+     * on the request thread, and the first send after a start against an unreachable broker took
+     * <b>sixty seconds</b> — measured, with a 201 at the end of it and nothing failing (backlog item
+     * 39a). {@link OutboundEventPublisher} owns that now and the reasoning is on it.
      */
     public MessageDTO send(MessageDTO messageDTO) {
         MessageDTO saved = save(messageDTO);
@@ -78,12 +83,22 @@ public class MessageService {
         return saved;
     }
 
+    /**
+     * Serialises here and publishes elsewhere, and the split is deliberate.
+     *
+     * <p>A payload that cannot be written is a defect in this service rather than a broker outage, so
+     * it is caught while the message is still in hand and logged against its id. Everything past that
+     * point is the broker's problem and leaves this thread.
+     */
     private void publishSent(MessageDTO saved) {
+        String payload;
         try {
-            streamBridge.send(PRODUCER_BINDING_NAME, objectMapper.writeValueAsString(MessageSentEvent.of(saved)));
+            payload = objectMapper.writeValueAsString(MessageSentEvent.of(saved));
         } catch (JsonProcessingException | RuntimeException e) {
-            LOG.warn("Message {} was saved but its sent event could not be published", saved.getId(), e);
+            LOG.warn("Message {} was saved but its sent event could not be serialised", saved.getId(), e);
+            return;
         }
+        eventPublisher.publish(PRODUCER_BINDING_NAME, payload, "Message " + saved.getId());
     }
 
     /**

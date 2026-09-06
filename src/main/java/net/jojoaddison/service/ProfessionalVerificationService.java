@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import net.jojoaddison.broker.OutboundEventPublisher;
 import net.jojoaddison.broker.VerificationEvent;
 import net.jojoaddison.config.Constants;
 import net.jojoaddison.domain.Professional;
@@ -17,7 +18,6 @@ import net.jojoaddison.repository.ProfessionalVerificationRepository;
 import net.jojoaddison.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.stereotype.Service;
 
 /**
@@ -53,7 +53,7 @@ public class ProfessionalVerificationService {
     /** Injected so a test can record a verification at a known instant rather than at "now". */
     private final Clock clock;
 
-    private final StreamBridge streamBridge;
+    private final OutboundEventPublisher eventPublisher;
 
     private final ObjectMapper objectMapper;
 
@@ -61,13 +61,13 @@ public class ProfessionalVerificationService {
         ProfessionalVerificationRepository verificationRepository,
         ProfessionalRepository professionalRepository,
         Clock clock,
-        StreamBridge streamBridge,
+        OutboundEventPublisher eventPublisher,
         ObjectMapper objectMapper
     ) {
         this.verificationRepository = verificationRepository;
         this.professionalRepository = professionalRepository;
         this.clock = clock;
-        this.streamBridge = streamBridge;
+        this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
     }
 
@@ -105,8 +105,14 @@ public class ProfessionalVerificationService {
      * an event can re-read the history, which is what a history is for.
      *
      * <p>The warning matters more here than usual. <b>A missing broker is silent</b>: the app starts,
-     * serves and reports healthy while everything produced goes nowhere. This log line is the only
-     * thing that says so.
+     * serves and reports healthy while everything produced goes nowhere. That log line lives on
+     * {@link OutboundEventPublisher} now, along with the reason neither of these two sends touches the
+     * request thread any more — an unreachable broker made the first one cost sixty seconds, and both
+     * of them went through the same lock (backlog item 39a).
+     *
+     * <p>Order between the two is preserved because the publisher keeps one thread, which is what makes
+     * two decisions about one professional arrive on {@code professional-verification} in the order
+     * they were taken.
      */
     private void announce(ProfessionalVerification saved) {
         String payload;
@@ -117,11 +123,12 @@ public class ProfessionalVerificationService {
             return;
         }
 
-        send(VERIFICATION_BINDING, payload, saved.getId());
+        String subject = "Verification " + saved.getId();
+        eventPublisher.publish(VERIFICATION_BINDING, payload, subject);
         // Relayed to the SSE fan-out as well, so an open console updates without a reload. A second
         // send rather than a shared binding: the domain topic and the browser channel have different
         // audiences and one should not be able to break the other.
-        send(SSE_BINDING, payload, saved.getId());
+        eventPublisher.publish(SSE_BINDING, payload, subject);
     }
 
     /**
@@ -141,14 +148,6 @@ public class ProfessionalVerificationService {
             verification.getRecordedAt(),
             verification.getRecordedBy()
         );
-    }
-
-    private void send(String binding, String payload, String verificationId) {
-        try {
-            streamBridge.send(binding, payload);
-        } catch (RuntimeException e) {
-            LOG.warn("Verification {} was recorded but could not be published to {}", verificationId, binding, e);
-        }
     }
 
     /** One professional's decisions, newest first. */
