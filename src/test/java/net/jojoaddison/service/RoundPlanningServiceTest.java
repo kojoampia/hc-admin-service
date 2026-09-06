@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -409,6 +410,43 @@ class RoundPlanningServiceTest {
         PlanReport report = service.plan(planFor(round(ProfessionalRole.NURSE), round(ProfessionalRole.NURSE)));
 
         assertThat(report.rounds()).extracting("professionalId").containsExactly("prof-1", "prof-2");
+    }
+
+    /**
+     * <b>And a second run gives the same person a second visit-less round on the same date, on
+     * purpose.</b>
+     *
+     * <p>Backlog item 23, decided 2026-09-06 and pinned here rather than left as a paragraph. The
+     * rule above is scoped to one call; nothing here or in hc-professional refuses the second round
+     * when it carries no visits ({@code validateRound} returns on an empty visit list before it
+     * reaches the overlap check, deliberately — ward cover and on-call are real shifts). The
+     * decision is that this is legal and that this service will not guess otherwise: it knows only
+     * what it filed, so a local uniqueness check would refuse or allow the same round depending on
+     * which surface filed the first, and a wrongly refused round comes back as
+     * {@code NO_CANDIDATE_IS_AVAILABLE} — indistinguishable from leave. The reasoning is in
+     * {@code RoundPlanningService.alreadyCommitted}'s javadoc, with the one change that would
+     * reverse it.
+     *
+     * <p><b>Inverted, which is why it is worth its lines.</b> It asserts the absence of a rule, so
+     * it goes red the moment somebody adds the partial guard the entry exists to prevent — and the
+     * javadoc it names is where they will find out why it is red. A test that only asserted the
+     * present behaviour of the same code would pass either way.
+     */
+    @Test
+    void filesASecondVisitlessRoundForTheSamePersonAndDate() {
+        oneTeamCoversTheSpace();
+        candidatesAre(candidate("prof-1"));
+        gridStubs();
+        filedAs("round-1");
+
+        // The same request, twice, exactly as two planning runs on the same day would arrive.
+        PlanReport first = service.plan(planFor(round(ProfessionalRole.NURSE)));
+        PlanReport second = service.plan(planFor(round(ProfessionalRole.NURSE)));
+
+        assertPlanned(first, "prof-1");
+        assertPlanned(second, "prof-1");
+        // Filed both times: not merely reported as planned, actually written to the roster of record.
+        verify(client, times(2)).fileRound(any());
     }
 
     // --- ranking --------------------------------------------------------------------------------

@@ -56,7 +56,8 @@ import org.springframework.web.client.HttpClientErrorException;
  *       the console dataset holds none.
  *   <li><b>No double-booking.</b> Same rule, against what this service can actually see: a rostered
  *       {@code OFF} cell on the date, and any round this run has already given the same person.
- *       See {@link #alreadyCommitted}, which states plainly what it cannot check.
+ *       See {@link #alreadyCommitted}, which states plainly what it cannot check — and, since
+ *       2026-09-06, records the decision not to guess at the one case nothing in the estate covers.
  *   <li><b>Fairness, fewest shifts this week.</b> Same rule and the same Monday-to-Sunday window,
  *       counted from the staffing grid rather than from the deleted roster — and computed
  *       <b>once per candidate</b> rather than inside a comparator. That was a pinned defect.
@@ -299,11 +300,43 @@ public class RoundPlanningService {
      * each file a visit-less round for the same professional, on the same date, in the same space,
      * and no rule anywhere will notice.
      *
-     * <p>Stated rather than fixed. Closing it needs the estate-wide read this method declines to
-     * make, or a rule in hc-professional that would have to distinguish a legitimate second
-     * visit-less shift from a duplicate — neither of which is this method's to decide. The value of
-     * this comment is that it says what it cannot check; "the far service is the backstop" was true
-     * enough to read as complete and was the one case it did not name.
+     * <p><b>DECIDED 2026-09-06, and decided as "legal": this service will not refuse the second
+     * one</b> (backlog item 23, which was filed to stop the stating above being mistaken for a
+     * decision). A second visit-less round on a date is not known to be a mistake — ward cover and
+     * on-call are exactly the shifts a clinician can genuinely hold two of — so the choice is not
+     * between a rule and no rule, it is between no rule and a <em>guess</em>.
+     *
+     * <p>Three things settle it, and the third is the one that would not have been obvious from the
+     * gap alone.
+     *
+     * <ul>
+     *   <li><b>The rule belongs to the owner of the roster.</b> hc-professional holds every round in
+     *       the estate and is the only party that can answer "does this person already have one".
+     *       Whatever it decides about a second visit-less shift applies to rounds filed on its own
+     *       admin surface too; whatever this service decides applies to the subset that came through
+     *       here.
+     *   <li><b>A check on this side could only be built on a partial record.</b> This service knows
+     *       what <em>it</em> filed, not what the estate holds — so the same second round would be
+     *       refused or allowed depending on which surface filed the first. A guard that enforces a
+     *       rule unevenly teaches that the rule does not exist while still refusing legitimate work,
+     *       which is worse than the gap it closes.
+     *   <li><b>The failure it would prevent is visible and recoverable; the one it would cause is
+     *       not.</b> A duplicate on-call block is on the roster where a person can see it and remove
+     *       it. A round wrongly refused reports {@code NO_CANDIDATE_IS_AVAILABLE} — the same answer
+     *       as leave and as a rostered {@code OFF} — and nothing distinguishes it from a genuinely
+     *       unstaffable round.
+     * </ul>
+     *
+     * <p><b>What would reverse it:</b> hc-professional growing the rule in {@code validateRound},
+     * where an empty visit list currently returns before {@code rejectOverlaps}. Then it applies to
+     * the whole estate, the refusal arrives here as a 400 and is reported as
+     * {@code ROSTER_SERVICE_REFUSED_THE_ROUND} like every other rule of theirs, and this method still
+     * does not need to change. That is the shape any future work on this should take —
+     * <b>not</b> a local uniqueness check bolted on here.
+     *
+     * <p>{@code RoundPlanningServiceTest.filesASecondVisitlessRoundForTheSamePersonAndDate} pins the
+     * decision as behaviour, inverted: it goes red if somebody adds the partial guard, which is what
+     * makes this a decision the repository holds rather than a paragraph.
      */
     private boolean alreadyCommitted(Professional candidate, LocalDate date, Set<String> committedInThisRun) {
         if (committedInThisRun.contains(candidate.getId())) {
