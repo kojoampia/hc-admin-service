@@ -39,13 +39,25 @@ import org.junit.jupiter.api.Test;
  * whose type is a class in this package, or a collection of one. Nothing has to be listed and the
  * pluralisation rule never has to be reimplemented here.
  *
- * <p><b>Only the live console model is checked, and the other three JDL files are deliberately out
- * of scope.</b> {@code admin-db.jdl}, {@code admin-ms.jdl} and {@code system.jdl} predate the console
- * model and are known to disagree with the code — {@code hc-admin-console.jdl}'s own comment on
- * {@code FacilityType} records that {@code admin-db.jdl} "still declares {@code Facility.type} as a
- * String and has been wrong since the enum was introduced". Sweeping them would produce a long red
- * list nobody intends to act on, which is the fastest way to have a test disabled. Naming one file
- * is a real limit, and it is stated rather than hidden.
+ * <p><b>Only the live console model is checked, and the other JDL files are deliberately out of
+ * scope — but the exclusion is now checked rather than merely stated</b> (backlog item 21, decided
+ * 2026-09-06). {@code admin-db.jdl} and {@code system.jdl} predate the console model and are known
+ * to disagree with the code: all ten entities of the first and both of the second, measured
+ * 2026-09-04 under this test's own rules. {@code admin-db.jdl}'s {@code Profile} declares
+ * {@code personId}, {@code photo}, {@code contact}, {@code addressList}, {@code roles},
+ * {@code status}, {@code organizationId} and {@code teamId}, and the class carries none of them —
+ * a <em>different model</em>, not a stale copy of this one. Sweeping them would produce a long red
+ * list nobody intends to act on, which is the fastest way to have a test disabled.
+ *
+ * <p>What {@link #everyJdlBesideTheLiveModelDeclaresItselfHistorical} does instead is require every
+ * {@code .jdl} in the directory to say which it is, so the answer to "which of these is real" lives
+ * in the files rather than in this javadoc. That is the half a stated limit could not give: naming
+ * the excluded files here is a list, and a list stops covering things — a fifth {@code .jdl} added
+ * tomorrow would have been silently unswept and indistinguishable from the live one to any reader
+ * opening the directory. {@code admin-ms.jdl} was a third excluded name here until 2026-09-06 and
+ * had been <b>zero bytes since the day it was added</b>, so its clean result was vacuous; it was
+ * deleted rather than marked, because a generator input that nothing can generate from is a trap and
+ * an empty file cannot even be a record.
  *
  * <p><b>Fields are read by reflection, not from the source.</b> {@code getDeclaredFields()} returns
  * exactly what the class itself declares, so the auditing fields inherited from
@@ -62,6 +74,17 @@ class JdlEntityFieldsTest {
 
     /** The live model. Relative to the module directory, which is surefire's working directory. */
     private static final Path MODEL = Path.of("jdl", "hc-admin-console.jdl");
+
+    /**
+     * The two things a {@code .jdl} in that directory may declare itself, on a line of its own.
+     *
+     * <p>A marker rather than a filename list, for the reason this whole class exists: a list here
+     * would be the hand-maintained enumeration that stops covering things, and the fact belongs to
+     * the file a reader has open rather than to a test they have not found.
+     */
+    private static final String LIVE_MARKER = "// JDL STATUS: LIVE";
+
+    private static final String HISTORICAL_MARKER = "// JDL STATUS: HISTORICAL";
 
     private static final String DOMAIN_PACKAGE = "net.jojoaddison.domain";
 
@@ -137,6 +160,64 @@ class JdlEntityFieldsTest {
             .isEmpty();
     }
 
+    /**
+     * Every {@code .jdl} in the directory says whether it is the live model or a historical record.
+     *
+     * <p>The classification is the point, not the marker. Four files sat in {@code jdl/} with
+     * nothing distinguishing the one a regeneration would run from the two that describe a model
+     * this service has not had since 2026-08 and the one that was empty — so a reader had no way to
+     * tell, and the honest answer was recoverable only from this test's javadoc, which is the wrong
+     * place for it. Now the file says it, and this fails on a file that says neither.
+     *
+     * <p><b>The live marker is asserted too, not just the historical ones.</b> Marking every file
+     * historical would satisfy a check that only looked for the word and would leave the model this
+     * test sweeps claiming it is not one.
+     */
+    @Test
+    void everyJdlBesideTheLiveModelDeclaresItselfHistorical() {
+        List<Path> models;
+        try (var files = Files.list(MODEL.getParent())) {
+            models = files.filter(path -> path.getFileName().toString().endsWith(".jdl")).sorted().toList();
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not list " + MODEL.getParent().toAbsolutePath(), e);
+        }
+
+        // A directory listing that found nothing would pass every assertion below.
+        assertThat(models).as("%s holds the JDL models", MODEL.getParent()).contains(MODEL);
+
+        List<String> unclassified = new ArrayList<>();
+        for (Path model : models) {
+            String source = read(model);
+            boolean live = source.contains(LIVE_MARKER);
+            boolean historical = source.contains(HISTORICAL_MARKER);
+            if (model.equals(MODEL)) {
+                if (!live) {
+                    unclassified.add("%s is the live model and does not carry `%s`".formatted(model, LIVE_MARKER));
+                }
+            } else if (!historical) {
+                unclassified.add(
+                    ("%s carries neither `%s` nor `%s` — a .jdl in this directory must say which it is, " +
+                        "because nothing else distinguishes a generator input from a record of one").formatted(
+                            model,
+                            LIVE_MARKER,
+                            HISTORICAL_MARKER
+                        )
+                );
+            } else if (live) {
+                unclassified.add("%s claims to be both live and historical".formatted(model));
+            }
+            // An empty file can be neither: it is not a model and it is not a record of one, and its
+            // clean sweep result reads as agreement. admin-ms.jdl was exactly that for five weeks.
+            if (source.isBlank()) {
+                unclassified.add("%s is empty — delete it rather than classifying it".formatted(model));
+            }
+        }
+
+        assertThat(unclassified)
+            .as("every .jdl beside %s must declare whether a regeneration should read it", MODEL.getFileName())
+            .isEmpty();
+    }
+
     @Test
     void theSweepFindsEntitiesAndFieldsToCheck() {
         // A parser that silently matches nothing passes forever. Floors, not totals — an exact count
@@ -197,11 +278,15 @@ class JdlEntityFieldsTest {
     }
 
     private static String read() {
-        assertThat(MODEL).as("run from the module directory: %s is the live JDL model", MODEL.toAbsolutePath()).isRegularFile();
+        return read(MODEL);
+    }
+
+    private static String read(Path model) {
+        assertThat(model).as("run from the module directory: %s is a JDL model", model.toAbsolutePath()).isRegularFile();
         try {
-            return Files.readString(MODEL);
+            return Files.readString(model);
         } catch (IOException e) {
-            throw new IllegalStateException("Could not read " + MODEL.toAbsolutePath(), e);
+            throw new IllegalStateException("Could not read " + model.toAbsolutePath(), e);
         }
     }
 

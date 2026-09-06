@@ -28,14 +28,15 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * {@code POST /api/roster-plans} — the planner's REST contract.
  *
- * <p><b>The roster service is disabled in the shared test config</b>, so every write raises the
- * unavailable path. That is not a limitation worked around; it is the point of this class. What only
- * a booted context can check is the wiring — that the request binds, that validation refuses a
- * malformed body before anything is planned, and that a failed cross-stack write comes back as a
- * {@code 200} carrying {@code rosterServiceReachable: false} rather than as a {@code 5xx} the
- * console would render as a generic error. The ranking itself is
+ * <p><b>The roster service is disabled in the shared test config</b>, so every write here takes the
+ * {@code ROSTER_SERVICE_NOT_CONFIGURED} path — nothing is dialled. That is not a limitation worked
+ * around; it is the point of this class. What only a booted context can check is the wiring — that
+ * the request binds, that validation refuses a malformed body before anything is planned, and that a
+ * cross-stack write that did not happen comes back as a {@code 200} carrying a per-round failure
+ * rather than as a {@code 5xx} the console would render as a generic error. The ranking itself is
  * {@code RoundPlanningServiceTest}'s, over mocks, where the cases can be made to differ by one
- * property at a time.
+ * property at a time — and so is the genuine outage, which cannot be produced here without opening a
+ * socket to a port nobody is on.
  *
  * <p>{@code addFilters = false} like every other {@code *ResourceIT} here; who may call this is
  * {@code ApiAuthorizationIT}'s, which is the only class in this repository that runs with the
@@ -107,21 +108,29 @@ class RosterPlanResourceIT {
     }
 
     /**
-     * A staffed round whose write fails is {@code FAILED} and an outage — not {@code UNPLANNED}, and
-     * not a {@code 5xx}.
+     * A staffed round whose write does not happen is {@code FAILED} with a {@code 200} — not
+     * {@code UNPLANNED}, and not a {@code 5xx}.
      *
      * <p>Decision 10 of {@code duty-roster-resolution.md} § 9.1, asserted on the wire. The chosen
      * professional is still named, so the administrator can retry the same round rather than
      * reconstructing it.
+     *
+     * <p><b>The reason is {@code ROSTER_SERVICE_NOT_CONFIGURED} and {@code rosterServiceReachable}
+     * stays {@code true}</b>, which is backlog item 24 asserted at the layer that carries it. The
+     * shared test config disables the client, so this run is the {@code enabled=false} case: nothing
+     * was dialled, so nothing is known about hc-professional and the report must not claim an
+     * outage. This assertion read {@code false} / {@code ROSTER_SERVICE_UNREACHABLE} until
+     * 2026-09-06 and passed, because the suite — like the console — had one reason standing in for
+     * both facts.
      */
     @Test
-    void aFailedCrossStackWriteIsReportedAsAnOutageWithA200() throws Exception {
+    void aWriteThisDeploymentCannotMakeIsReportedAsMisconfiguredWithA200() throws Exception {
         mvc
             .perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content(plan(SPACE)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.rosterServiceReachable").value(false))
+            .andExpect(jsonPath("$.rosterServiceReachable").value(true))
             .andExpect(jsonPath("$.rounds[0].outcome").value("FAILED"))
-            .andExpect(jsonPath("$.rounds[0].reason").value("ROSTER_SERVICE_UNREACHABLE"))
+            .andExpect(jsonPath("$.rounds[0].reason").value("ROSTER_SERVICE_NOT_CONFIGURED"))
             .andExpect(jsonPath("$.rounds[0].professionalId").value(professional.getId()))
             .andExpect(jsonPath("$.rounds[0].professionalName").value("Ama Boateng"))
             .andExpect(jsonPath("$.rounds[0].roundId").doesNotExist());
@@ -132,8 +141,14 @@ class RosterPlanResourceIT {
      * unreachable — nothing was written, so nothing is known to be wrong with it.
      *
      * <p>The pair with the case above is the assertion that matters: the two states have to be
-     * distinguishable on the wire, or the console cannot tell "widen the request" from "the estate
-     * is down".
+     * distinguishable on the wire, or the console cannot tell "widen the request" from "this
+     * deployment cannot file anything".
+     *
+     * <p><b>They are told apart by {@code outcome} and {@code reason}, and no longer by
+     * {@code rosterServiceReachable}</b> — both cases now report it {@code true}, because in neither
+     * of them did anything dial the far service. That is the correct reading of a flag that is an
+     * observation, and it is why the console reads the round rather than the flag when deciding
+     * which standing panel to show.
      */
     @Test
     void anUnstaffableRoundIsUnplannedAndDoesNotClaimAnOutage() throws Exception {

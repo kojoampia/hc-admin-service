@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -411,6 +412,43 @@ class RoundPlanningServiceTest {
         assertThat(report.rounds()).extracting("professionalId").containsExactly("prof-1", "prof-2");
     }
 
+    /**
+     * <b>And a second run gives the same person a second visit-less round on the same date, on
+     * purpose.</b>
+     *
+     * <p>Backlog item 23, decided 2026-09-06 and pinned here rather than left as a paragraph. The
+     * rule above is scoped to one call; nothing here or in hc-professional refuses the second round
+     * when it carries no visits ({@code validateRound} returns on an empty visit list before it
+     * reaches the overlap check, deliberately — ward cover and on-call are real shifts). The
+     * decision is that this is legal and that this service will not guess otherwise: it knows only
+     * what it filed, so a local uniqueness check would refuse or allow the same round depending on
+     * which surface filed the first, and a wrongly refused round comes back as
+     * {@code NO_CANDIDATE_IS_AVAILABLE} — indistinguishable from leave. The reasoning is in
+     * {@code RoundPlanningService.alreadyCommitted}'s javadoc, with the one change that would
+     * reverse it.
+     *
+     * <p><b>Inverted, which is why it is worth its lines.</b> It asserts the absence of a rule, so
+     * it goes red the moment somebody adds the partial guard the entry exists to prevent — and the
+     * javadoc it names is where they will find out why it is red. A test that only asserted the
+     * present behaviour of the same code would pass either way.
+     */
+    @Test
+    void filesASecondVisitlessRoundForTheSamePersonAndDate() {
+        oneTeamCoversTheSpace();
+        candidatesAre(candidate("prof-1"));
+        gridStubs();
+        filedAs("round-1");
+
+        // The same request, twice, exactly as two planning runs on the same day would arrive.
+        PlanReport first = service.plan(planFor(round(ProfessionalRole.NURSE)));
+        PlanReport second = service.plan(planFor(round(ProfessionalRole.NURSE)));
+
+        assertPlanned(first, "prof-1");
+        assertPlanned(second, "prof-1");
+        // Filed both times: not merely reported as planned, actually written to the roster of record.
+        verify(client, times(2)).fileRound(any());
+    }
+
     // --- ranking --------------------------------------------------------------------------------
 
     /**
@@ -590,7 +628,7 @@ class RoundPlanningServiceTest {
         assertPlanned(service.plan(planFor(round(ProfessionalRole.NURSE))), "prof-a");
     }
 
-    // --- the two failures the old code could not have --------------------------------------------
+    // --- the three failures the old code could not have ------------------------------------------
 
     /**
      * <b>An unreachable roster service is FAILED and an outage, never UNPLANNED.</b>
@@ -646,6 +684,39 @@ class RoundPlanningServiceTest {
         assertThat(report.rosterServiceReachable()).isTrue();
         assertThat(report.rounds().get(0).outcome()).isEqualTo(Outcome.FAILED);
         assertThat(report.rounds().get(0).reason()).isEqualTo(Reason.ROSTER_SERVICE_REFUSED_THE_ROUND);
+    }
+
+    /**
+     * <b>A local misconfiguration is not an outage, and does not claim one.</b>
+     *
+     * <p>Backlog item 24. {@code enabled=false} and a request carrying no caller token both stop the
+     * write on this side, before a socket is opened — so nothing was learned about hc-professional,
+     * and reporting them as unreachable sends a reader to another stack, or to the network, for a
+     * missing environment variable in a compose file. The pair with the case above is the assertion
+     * that matters: the flag has to separate "we dialled and got nothing" from "we dialled nothing",
+     * and until this test existed one reason carried both.
+     *
+     * <p>The thrown exception deliberately carries <b>no cause</b>, which is the shape the real one
+     * has and the reason the branch order in the service matters: tested for a refusal first, it
+     * would fall through to the outage it is here to be told apart from.
+     */
+    @Test
+    void reportsADeploymentThatCannotDialAtAllAsMisconfiguredRatherThanAsAnOutage() {
+        oneTeamCoversTheSpace();
+        candidatesAre(candidate("prof-1"));
+        gridStubs();
+        when(client.fileRound(any()))
+            .thenThrow(new ProfessionalServiceClient.RosterServiceNotConfiguredException("professionalservice is disabled"));
+
+        PlanReport report = service.plan(planFor(round(ProfessionalRole.NURSE)));
+
+        assertThat(report.rosterServiceReachable()).isTrue();
+        assertThat(report.rounds().get(0).outcome()).isEqualTo(Outcome.FAILED);
+        assertThat(report.rounds().get(0).reason()).isEqualTo(Reason.ROSTER_SERVICE_NOT_CONFIGURED);
+        // Still a failure, still not filed, and still naming who it would have gone to.
+        assertThat(report.plannedCount()).isZero();
+        assertThat(report.rounds().get(0).professionalId()).isEqualTo("prof-1");
+        assertThat(report.rounds().get(0).roundId()).isNull();
     }
 
     /**

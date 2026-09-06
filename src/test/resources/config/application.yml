@@ -166,13 +166,21 @@ application:
     # ProfessionalServiceClient writes rounds to hc-professional over HTTP. A test suite that can
     # reach a sibling stack is a suite whose result depends on what is running on the machine, and
     # one that cannot reach it spends a connect timeout per attempt discovering that. Disabled, the
-    # client raises RosterServiceUnavailableException immediately, which is the same path an outage
-    # takes — so RosterPlanResourceIT exercises the outage state for free and nothing here ever
-    # opens a socket to another product.
+    # client raises RosterServiceNotConfiguredException immediately and nothing here ever opens a
+    # socket to another product.
     #
-    # The planned path is covered by RoundPlanningServiceTest, which mocks the client. That split is
-    # the honest one: whether a round is really accepted is a question only the running sibling can
-    # answer, and it belongs to the quality stack.
+    # It is NOT the outage path, and it stopped being it on 2026-09-06 (backlog item 24). This
+    # comment said "the same path an outage takes — so RosterPlanResourceIT exercises the outage
+    # state for free", and that was true only because both facts arrived under one reason: the suite
+    # had been standing a local misconfiguration in for a far service being down, which is the same
+    # substitution the console was making on screen. What the IT exercises for free now is
+    # ROSTER_SERVICE_NOT_CONFIGURED — the wire shape is identical, a 200 carrying a per-round
+    # failure, and the reason is the honest one. The outage proper is RoundPlanningServiceTest's,
+    # over a mocked client, because producing a real one here means a socket and a timeout.
+    #
+    # The planned path is covered by RoundPlanningServiceTest too, which mocks the client. That split
+    # is the honest one: whether a round is really accepted is a question only the running sibling
+    # can answer, and it belongs to the quality stack.
     enabled: false
 management:
   health:

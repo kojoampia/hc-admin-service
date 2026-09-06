@@ -94,10 +94,25 @@ public final class RoundPlanDtos {
         NO_CANDIDATE_HOLDS_THE_ROLE,
         /** Somebody holds the role and none of them can work that date — leave, or already committed. */
         NO_CANDIDATE_IS_AVAILABLE,
-        /** The round was staffed and {@code professionalservice} did not accept it. */
+        /** The round was staffed, {@code professionalservice} was dialled, and it did not answer. */
         ROSTER_SERVICE_UNREACHABLE,
         /** The round was staffed and {@code professionalservice} refused it as invalid. */
         ROSTER_SERVICE_REFUSED_THE_ROUND,
+        /**
+         * The round was staffed and <b>nothing was dialled</b>: this deployment is not configured to
+         * reach {@code professionalservice}.
+         *
+         * <p>Distinct from {@link #ROSTER_SERVICE_UNREACHABLE}, and the distinction is the whole
+         * point of the value. {@code application.professionalservice.enabled=false} and a request
+         * carrying no caller token both stop the write here, on this side, before any socket is
+         * opened — and reporting them as "unreachable" sends a reader to the other stack, or to the
+         * network, for a missing environment variable in a compose file. An outage panel is a
+         * designed, plausible screen, which is exactly what makes it indistinguishable from the
+         * feature working badly.
+         *
+         * <p><b>It does not lower {@code rosterServiceReachable}</b> — see {@link PlanReport}.
+         */
+        ROSTER_SERVICE_NOT_CONFIGURED,
     }
 
     /**
@@ -129,6 +144,13 @@ public final class RoundPlanDtos {
      * the half that landed, and answering {@code 200} with no flag would let a client render a
      * partial failure as success. The console reads this field, not the status code, and shows a
      * standing panel rather than a toast.
+     *
+     * <p><b>It is an observation, so only a call that was actually made can lower it.</b> A round
+     * that failed with {@link Reason#ROSTER_SERVICE_NOT_CONFIGURED} leaves it {@code true}: nothing
+     * was dialled, so nothing was learned about the far service, and claiming an outage on that
+     * evidence is what item 24 of the backlog was filed about. The console distinguishes the two
+     * from the round's reason and shows a different standing panel — "check this deployment" rather
+     * than "check the estate".
      */
     public record PlanReport(LocalDate date, boolean rosterServiceReachable, List<RoundOutcome> rounds) {
         public long plannedCount() {

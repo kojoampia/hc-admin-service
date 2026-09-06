@@ -39,6 +39,13 @@ Unchanged from the brief: microservice application type, `net.jojoaddison` packa
 
 ### Original JDL domain sketch
 
+> **Correction, 2026-09-06 (backlog item 21).** The sentence below names the model as it stood when
+> this record was written and has been wrong since the console model landed in 2026-08. **The
+> authoritative model is `jdl/hc-admin-console.jdl`**, which is the only file in `jdl/` a
+> regeneration should read. `admin-db.jdl` and `system.jdl` are historical and now say so in their
+> own headers; `admin-ms.jdl` was deleted, having been zero bytes since the day it was created. The
+> rest of this document is left as the record it is.
+
 The JDL below is the _brief's_ sketch. The authoritative domain model is now `jdl/admin-ms.jdl`, `jdl/admin-db.jdl`, `jdl/system.jdl`, and the `.jhipster/*.json` entity configs. Several names changed in delivery — `Catalog` → `SystemCatalog`, `Organization` → `Organisation`, `Subscription` → `HCSubscription`, `PersonalInformation` → `Person` — and the sketch contains a duplicate `CatalogType` enum plus relationships to entities (`Patient`, `Admin`, `ProfessionalService`) that were never generated in this service.
 
 ```jdl

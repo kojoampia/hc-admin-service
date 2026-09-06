@@ -1,3 +1,36 @@
+/**
+ * hc-admin-service — the ORIGINAL domain model, superseded 2026-08 by
+ * jdl/hc-admin-console.jdl.
+ *
+ * HISTORICAL. NOT A GENERATOR INPUT. Do not run `jhipster jdl` on this file and
+ * do not "fix" it against the code: it is a record of what this service was
+ * generated from before the console model replaced it, and it is kept for the
+ * four entity names that collide (Address, Message, Organisation, Team) and for
+ * reading a field that has since changed shape.
+ *
+ * MEASURED 2026-09-04, under JdlEntityFieldsTest's own rules — value fields
+ * only, auditing excluded, both directions — ALL TEN entities below disagree
+ * with the classes that carry their names. Profile is the extreme case and
+ * shows what kind of file this is: it declares personId, photo, contact,
+ * addressList, roles, status, organizationId and teamId, and the class carries
+ * none of them. It is a DIFFERENT MODEL, not a stale copy of the live one. It
+ * also declares an Organization for which no class exists, and Facility.type as
+ * a String, which it has been wrong about since that enum was introduced.
+ *
+ * So the disagreement is not a defect to be closed and widening the field guard
+ * over this file would produce a long red list nobody intends to act on, which
+ * is the fastest way to have a test disabled. What the guard does instead is
+ * require this header: JdlEntityFieldsTest reads every .jdl in this directory
+ * and fails on one that is neither the live model nor marked historical, so a
+ * fifth file cannot appear uncovered and unclassified the way these did
+ * (backlog item 21, decided 2026-09-06).
+ *
+ * The live model is jdl/hc-admin-console.jdl. That is the only file here a
+ * regeneration should ever read.
+ */
+
+// JDL STATUS: HISTORICAL
+
 entity Person {
   firstName String required,
   lastName String required,
