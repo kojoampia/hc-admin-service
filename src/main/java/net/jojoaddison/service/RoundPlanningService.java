@@ -174,21 +174,36 @@ public class RoundPlanningService {
                 committedInThisRun.add(chosen.getId());
                 outcomes.add(RoundOutcome.planned(index, chosen.getId(), name, roundId));
             } catch (ProfessionalServiceClient.RosterServiceUnavailableException e) {
-                // A 4xx is the far service reading the round and refusing it — an OFF round carrying
-                // visits, a time outside the shift window, an overlap with a round it already holds.
-                // That is a different fact from "the roster service is down" and must not put the
-                // console into an outage state: nothing is wrong with the estate, the request is
-                // wrong. Only the second sets `reachable` false.
+                // THREE FACTS, NOT ONE, and only the last of them is an outage.
+                //
+                // Not configured: `enabled=false`, or a request with no caller token to relay. The
+                // write was never attempted, so nothing was learned about the far service — see
+                // RosterServiceNotConfiguredException. Reported as its own reason, and deliberately
+                // does NOT lower `reachable`: this deployment's own configuration is the thing to go
+                // and look at, and an outage panel would send a reader to another stack for a
+                // missing environment variable (backlog item 24).
+                //
+                // Refused: a 4xx is the far service reading the round and refusing it — an OFF round
+                // carrying visits, a time outside the shift window, an overlap with a round it
+                // already holds. Nothing is wrong with the estate, the request is wrong.
+                //
+                // Unreachable: everything else. Only this sets `reachable` false.
+                //
+                // Ordered as it is because the first case carries no cause at all, so it would test
+                // false for `refused` and fall through to the outage it is here to be told apart
+                // from.
+                boolean notConfigured = e instanceof ProfessionalServiceClient.RosterServiceNotConfiguredException;
                 boolean refused = e.getCause() instanceof HttpClientErrorException;
-                reachable = reachable && refused;
-                outcomes.add(
-                    RoundOutcome.failed(
-                        index,
-                        refused ? Reason.ROSTER_SERVICE_REFUSED_THE_ROUND : Reason.ROSTER_SERVICE_UNREACHABLE,
-                        chosen.getId(),
-                        name
-                    )
-                );
+                reachable = reachable && (notConfigured || refused);
+                Reason reason;
+                if (notConfigured) {
+                    reason = Reason.ROSTER_SERVICE_NOT_CONFIGURED;
+                } else if (refused) {
+                    reason = Reason.ROSTER_SERVICE_REFUSED_THE_ROUND;
+                } else {
+                    reason = Reason.ROSTER_SERVICE_UNREACHABLE;
+                }
+                outcomes.add(RoundOutcome.failed(index, reason, chosen.getId(), name));
             }
         }
         return new PlanReport(date, reachable, outcomes);

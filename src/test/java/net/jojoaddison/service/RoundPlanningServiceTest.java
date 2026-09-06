@@ -628,7 +628,7 @@ class RoundPlanningServiceTest {
         assertPlanned(service.plan(planFor(round(ProfessionalRole.NURSE))), "prof-a");
     }
 
-    // --- the two failures the old code could not have --------------------------------------------
+    // --- the three failures the old code could not have ------------------------------------------
 
     /**
      * <b>An unreachable roster service is FAILED and an outage, never UNPLANNED.</b>
@@ -684,6 +684,39 @@ class RoundPlanningServiceTest {
         assertThat(report.rosterServiceReachable()).isTrue();
         assertThat(report.rounds().get(0).outcome()).isEqualTo(Outcome.FAILED);
         assertThat(report.rounds().get(0).reason()).isEqualTo(Reason.ROSTER_SERVICE_REFUSED_THE_ROUND);
+    }
+
+    /**
+     * <b>A local misconfiguration is not an outage, and does not claim one.</b>
+     *
+     * <p>Backlog item 24. {@code enabled=false} and a request carrying no caller token both stop the
+     * write on this side, before a socket is opened — so nothing was learned about hc-professional,
+     * and reporting them as unreachable sends a reader to another stack, or to the network, for a
+     * missing environment variable in a compose file. The pair with the case above is the assertion
+     * that matters: the flag has to separate "we dialled and got nothing" from "we dialled nothing",
+     * and until this test existed one reason carried both.
+     *
+     * <p>The thrown exception deliberately carries <b>no cause</b>, which is the shape the real one
+     * has and the reason the branch order in the service matters: tested for a refusal first, it
+     * would fall through to the outage it is here to be told apart from.
+     */
+    @Test
+    void reportsADeploymentThatCannotDialAtAllAsMisconfiguredRatherThanAsAnOutage() {
+        oneTeamCoversTheSpace();
+        candidatesAre(candidate("prof-1"));
+        gridStubs();
+        when(client.fileRound(any()))
+            .thenThrow(new ProfessionalServiceClient.RosterServiceNotConfiguredException("professionalservice is disabled"));
+
+        PlanReport report = service.plan(planFor(round(ProfessionalRole.NURSE)));
+
+        assertThat(report.rosterServiceReachable()).isTrue();
+        assertThat(report.rounds().get(0).outcome()).isEqualTo(Outcome.FAILED);
+        assertThat(report.rounds().get(0).reason()).isEqualTo(Reason.ROSTER_SERVICE_NOT_CONFIGURED);
+        // Still a failure, still not filed, and still naming who it would have gone to.
+        assertThat(report.plannedCount()).isZero();
+        assertThat(report.rounds().get(0).professionalId()).isEqualTo("prof-1");
+        assertThat(report.rounds().get(0).roundId()).isNull();
     }
 
     /**

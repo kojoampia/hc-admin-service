@@ -89,6 +89,23 @@ public class ProfessionalServiceClient {
     }
 
     /**
+     * Raised when the write was not attempted because <em>this</em> deployment is not configured for
+     * it — {@code enabled=false}, or a request with no caller token to relay.
+     *
+     * <p>A subtype rather than a sibling, so that every existing catch of the supertype keeps
+     * behaving: the round still fails, still is not reported as filed, and still is not silently
+     * swallowed. What the subtype adds is the one fact the console could not previously have — that
+     * nothing was dialled, so the far service is not the thing to go and look at. See
+     * {@code RoundPlanDtos.Reason.ROSTER_SERVICE_NOT_CONFIGURED}.
+     */
+    public static class RosterServiceNotConfiguredException extends RosterServiceUnavailableException {
+
+        public RosterServiceNotConfiguredException(String message) {
+            super(message);
+        }
+    }
+
+    /**
      * Files one round and returns the id {@code professionalservice} gave it.
      *
      * <p>The body is a plain map rather than a mirrored DTO. hc-professional's {@code DutyRoster} is
@@ -101,22 +118,24 @@ public class ProfessionalServiceClient {
      * service fetches for itself, and hc-admin has no use for them — reading them into this process
      * would put patient names into a stack that deliberately holds none.
      *
-     * <p><b>Two of the three ways this throws are local misconfiguration, and the console cannot
-     * tell.</b> {@code enabled=false} and a missing caller token both raise
-     * {@link RosterServiceUnavailableException}, which {@code RoundPlanningService} reports as
-     * {@code ROSTER_SERVICE_UNREACHABLE} — so the screen says the roster service is down when
-     * nothing was ever dialled. The messages here distinguish them and the log line above names the
-     * far service only when one was actually contacted; a reader who has this endpoint's log has the
-     * answer, and a reader who has only the screen does not. Worth a distinct reason on the wire if
-     * this is ever mistaken for an outage.
+     * <p><b>Two of the three ways this throws are local misconfiguration, and they are typed as
+     * such.</b> {@code enabled=false} and a missing caller token stop the write here, before a
+     * socket is opened, and raise {@link RosterServiceNotConfiguredException}; only a
+     * {@link RestClientException} from a call that was actually made raises the plain supertype.
+     * {@code RoundPlanningService} reads that distinction and reports
+     * {@code ROSTER_SERVICE_NOT_CONFIGURED} rather than {@code ROSTER_SERVICE_UNREACHABLE}, so the
+     * screen stops saying the roster service is down when nothing was ever dialled (backlog item
+     * 24). It had been distinguishable in the log and nowhere else — the {@code warn} below names
+     * the far service only when one was contacted — which meant a reader with the api's log had the
+     * answer and a reader with only the screen did not.
      */
     public String fileRound(Map<String, Object> round) {
         if (!enabled) {
-            throw new RosterServiceUnavailableException("professionalservice is disabled; refusing to report a round as filed");
+            throw new RosterServiceNotConfiguredException("professionalservice is disabled; refusing to report a round as filed");
         }
         String token = SecurityUtils
             .getCurrentUserJWT()
-            .orElseThrow(() -> new RosterServiceUnavailableException("No caller token available; cannot file a round"));
+            .orElseThrow(() -> new RosterServiceNotConfiguredException("No caller token available; cannot file a round"));
         try {
             JsonNode created = restClient
                 .post()
