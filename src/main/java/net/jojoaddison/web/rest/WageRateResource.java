@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
+import net.jojoaddison.domain.enumeration.ShiftType;
 import net.jojoaddison.repository.WageRateRepository;
 import net.jojoaddison.service.WageRateService;
 import net.jojoaddison.service.dto.WageRateDTO;
@@ -165,10 +166,16 @@ public class WageRateResource {
     }
 
     /**
-     * {@code GET  /wage-rates/current} : the rate in force for each role.
+     * {@code GET  /wage-rates/current} : the rate in force for each {@code (role, shiftType)} cell.
      *
-     * <p>One row per role, not a page — the result is bounded by the size of the role enum, and the
-     * configuration screen wants all of it at once.
+     * <p>One row per priced cell, not a page — the result is bounded by two enums (five roles by
+     * five shift types), and the configuration screen wants all of it at once.
+     *
+     * <p><b>This returned one row per role until 2026-09-04.</b> The response shape did not change —
+     * still a flat list of rates, each naming its own role and shift type — so a client grouping by
+     * role still works and now finds several rows per group instead of one. A client that assumed
+     * the list was one-per-role and indexed it that way sees the last shift type to be priced;
+     * {@code app/}'s wage-rates screen was moved to the grid in the same change.
      *
      * @param asOf the date to resolve rates for; defaults to today.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the current rates in body.
@@ -184,13 +191,22 @@ public class WageRateResource {
     /**
      * {@code GET  /wage-rates/history/:role} : every rate ever set for a role, newest first.
      *
+     * <p>Narrowed to one cell with {@code ?shiftType=NIGHT}, which is what the console's per-cell
+     * history panel asks for. Without it the answer is the whole role across every shift type — kept
+     * deliberately, because "what has this role ever been paid" is a real question and because
+     * quietly redefining an existing path to mean something narrower is worse than extending it.
+     *
      * @param role the role to read the history of.
+     * @param shiftType the shift type to narrow to, or absent for every shift type.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and the history in body.
      */
     @GetMapping("/history/{role}")
-    public ResponseEntity<List<WageRateDTO>> getWageRateHistory(@PathVariable("role") ProfessionalRole role) {
-        LOG.debug("REST request to get the WageRate history for {}", role);
-        return ResponseEntity.ok(wageRateService.historyFor(role));
+    public ResponseEntity<List<WageRateDTO>> getWageRateHistory(
+        @PathVariable("role") ProfessionalRole role,
+        @RequestParam(name = "shiftType", required = false) ShiftType shiftType
+    ) {
+        LOG.debug("REST request to get the WageRate history for {} {}", role, shiftType);
+        return ResponseEntity.ok(wageRateService.historyFor(role, shiftType));
     }
 
     /**

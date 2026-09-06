@@ -1,3 +1,16 @@
+/**
+ * hc-admin-service — the original Notification and AuditLog declarations,
+ * superseded 2026-08 by jdl/hc-admin-console.jdl.
+ *
+ * HISTORICAL. NOT A GENERATOR INPUT. Both entities below disagree with the
+ * classes that carry their names — measured 2026-09-04, both of two — and the
+ * disagreement is not a defect to be closed. See jdl/admin-db.jdl's header for
+ * the full reasoning and for what the guard does instead of sweeping these
+ * files; the live model is jdl/hc-admin-console.jdl (backlog item 21, decided
+ * 2026-09-06).
+ */
+
+// JDL STATUS: HISTORICAL
 
 entity Notification {
   content String required,

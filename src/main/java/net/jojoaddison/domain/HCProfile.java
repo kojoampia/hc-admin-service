@@ -3,7 +3,6 @@ package net.jojoaddison.domain;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.List;
 import net.jojoaddison.domain.enumeration.RoleType;
 import org.springframework.data.annotation.Id;
@@ -85,25 +84,18 @@ public class HCProfile implements Serializable {
 
     // jhipster-needle-entity-add-field - JHipster will add fields here
 
-    /**
-     * Determines whether this professional is available on the given date.
-     * Returns false if inactive or if the date falls within any unavailability period.
-     *
-     * @param date the date to check availability for
-     * @return true if available, false otherwise
-     */
-    public boolean isAvailable(LocalDate date) {
-        if (!Boolean.TRUE.equals(status)) return false;
-        if (unavailabilityPeriods == null || unavailabilityPeriods.isEmpty()) return true;
-        for (UnavailabilityPeriod period : unavailabilityPeriods) {
-            if (period.getFromDate() != null && !date.isBefore(period.getFromDate())) {
-                if (period.getToDate() == null || !date.isAfter(period.getToDate())) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
+    // isAvailable(LocalDate) was deleted here on 2026-09-05. The rule lives on
+    // Professional.isAvailable(LocalDate), which is what RoundPlanningService reads.
+    //
+    // It moved because the console dataset seeds no HCProfile at all, so the copy here answered for
+    // nobody — and a second implementation of the availability rule is not inert. It is what the
+    // next planner would be written against, and it would pass every test while rostering people who
+    // are on leave, because the collection it consults is empty rather than wrong. Leaving the old
+    // copy standing is what makes that mistake re-makeable, which is the whole reason for deleting
+    // it rather than marking it deprecated.
+    //
+    // The unavailability_periods FIELD below stays. It is stored data with a DTO and a REST surface
+    // over it, so removing it would drop values on the next write rather than remove dead code.
 
     public String getId() {
         return this.id;

@@ -27,7 +27,7 @@
       "fieldName": "shift",
       "fieldType": "ShiftType",
       "fieldValidateRules": ["required"],
-      "fieldValues": "DAY,EVENING,NIGHT,OFF"
+      "fieldValues": "DAY,EVENING,NIGHT,OFF,FLEXIBLE"
     }
   ],
   "microserviceName": "hcAdminService",
@@ -37,9 +37,8 @@
     {
       "otherEntityField": "label",
       "otherEntityName": "rosterWeek",
-      "otherEntityRelationshipName": "assignment",
       "relationshipName": "week",
-      "relationshipSide": "right",
+      "relationshipSide": "left",
       "relationshipType": "many-to-one",
       "relationshipValidateRules": "required"
     },

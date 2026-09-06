@@ -37,6 +37,18 @@ import org.springframework.stereotype.Service;
  *   <li><b>Each shift is valued at the rate in force on its own date</b>, never at today's rate.
  *       This is what makes a rate rise non-retroactive; see {@link WageRateService}.
  * </ol>
+ *
+ * <p><b>A rate is keyed on {@code (role, shiftType, date)} since 2026-09-04</b>, not on
+ * {@code (role, date)}: a night is not paid what a day is. So {@link #payableShifts} has to project
+ * {@code shift} as well as {@code shiftDate} — which it already did, for the {@code OFF} filter.
+ * Worth knowing before tidying that projection: dropping the field would leave every shift resolving
+ * against a null shift type and reported as <em>unpriced</em>, which the console renders as a
+ * pricing gap rather than as a fault.
+ *
+ * <p>This service contains <b>no hour arithmetic and enforces no window</b>, and adding
+ * {@code FLEXIBLE} did not change that. A shift type here selects a price; it does not describe a
+ * span of time this service knows anything about. hc-professional is where a shift has hours with
+ * rules attached.
  */
 @Service
 public class ShiftValuationService {
@@ -177,7 +189,7 @@ public class ShiftValuationService {
                     continue;
                 }
                 shifts++;
-                WageRate rate = rates.rateOn(professional.getRole(), date).orElse(null);
+                WageRate rate = rates.rateOn(professional.getRole(), shift.getShift(), date).orElse(null);
                 if (rate == null) {
                     unpriced++;
                 } else {
@@ -211,9 +223,25 @@ public class ShiftValuationService {
      * The currency to label a figure of zero with. Nothing was priced in the window, so there is no
      * rate to read it off — fall back to what the role is priced in today, which is what the console
      * would show beside it anyway.
+     *
+     * <p><b>Any shift type will do, so the first one that answers wins.</b> Since 2026-09-04 a role
+     * has up to five rates rather than one, and asking for a particular shift's currency here would
+     * mean picking one arbitrarily and then reporting null whenever that single cell happened to be
+     * the unpriced one. Nothing stops the cells carrying different currencies, and if they ever do,
+     * a figure of zero labelled with whichever came first is a cosmetic wrong answer about an amount
+     * that is zero — which is a far better failure than a blank label on every earnings screen for a
+     * role that is priced perfectly well.
      */
     private String currentCurrencyFor(Professional professional) {
-        return wageRateService.rateOn(professional.getRole(), LocalDate.now(clock)).map(WageRate::getCurrency).orElse(null);
+        LocalDate today = LocalDate.now(clock);
+        WageRateService.RateTable rates = wageRateService.rateTableUpTo(today);
+        for (ShiftType shiftType : ShiftType.values()) {
+            String currency = rates.rateOn(professional.getRole(), shiftType, today).map(WageRate::getCurrency).orElse(null);
+            if (currency != null) {
+                return currency;
+            }
+        }
+        return null;
     }
 
     private LocalDate clipToPayable(LocalDate requested) {

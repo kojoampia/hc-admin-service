@@ -13,6 +13,7 @@ import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
+import net.jojoaddison.domain.enumeration.ShiftType;
 import net.jojoaddison.repository.WageRateRepository;
 import net.jojoaddison.service.dto.WageRateDTO;
 import net.jojoaddison.service.mapper.WageRateMapper;
@@ -34,6 +35,9 @@ class WageRateResourceIT {
 
     private static final ProfessionalRole DEFAULT_ROLE = ProfessionalRole.DOCTOR;
     private static final ProfessionalRole UPDATED_ROLE = ProfessionalRole.NURSE;
+
+    private static final ShiftType DEFAULT_SHIFT_TYPE = ShiftType.DAY;
+    private static final ShiftType UPDATED_SHIFT_TYPE = ShiftType.NIGHT;
 
     private static final BigDecimal DEFAULT_AMOUNT = new BigDecimal(500);
     private static final BigDecimal UPDATED_AMOUNT = new BigDecimal(550);
@@ -60,7 +64,12 @@ class WageRateResourceIT {
     private WageRate wageRate;
 
     public static WageRate createEntity() {
-        return new WageRate().role(DEFAULT_ROLE).amount(DEFAULT_AMOUNT).currency(DEFAULT_CURRENCY).validFrom(DEFAULT_VALID_FROM);
+        return new WageRate()
+            .role(DEFAULT_ROLE)
+            .shiftType(DEFAULT_SHIFT_TYPE)
+            .amount(DEFAULT_AMOUNT)
+            .currency(DEFAULT_CURRENCY)
+            .validFrom(DEFAULT_VALID_FROM);
     }
 
     @BeforeEach
@@ -81,6 +90,7 @@ class WageRateResourceIT {
         assertThat(wageRateRepository.count()).isEqualTo(databaseSizeBeforeCreate + 1);
         WageRate saved = wageRateRepository.findAll().getFirst();
         assertThat(saved.getRole()).isEqualTo(DEFAULT_ROLE);
+        assertThat(saved.getShiftType()).isEqualTo(DEFAULT_SHIFT_TYPE);
         assertThat(saved.getAmount()).isEqualByComparingTo(DEFAULT_AMOUNT);
         assertThat(saved.getCurrency()).isEqualTo(DEFAULT_CURRENCY);
         assertThat(saved.getValidFrom()).isEqualTo(DEFAULT_VALID_FROM);
@@ -102,6 +112,17 @@ class WageRateResourceIT {
     @Test
     void checkRoleIsRequired() throws Exception {
         wageRate.setRole(null);
+        WageRateDTO wageRateDTO = wageRateMapper.toDto(wageRate);
+
+        restWageRateMockMvc
+            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(wageRateDTO)))
+            .andExpect(status().isBadRequest());
+    }
+
+    /** The second dimension of the key, and required like the first. */
+    @Test
+    void checkShiftTypeIsRequired() throws Exception {
+        wageRate.setShiftType(null);
         WageRateDTO wageRateDTO = wageRateMapper.toDto(wageRate);
 
         restWageRateMockMvc
@@ -139,6 +160,7 @@ class WageRateResourceIT {
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath("$.[*].id").value(hasItem(wageRate.getId())))
             .andExpect(jsonPath("$.[*].role").value(hasItem(DEFAULT_ROLE.toString())))
+            .andExpect(jsonPath("$.[*].shiftType").value(hasItem(DEFAULT_SHIFT_TYPE.toString())))
             .andExpect(jsonPath("$.[*].currency").value(hasItem(DEFAULT_CURRENCY)));
     }
 
@@ -162,6 +184,7 @@ class WageRateResourceIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(wageRate.getId()))
             .andExpect(jsonPath("$.role").value(DEFAULT_ROLE.toString()))
+            .andExpect(jsonPath("$.shiftType").value(DEFAULT_SHIFT_TYPE.toString()))
             .andExpect(jsonPath("$.validFrom").value(DEFAULT_VALID_FROM.toString()));
     }
 
@@ -176,7 +199,7 @@ class WageRateResourceIT {
         long databaseSizeBeforeUpdate = wageRateRepository.count();
 
         WageRate updated = wageRateRepository.findById(wageRate.getId()).orElseThrow();
-        updated.role(UPDATED_ROLE).amount(UPDATED_AMOUNT).validFrom(UPDATED_VALID_FROM);
+        updated.role(UPDATED_ROLE).shiftType(UPDATED_SHIFT_TYPE).amount(UPDATED_AMOUNT).validFrom(UPDATED_VALID_FROM);
         WageRateDTO wageRateDTO = wageRateMapper.toDto(updated);
 
         restWageRateMockMvc
@@ -190,6 +213,7 @@ class WageRateResourceIT {
         assertThat(wageRateRepository.count()).isEqualTo(databaseSizeBeforeUpdate);
         WageRate saved = wageRateRepository.findById(wageRate.getId()).orElseThrow();
         assertThat(saved.getRole()).isEqualTo(UPDATED_ROLE);
+        assertThat(saved.getShiftType()).isEqualTo(UPDATED_SHIFT_TYPE);
         assertThat(saved.getAmount()).isEqualByComparingTo(UPDATED_AMOUNT);
     }
 
@@ -239,6 +263,7 @@ class WageRateResourceIT {
         assertThat(saved.getAmount()).isEqualByComparingTo(UPDATED_AMOUNT);
         // untouched by the patch
         assertThat(saved.getRole()).isEqualTo(DEFAULT_ROLE);
+        assertThat(saved.getShiftType()).isEqualTo(DEFAULT_SHIFT_TYPE);
         assertThat(saved.getValidFrom()).isEqualTo(DEFAULT_VALID_FROM);
     }
 
@@ -252,82 +277,102 @@ class WageRateResourceIT {
         assertThat(wageRateRepository.count()).isEqualTo(databaseSizeBeforeDelete - 1);
     }
 
+    private static WageRate rate(ProfessionalRole role, ShiftType shiftType, int amount, LocalDate validFrom) {
+        return new WageRate().role(role).shiftType(shiftType).amount(new BigDecimal(amount)).currency("GHS").validFrom(validFrom);
+    }
+
     /**
-     * The configuration screen leads with one row per role, and it must be the row in force — not
-     * the newest row overall, and not the first one stored.
+     * The configuration screen leads with one row per {@code (role, shiftType)} cell, and each must
+     * be the row in force — not the newest row overall, and not the first one stored.
+     *
+     * <p>This asserted one row per role until 2026-09-04. The DOCTOR NIGHT row below is what makes
+     * the difference visible: a resolver that still keyed on the role alone answers with two rows
+     * instead of three and reports 550 for a night worked at 750.
      */
     @Test
-    void getCurrentWageRatesReturnsTheRateInForcePerRole() throws Exception {
+    void getCurrentWageRatesReturnsTheRateInForcePerRoleAndShiftType() throws Exception {
         wageRateRepository.saveAll(
             List.of(
-                new WageRate()
-                    .role(ProfessionalRole.DOCTOR)
-                    .amount(new BigDecimal(500))
-                    .currency("GHS")
-                    .validFrom(LocalDate.of(2026, 1, 1)),
-                new WageRate()
-                    .role(ProfessionalRole.DOCTOR)
-                    .amount(new BigDecimal(550))
-                    .currency("GHS")
-                    .validFrom(LocalDate.of(2026, 6, 1)),
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 500, LocalDate.of(2026, 1, 1)),
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 550, LocalDate.of(2026, 6, 1)),
                 // not yet in force on the asOf date below
-                new WageRate()
-                    .role(ProfessionalRole.DOCTOR)
-                    .amount(new BigDecimal(600))
-                    .currency("GHS")
-                    .validFrom(LocalDate.of(2027, 1, 1)),
-                new WageRate().role(ProfessionalRole.NURSE).amount(new BigDecimal(300)).currency("GHS").validFrom(LocalDate.of(2026, 1, 1))
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 600, LocalDate.of(2027, 1, 1)),
+                // the same role on another shift, unsuperseded — it must not be shadowed by the
+                // June rise above, and it must not shadow it
+                rate(ProfessionalRole.DOCTOR, ShiftType.NIGHT, 750, LocalDate.of(2026, 1, 1)),
+                rate(ProfessionalRole.NURSE, ShiftType.DAY, 300, LocalDate.of(2026, 1, 1))
             )
         );
 
         restWageRateMockMvc
             .perform(get(ENTITY_API_URL + "/current?asOf=2026-08-18"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(2))
-            .andExpect(jsonPath("$[?(@.role == 'DOCTOR')].amount").value(hasItem(550)))
-            .andExpect(jsonPath("$[?(@.role == 'NURSE')].amount").value(hasItem(300)));
+            .andExpect(jsonPath("$.length()").value(3))
+            .andExpect(jsonPath("$[?(@.role == 'DOCTOR' && @.shiftType == 'DAY')].amount").value(hasItem(550)))
+            .andExpect(jsonPath("$[?(@.role == 'DOCTOR' && @.shiftType == 'NIGHT')].amount").value(hasItem(750)))
+            .andExpect(jsonPath("$[?(@.role == 'NURSE' && @.shiftType == 'DAY')].amount").value(hasItem(300)));
     }
 
     /**
-     * A role nobody has priced yet is absent from the current rates, not present at zero — the
+     * A cell nobody has priced yet is absent from the current rates, not present at zero — the
      * console has to be able to tell "not configured" from "free".
+     *
+     * <p>The gap is now per cell rather than per role: a DOCTOR priced for days and not for nights
+     * is a half-filled row in the grid, and the unpriced half must read as unpriced rather than
+     * inheriting the day rate. There is deliberately no fallback; see {@code WageRate}.
      */
     @Test
-    void getCurrentWageRatesOmitsUnpricedRoles() throws Exception {
-        wageRateRepository.save(
-            new WageRate().role(ProfessionalRole.DOCTOR).amount(new BigDecimal(500)).currency("GHS").validFrom(LocalDate.of(2026, 1, 1))
-        );
+    void getCurrentWageRatesOmitsUnpricedCells() throws Exception {
+        wageRateRepository.save(rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 500, LocalDate.of(2026, 1, 1)));
 
         restWageRateMockMvc
             .perform(get(ENTITY_API_URL + "/current?asOf=2026-08-18"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].role").value("DOCTOR"));
+            .andExpect(jsonPath("$[0].role").value("DOCTOR"))
+            .andExpect(jsonPath("$[0].shiftType").value("DAY"));
     }
 
+    /** Without a {@code shiftType}, the history is the whole role across every shift it is priced for. */
     @Test
-    void getWageRateHistoryIsNewestFirst() throws Exception {
+    void getWageRateHistoryIsNewestFirstAcrossEveryShiftType() throws Exception {
         wageRateRepository.saveAll(
             List.of(
-                new WageRate()
-                    .role(ProfessionalRole.DOCTOR)
-                    .amount(new BigDecimal(500))
-                    .currency("GHS")
-                    .validFrom(LocalDate.of(2026, 1, 1)),
-                new WageRate()
-                    .role(ProfessionalRole.DOCTOR)
-                    .amount(new BigDecimal(550))
-                    .currency("GHS")
-                    .validFrom(LocalDate.of(2026, 6, 1)),
-                new WageRate().role(ProfessionalRole.NURSE).amount(new BigDecimal(300)).currency("GHS").validFrom(LocalDate.of(2026, 1, 1))
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 500, LocalDate.of(2026, 1, 1)),
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 550, LocalDate.of(2026, 6, 1)),
+                rate(ProfessionalRole.DOCTOR, ShiftType.NIGHT, 750, LocalDate.of(2026, 3, 1)),
+                rate(ProfessionalRole.NURSE, ShiftType.DAY, 300, LocalDate.of(2026, 1, 1))
             )
         );
 
         restWageRateMockMvc
             .perform(get(ENTITY_API_URL + "/history/{role}", ProfessionalRole.DOCTOR))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$.length()").value(3))
             .andExpect(jsonPath("$[0].validFrom").value("2026-06-01"))
-            .andExpect(jsonPath("$[1].validFrom").value("2026-01-01"));
+            .andExpect(jsonPath("$[1].validFrom").value("2026-03-01"))
+            .andExpect(jsonPath("$[2].validFrom").value("2026-01-01"));
+    }
+
+    /**
+     * With a {@code shiftType}, it is one cell's history — which is what the console's history panel
+     * reads, and what "the rate for this cell has moved twice" actually means.
+     */
+    @Test
+    void getWageRateHistoryNarrowsToOneShiftTypeWhenAsked() throws Exception {
+        wageRateRepository.saveAll(
+            List.of(
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 500, LocalDate.of(2026, 1, 1)),
+                rate(ProfessionalRole.DOCTOR, ShiftType.DAY, 550, LocalDate.of(2026, 6, 1)),
+                rate(ProfessionalRole.DOCTOR, ShiftType.NIGHT, 750, LocalDate.of(2026, 3, 1))
+            )
+        );
+
+        restWageRateMockMvc
+            .perform(get(ENTITY_API_URL + "/history/{role}?shiftType=NIGHT", ProfessionalRole.DOCTOR))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].amount").value(750))
+            .andExpect(jsonPath("$[0].validFrom").value("2026-03-01"));
     }
 }

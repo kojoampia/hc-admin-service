@@ -9,16 +9,17 @@ import java.io.InputStream;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.WageRate;
-import net.jojoaddison.domain.enumeration.DutyRole;
+import net.jojoaddison.domain.enumeration.BillingType;
 import net.jojoaddison.domain.enumeration.MessageStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
-import net.jojoaddison.domain.enumeration.ShiftStatus;
 import net.jojoaddison.domain.enumeration.ShiftType;
 import net.jojoaddison.domain.enumeration.TaskState;
 import net.jojoaddison.domain.enumeration.VerificationStatus;
@@ -66,7 +67,7 @@ class DevelopmentDataInitializerTest {
         assertThat(dev.getOrganisations()).hasSize(1);
         assertThat(dev.getPersons()).hasSize(1);
         assertThat(dev.getTeams()).hasSize(1);
-        assertThat(dev.getDutyRosters()).hasSize(1);
+        assertThat(dev.getGeographicSpaces()).hasSize(2);
         assertThat(dev.getPricingPlans()).hasSize(1);
         assertThat(dev.getSystemCatalogs()).hasSize(1);
     }
@@ -75,13 +76,21 @@ class DevelopmentDataInitializerTest {
     void shouldBindScalarsEnumsAndDatesOnDomainObjects() throws Exception {
         DevelopmentDataInitializer.ProfileData dev = readSeedData().get("dev");
 
-        var roster = dev.getDutyRosters().get(0);
-        assertThat(roster.getId()).isEqualTo("dr-001");
-        assertThat(roster.getDate()).isEqualTo(LocalDate.of(2026, 6, 10));
-        assertThat(roster.getDuty()).isEqualTo(DutyRole.DOCTOR);
-        assertThat(roster.getShift()).isEqualTo(ShiftType.DAY);
-        assertThat(roster.getStatus()).isEqualTo(ShiftStatus.ASSIGNED);
-        assertThat(roster.getPatientId()).isEqualTo("pat-001");
+        // This read a dutyRosters row until 2026-09-04 — the one record in the dev seed that
+        // carried a String, a LocalDate, two enums and an id in one document, which is what made it
+        // the natural subject here. It went with the entity when hc-professional became the roster
+        // of record. The pricing plan is the replacement and covers the same four shapes: an id, a
+        // String, a BigDecimal and an enum.
+        var plan = dev.getPricingPlans().get(0);
+        assertThat(plan.getId()).isEqualTo("plan-basic");
+        assertThat(plan.getName()).isEqualTo("Basic Health Plan");
+        assertThat(plan.getPrice()).isEqualByComparingTo("29.99");
+        assertThat(plan.getBillingCycle()).isEqualTo(BillingType.MONTHLY);
+        assertThat(plan.getActive()).isTrue();
+
+        var space = dev.getGeographicSpaces().get(0);
+        assertThat(space.getId()).isEqualTo("building-a");
+        assertThat(space.getParentId()).isNull();
 
         assertThat(dev.getAddresses().get(0).getStreetAddress()).isEqualTo("123 Main St");
         assertThat(dev.getAudits().get(0).getCreatedDate()).isNotNull();
@@ -150,6 +159,7 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getAuditEntries()).hasSize(7);
         assertThat(test.getAddresses()).hasSize(13);
         assertThat(test.getTeams()).hasSize(4);
+        assertThat(test.getGeographicSpaces()).hasSize(10);
         assertThat(test.getHubs()).hasSize(2);
         assertThat(test.getOrganisations()).hasSize(1);
     }
@@ -341,22 +351,77 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
-     * <b>At least one role has to carry a superseded rate.</b> A seed with one row per role reads
+     * <b>At least one cell has to carry a superseded rate.</b> A seed with one row per cell reads
      * identically whether rates are effective-dated or simply editable in place — the distinction
      * that the whole model turns on is invisible until a rate has history behind it, and the
      * console's history view has nothing to show.
+     *
+     * <p>Grouped by {@code (role, shiftType)} since 2026-09-04. Grouping by role alone would now be
+     * satisfied by the grid itself: DOCTOR has five rows because it is priced for five shift types,
+     * and the check would pass with nothing superseded at all.
      */
     @Test
     void shouldSeedARateThatHasBeenSuperseded() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        Map<ProfessionalRole, Long> perRole = test
+        Map<String, Long> perCell = test
             .getWageRates()
             .stream()
-            .collect(Collectors.groupingBy(WageRate::getRole, Collectors.counting()));
+            .collect(Collectors.groupingBy(rate -> rate.getRole() + "/" + rate.getShiftType(), Collectors.counting()));
 
-        assertThat(perRole).containsEntry(ProfessionalRole.DOCTOR, 2L).containsEntry(ProfessionalRole.NURSE, 2L);
+        assertThat(perCell).containsEntry("DOCTOR/NIGHT", 2L).containsEntry("NURSE/NIGHT", 2L);
         assertThat(test.getWageRates().stream().map(WageRate::getValidFrom).distinct()).hasSizeGreaterThan(1);
+    }
+
+    /**
+     * <b>{@code dev} prices every {@code (role, shiftType)} cell.</b>
+     *
+     * <p>The lookup is exact — there is no fallback from an unpriced shift type to the role's other
+     * rates — so an unfilled cell is a clinician whose earnings screen reports shifts worked and
+     * nothing accrued. Against a fully-priced fixture that reads like a bug in the pay service
+     * rather than a hole in the data, so one profile fills the grid and stays the baseline.
+     *
+     * <p>Includes {@code OFF}, which is never read: {@code ShiftValuationService} drops an off day
+     * before resolving any rate. The go-live pricing ask is the whole five-by-five grid so that
+     * whoever owns pricing is asked once, and the fixture is the shape of the thing being asked for.
+     */
+    @Test
+    void shouldPriceEveryRoleAndShiftTypeCombinationUnderDev() throws Exception {
+        DevelopmentDataInitializer.ProfileData dev = readSeedData().get("dev");
+
+        assertThat(dev.getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct())
+            .as("dev prices every (role, shiftType) cell")
+            .hasSize(ProfessionalRole.values().length * ShiftType.values().length);
+    }
+
+    /**
+     * <b>{@code test} deliberately leaves two cells unpriced, and this asserts which two.</b>
+     *
+     * <p>This test asserted the full grid for both profiles until 2026-09-04, and that was the defect
+     * rather than the guard: with all 25 cells priced the unpriced rendering — {@code wage-rates.html}'s
+     * "Not set" branch, and every {@code unpricedShifts} count on the earnings screens — was
+     * <b>unreachable on the quality stack</b>, so the one state the distinct rendering exists to
+     * express could not be looked at. Worse, the case a reader did see was {@code OFF} at
+     * {@code 0 GHS}, which is precisely the state "Not set" exists to be told apart from.
+     *
+     * <p>{@code CAREGIVER} is the role, and the pair is chosen rather than arbitrary.
+     * {@code EVENING} has 45 assignments in the roster fixture, so the counts move and the screens
+     * have something to report; {@code FLEXIBLE} has none anywhere, so it exercises the rendering
+     * without touching a total. {@code dev} stays whole, which is what keeps
+     * {@link #shouldPriceEveryRoleAndShiftTypeCombinationUnderDev} meaningful as the baseline.
+     *
+     * <p>Named explicitly rather than counted: "23 of 25 cells" would go on passing if a different
+     * two went missing, and an accidental hole in the grid is exactly what the old assertion was
+     * there to catch. Only the deliberateness has changed.
+     */
+    @Test
+    void shouldLeaveTwoNamedCellsUnpricedUnderTest() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        List<String> priced = test.getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct().toList();
+
+        assertThat(priced).doesNotContain("CAREGIVER/EVENING", "CAREGIVER/FLEXIBLE");
+        assertThat(priced).hasSize(ProfessionalRole.values().length * ShiftType.values().length - 2);
     }
 
     /**
@@ -428,6 +493,102 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getShiftAssignments().stream().map(shift -> YearMonth.from(shift.getShiftDate())).distinct())
             .hasSizeGreaterThanOrEqualTo(4);
         assertThat(test.getShiftAssignments().stream().filter(shift -> shift.getShift() != ShiftType.OFF)).hasSize(654);
+    }
+
+    /**
+     * <b>The geography is a tree, not a flat list of names.</b>
+     *
+     * <p>Proximity — same space, then same parent, then same ancestor — is a walk up
+     * {@code parentId}. A fixture of unrelated rows satisfies "spaces exist" and can only ever
+     * exercise the first of those three steps, so the ranking would look implemented and would be
+     * untestable past its cheapest case. This asserts the shape the walk needs: exactly one root,
+     * every other space reaching it, and depth enough for "same parent" and "same ancestor" to be
+     * different answers.
+     *
+     * <p>It also asserts what the guard forbids, from the data side. {@code
+     * GeographicSpaceCycleGuard} refuses a cycle on write; this refuses one in the file, which is the
+     * copy that gets re-saved on every start and would therefore be the thing reintroducing it.
+     */
+    @Test
+    void shouldSeedGeographicSpacesAsATreeWithASingleRoot() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<String, String> parentOf = test
+            .getGeographicSpaces()
+            .stream()
+            .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
+
+        assertThat(parentOf).hasSameSizeAs(test.getGeographicSpaces());
+        assertThat(parentOf.entrySet().stream().filter(entry -> entry.getValue() == null).map(Map.Entry::getKey))
+            .as("exactly one root")
+            .containsExactly("gs-ghana");
+        assertThat(parentOf.values())
+            .filteredOn(java.util.Objects::nonNull)
+            .allSatisfy(parentId -> assertThat(parentOf).as("parent %s is itself a seeded space", parentId).containsKey(parentId));
+
+        // Every space reaches the root, in a bounded number of steps. The bound is what makes this a
+        // test rather than a hang: an unrooted cycle would otherwise spin here exactly as it would
+        // in the ranking.
+        for (String id : parentOf.keySet()) {
+            String walker = id;
+            int steps = 0;
+            while (parentOf.get(walker) != null && steps <= parentOf.size()) {
+                walker = parentOf.get(walker);
+                steps++;
+            }
+            assertThat(walker).as("ancestry of %s terminates at the root", id).isEqualTo("gs-ghana");
+        }
+
+        // Four levels, so "same parent" and "same ancestor" can disagree.
+        assertThat(parentOf).containsEntry("gs-osu", "gs-accra").containsEntry("gs-accra", "gs-greater-accra");
+    }
+
+    /**
+     * <b>Every professional is based somewhere, and the somewheres make proximity testable.</b>
+     *
+     * <p>{@code Professional.homeSpaceId} is the other end of the comparison the ranking makes
+     * against a shift's own space; without it there is nothing to measure "near" against. A fixture
+     * that merely filled the field would satisfy "not null" and still leave the ranking with one
+     * possible answer, so this asserts the four cases the ranking has to tell apart: two clinicians
+     * in the same space, two sharing a parent, two sharing only a distant ancestor, and — through the
+     * hub check below — no home that contradicts where the person actually works.
+     */
+    @Test
+    void shouldGiveEveryProfessionalAHomeSpaceThatMakesProximityMeaningful() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        // Collected into a HashMap rather than through Collectors.toMap, which throws on a null
+        // value — the assertion below has to be able to report a missing home space rather than be
+        // pre-empted by an NPE inside the collector.
+        Map<String, String> homeOf = test
+            .getProfessionals()
+            .stream()
+            .collect(HashMap::new, (map, professional) -> map.put(professional.getId(), professional.getHomeSpaceId()), HashMap::putAll);
+        Map<String, String> parentOf = test
+            .getGeographicSpaces()
+            .stream()
+            .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
+
+        assertThat(homeOf).hasSameSizeAs(test.getProfessionals()).doesNotContainValue(null);
+        assertThat(homeOf.values())
+            .allSatisfy(spaceId -> assertThat(parentOf).as("home space %s is a seeded space", spaceId).containsKey(spaceId));
+
+        // Same space, same parent, and same ancestor only — the three tiers, each reachable.
+        assertThat(homeOf.get("p2")).as("same space as p1").isEqualTo(homeOf.get("p1"));
+        assertThat(homeOf.get("p3")).as("a different space from p1").isNotEqualTo(homeOf.get("p1"));
+        assertThat(parentOf.get(homeOf.get("p3"))).as("but the same parent as p1").isEqualTo(parentOf.get(homeOf.get("p1")));
+        assertThat(parentOf.get(homeOf.get("p5"))).as("p5 shares no parent with p1").isNotEqualTo(parentOf.get(homeOf.get("p1")));
+
+        // And a home space that agrees with the hub the person is attached to. The two are separate
+        // fields and nothing joins them, so a fixture can put an Accra clinician in Kumasi and read
+        // as complete — which would make every proximity result look like a bug in the ranking.
+        Map<String, String> regionOf = Map.of("hub-1", "gs-greater-accra", "hub-2", "gs-ashanti");
+        assertThat(test.getProfessionals())
+            .allSatisfy(professional ->
+                assertThat(regionOf.get(professional.getHub().getId()))
+                    .as("home region of %s", professional.getId())
+                    .isEqualTo(parentOf.get(parentOf.get(professional.getHomeSpaceId())))
+            );
     }
 
     /**

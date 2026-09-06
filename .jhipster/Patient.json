@@ -2,9 +2,7 @@
   "annotations": {
     "changelogDate": "20260807154843"
   },
-  "applications": [
-    "*"
-  ],
+  "applications": ["*"],
   "clientRootFolder": "directory",
   "databaseType": "mongodb",
   "fields": [
@@ -15,17 +13,13 @@
     {
       "fieldName": "status",
       "fieldType": "AccountStatus",
-      "fieldValidateRules": [
-        "required"
-      ],
+      "fieldValidateRules": ["required"],
       "fieldValues": "ACTIVE,PENDING,SUSPENDED,ON_LEAVE,UNDER_REVIEW"
     },
     {
       "fieldName": "joinedOn",
       "fieldType": "LocalDate",
-      "fieldValidateRules": [
-        "required"
-      ]
+      "fieldValidateRules": ["required"]
     },
     {
       "fieldName": "lastActiveOn",
@@ -34,9 +28,7 @@
     {
       "fieldName": "caseCount",
       "fieldType": "Integer",
-      "fieldValidateRules": [
-        "min"
-      ],
+      "fieldValidateRules": ["min"],
       "fieldValidateRulesMin": "0"
     },
     {

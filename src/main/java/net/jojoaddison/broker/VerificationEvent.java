@@ -25,10 +25,14 @@ import java.time.Instant;
  *
  * <p><b>It holds no domain types, and that is enforced.</b> {@code TechnicalStructureTest} does not
  * list {@code ..broker..} as a layer, so anything here that reaches into {@code ..domain..} fails
- * the ArchUnit rule — which is what {@code RosterEvent} beside it is also obeying, and why the
- * conversion from a saved row lives in {@code ProfessionalVerificationService} rather than in a
- * static factory here. The practical effect is the right one anyway: an event is a wire format, and
- * a wire format that knows the shape of a document changes whenever the document does.
+ * the ArchUnit rule, and that is why the conversion from a saved row lives in
+ * {@code ProfessionalVerificationService} rather than in a static factory here. The practical effect
+ * is the right one anyway: an event is a wire format, and a wire format that knows the shape of a
+ * document changes whenever the document does.
+ *
+ * <p>This paragraph cited {@code RosterEvent} as the sibling obeying the same rule until 2026-09-05.
+ * That class went with the duty-roster deletion, leaving this the only event in the package — so the
+ * rule now has no second example, which is worth knowing before writing one.
  */
 public class VerificationEvent implements Serializable {
 

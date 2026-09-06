@@ -34,7 +34,10 @@ spring:
         enabled: false
       enabled: false
     function:
-      definition: kafkaConsumer;kafkaProducer
+      # Kept in step with config/application.yml on purpose: a function missing here is not bound in
+      # any test either, so an integration test that sends a frame and asserts a directory row would
+      # find nothing and read as a broken projection rather than as a missing subscription.
+      definition: kafkaConsumer;kafkaProducer;patientDirectoryConsumer;professionalDirectoryConsumer
     stream:
       kafka:
         binder:
@@ -64,6 +67,29 @@ spring:
           destination: professional-verification
           content-type: text/plain
           group: hc-admin-service
+        # These two DO declare their real destinations here, unlike binding-out-0 above, and for the
+        # mirror-image reason: InputDestination resolves by destination when a binding has one, so
+        # naming the shipped topic is what lets a test send to `patient-events` and reach the
+        # consumer that would receive it in production. There is no output binding on either topic,
+        # so nothing is short-circuited by doing it.
+        #
+        # maxAttempts: 1 here, where config/application.yml sets 5. The test binder honours the retry
+        # settings, so a consumer that throws would be retried across the real back-off — about a
+        # minute of it — before a test saw the failure. One attempt makes a rethrow surface at once
+        # and be assertable. The shipped numbers are guarded by ConfigurationBindingTest, which reads
+        # the other file off disk.
+        patientDirectoryConsumer-in-0:
+          destination: patient-events
+          content-type: application/json
+          group: hc-admin-directory-patient
+          consumer:
+            maxAttempts: 1
+        professionalDirectoryConsumer-in-0:
+          destination: hc.professional.registration
+          content-type: application/json
+          group: hc-admin-directory-professional
+          consumer:
+            maxAttempts: 1
   # No `jackson.serialization: {}` here. Spring Boot 4.1 moved to Jackson 3, whose
   # SerializationFeature lives in tools.jackson.databind, and the empty flow mapping binds as the
   # String "{}" rather than an empty Map — which fails the whole context with a
@@ -133,7 +159,29 @@ jhipster:
 # https://www.jhipster.tech/common-application-properties/
 # ===================================================================
 
-# application:
+application:
+  professionalservice:
+    # OFF for every integration test, deliberately and in the shared config rather than per class.
+    #
+    # ProfessionalServiceClient writes rounds to hc-professional over HTTP. A test suite that can
+    # reach a sibling stack is a suite whose result depends on what is running on the machine, and
+    # one that cannot reach it spends a connect timeout per attempt discovering that. Disabled, the
+    # client raises RosterServiceNotConfiguredException immediately and nothing here ever opens a
+    # socket to another product.
+    #
+    # It is NOT the outage path, and it stopped being it on 2026-09-06 (backlog item 24). This
+    # comment said "the same path an outage takes — so RosterPlanResourceIT exercises the outage
+    # state for free", and that was true only because both facts arrived under one reason: the suite
+    # had been standing a local misconfiguration in for a far service being down, which is the same
+    # substitution the console was making on screen. What the IT exercises for free now is
+    # ROSTER_SERVICE_NOT_CONFIGURED — the wire shape is identical, a 200 carrying a per-round
+    # failure, and the reason is the honest one. The outage proper is RoundPlanningServiceTest's,
+    # over a mocked client, because producing a real one here means a socket and a timeout.
+    #
+    # The planned path is covered by RoundPlanningServiceTest too, which mocks the client. That split
+    # is the honest one: whether a round is really accepted is a question only the running sibling
+    # can answer, and it belongs to the quality stack.
+    enabled: false
 management:
   health:
     mail:

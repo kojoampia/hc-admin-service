@@ -13,12 +13,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.UnavailabilityPeriod;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
+import net.jojoaddison.domain.enumeration.UnavailabilityReason;
 import net.jojoaddison.domain.enumeration.VerificationStatus;
 import net.jojoaddison.repository.ProfessionalRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -77,6 +80,9 @@ class ProfessionalResourceIT {
     private static final Boolean DEFAULT_IS_ARCHIVED = false;
     private static final Boolean UPDATED_IS_ARCHIVED = true;
 
+    private static final String DEFAULT_HOME_SPACE_ID = "AAAAAAAAAA";
+    private static final String UPDATED_HOME_SPACE_ID = "BBBBBBBBBB";
+
     private static final String ENTITY_API_URL = "/api/professionals";
     private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
 
@@ -114,7 +120,8 @@ class ProfessionalResourceIT {
             .visitCount(DEFAULT_VISIT_COUNT)
             .rating(DEFAULT_RATING)
             .joinedOn(DEFAULT_JOINED_ON)
-            .isArchived(DEFAULT_IS_ARCHIVED);
+            .isArchived(DEFAULT_IS_ARCHIVED)
+            .homeSpaceId(DEFAULT_HOME_SPACE_ID);
         // Add required entity
         Profile profile;
         profile = ProfileResourceIT.createEntity();
@@ -141,7 +148,8 @@ class ProfessionalResourceIT {
             .visitCount(UPDATED_VISIT_COUNT)
             .rating(UPDATED_RATING)
             .joinedOn(UPDATED_JOINED_ON)
-            .isArchived(UPDATED_IS_ARCHIVED);
+            .isArchived(UPDATED_IS_ARCHIVED)
+            .homeSpaceId(UPDATED_HOME_SPACE_ID);
         // Add required entity
         Profile profile;
         profile = ProfileResourceIT.createUpdatedEntity();
@@ -296,7 +304,8 @@ class ProfessionalResourceIT {
             .andExpect(jsonPath("$.[*].visitCount").value(hasItem(DEFAULT_VISIT_COUNT)))
             .andExpect(jsonPath("$.[*].rating").value(hasItem(sameNumber(DEFAULT_RATING))))
             .andExpect(jsonPath("$.[*].joinedOn").value(hasItem(DEFAULT_JOINED_ON.toString())))
-            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)));
+            .andExpect(jsonPath("$.[*].isArchived").value(hasItem(DEFAULT_IS_ARCHIVED)))
+            .andExpect(jsonPath("$.[*].homeSpaceId").value(hasItem(DEFAULT_HOME_SPACE_ID)));
     }
 
     @SuppressWarnings({ "unchecked" })
@@ -337,7 +346,8 @@ class ProfessionalResourceIT {
             .andExpect(jsonPath("$.visitCount").value(DEFAULT_VISIT_COUNT))
             .andExpect(jsonPath("$.rating").value(sameNumber(DEFAULT_RATING)))
             .andExpect(jsonPath("$.joinedOn").value(DEFAULT_JOINED_ON.toString()))
-            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED));
+            .andExpect(jsonPath("$.isArchived").value(DEFAULT_IS_ARCHIVED))
+            .andExpect(jsonPath("$.homeSpaceId").value(DEFAULT_HOME_SPACE_ID));
     }
 
     @Test
@@ -366,7 +376,8 @@ class ProfessionalResourceIT {
             .visitCount(UPDATED_VISIT_COUNT)
             .rating(UPDATED_RATING)
             .joinedOn(UPDATED_JOINED_ON)
-            .isArchived(UPDATED_IS_ARCHIVED);
+            .isArchived(UPDATED_IS_ARCHIVED)
+            .homeSpaceId(UPDATED_HOME_SPACE_ID);
 
         restProfessionalMockMvc
             .perform(
@@ -379,6 +390,142 @@ class ProfessionalResourceIT {
         // Validate the Professional in the database
         assertSameRepositoryCount(databaseSizeBeforeUpdate);
         assertPersistedProfessionalToMatchAllProperties(updatedProfessional);
+    }
+
+    /**
+     * <b>A PUT that says nothing about the home space must not erase it.</b>
+     *
+     * <p>{@code homeSpaceId} is not in the console model, so the generated edit form does not send
+     * it — and PUT sends a whole document. Without the restore in {@code ProfessionalResource}, the
+     * first time anybody edits a professional their home space is gone: the record saves, the screen
+     * shows exactly what it asked for, and proximity ranking loses the origin it measures from with
+     * nothing anywhere reporting a change. {@code TeamService.restoreGeographicSpaceIds} exists
+     * because this already happened one collection over, to the same field, from the same client.
+     */
+    @Test
+    void putWithoutAHomeSpaceKeepsTheStoredOne() throws Exception {
+        insertedProfessional = professionalRepository.save(professional.homeSpaceId("gs-osu"));
+
+        Professional withoutHomeSpace = professionalRepository.findById(professional.getId()).orElseThrow();
+        withoutHomeSpace.setHomeSpaceId(null);
+        withoutHomeSpace.setSpeciality(UPDATED_SPECIALITY);
+
+        restProfessionalMockMvc
+            .perform(
+                put(ENTITY_API_URL_ID, withoutHomeSpace.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(om.writeValueAsBytes(withoutHomeSpace))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.homeSpaceId").value("gs-osu"));
+
+        assertThat(getPersistedProfessional(professional).getHomeSpaceId()).isEqualTo("gs-osu");
+        // The rest of the payload still lands — the restore is one field, not a rejection.
+        assertThat(getPersistedProfessional(professional).getSpeciality()).isEqualTo(UPDATED_SPECIALITY);
+    }
+
+    /** And a PUT that does name one moves it, so the restore is not a freeze. */
+    @Test
+    void putWithAHomeSpaceMovesIt() throws Exception {
+        insertedProfessional = professionalRepository.save(professional.homeSpaceId("gs-osu"));
+
+        Professional moved = professionalRepository.findById(professional.getId()).orElseThrow();
+        moved.setHomeSpaceId("gs-madina");
+
+        restProfessionalMockMvc
+            .perform(put(ENTITY_API_URL_ID, moved.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(moved)))
+            .andExpect(status().isOk());
+
+        assertThat(getPersistedProfessional(professional).getHomeSpaceId()).isEqualTo("gs-madina");
+    }
+
+    /**
+     * <b>And a PUT that says nothing about leave must not end it.</b>
+     *
+     * <p>The mirror of {@link #putWithoutAHomeSpaceKeepsTheStoredOne}, for the field beside it.
+     * {@code unavailabilityPeriods} is not in the console model either, so the generated edit form
+     * does not send it and a PUT arrives with the list null. Without the restore in
+     * {@code ProfessionalResource}, editing anybody's speciality returns them to the candidate pool:
+     * the planner reads leave through {@link Professional#isAvailable(LocalDate)}, so the next
+     * planning round rosters somebody who is on holiday, and nothing between the edit and the roster
+     * says anything happened.
+     *
+     * <p>Worth its own case rather than trusting the neighbour's: the two fields take
+     * <em>different</em> rules, and only one of them can be checked by reading the other's test.
+     * {@code homeSpaceId} is a String, where one absent value has to do both jobs, so null cannot
+     * clear it. A list can tell the difference, so here null is an omission and an empty list is a
+     * deliberate clear — which is {@code Team}'s rule, and which
+     * {@link #putWithAnEmptyUnavailabilityListClearsTheStoredOne} pins so the restore cannot quietly
+     * become a freeze.
+     */
+    @Test
+    void putWithoutUnavailabilityPeriodsKeepsTheStoredOnes() throws Exception {
+        List<UnavailabilityPeriod> onHoliday = List.of(
+            new UnavailabilityPeriod()
+                .reason(UnavailabilityReason.HOLIDAY)
+                .fromDate(LocalDate.of(2026, 9, 1))
+                .toDate(LocalDate.of(2026, 9, 30))
+        );
+        insertedProfessional = professionalRepository.save(professional.unavailabilityPeriods(onHoliday));
+
+        Professional withoutLeave = professionalRepository.findById(professional.getId()).orElseThrow();
+        withoutLeave.setUnavailabilityPeriods(null);
+        withoutLeave.setSpeciality(UPDATED_SPECIALITY);
+
+        restProfessionalMockMvc
+            .perform(
+                put(ENTITY_API_URL_ID, withoutLeave.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(om.writeValueAsBytes(withoutLeave))
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.unavailabilityPeriods").isArray())
+            .andExpect(jsonPath("$.unavailabilityPeriods[0].reason").value(UnavailabilityReason.HOLIDAY.toString()));
+
+        Professional persisted = getPersistedProfessional(professional);
+        assertThat(persisted.getUnavailabilityPeriods()).hasSize(1);
+        assertThat(persisted.getUnavailabilityPeriods().get(0).getFromDate()).isEqualTo(LocalDate.of(2026, 9, 1));
+        assertThat(persisted.getUnavailabilityPeriods().get(0).getToDate()).isEqualTo(LocalDate.of(2026, 9, 30));
+        // The rest of the payload still lands — the restore is one field, not a rejection.
+        assertThat(persisted.getSpeciality()).isEqualTo(UPDATED_SPECIALITY);
+        // And the leave still means what it meant: the planner must still skip this date.
+        assertThat(persisted.isAvailable(LocalDate.of(2026, 9, 15))).isFalse();
+    }
+
+    /**
+     * And an empty list is a clear, not another omission — so the restore is not a freeze.
+     *
+     * <p>This is the half {@code homeSpaceId} cannot have, and the reason its rule is stated
+     * separately. Without this case the restore above would pass just as well if it had been written
+     * to ignore the field entirely, and there would then be no way at all to end somebody's leave
+     * through the API.
+     */
+    @Test
+    void putWithAnEmptyUnavailabilityListClearsTheStoredOne() throws Exception {
+        insertedProfessional =
+            professionalRepository.save(
+                professional.unavailabilityPeriods(
+                    List.of(
+                        new UnavailabilityPeriod()
+                            .reason(UnavailabilityReason.SICK_LEAVE)
+                            .fromDate(LocalDate.of(2026, 9, 1))
+                            .toDate(LocalDate.of(2026, 9, 30))
+                    )
+                )
+            );
+
+        Professional backAtWork = professionalRepository.findById(professional.getId()).orElseThrow();
+        backAtWork.setUnavailabilityPeriods(new ArrayList<>());
+
+        restProfessionalMockMvc
+            .perform(
+                put(ENTITY_API_URL_ID, backAtWork.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(backAtWork))
+            )
+            .andExpect(status().isOk());
+
+        Professional persisted = getPersistedProfessional(professional);
+        assertThat(persisted.getUnavailabilityPeriods()).isEmpty();
+        assertThat(persisted.isAvailable(LocalDate.of(2026, 9, 15))).isTrue();
     }
 
     @Test
@@ -489,7 +636,8 @@ class ProfessionalResourceIT {
             .visitCount(UPDATED_VISIT_COUNT)
             .rating(UPDATED_RATING)
             .joinedOn(UPDATED_JOINED_ON)
-            .isArchived(UPDATED_IS_ARCHIVED);
+            .isArchived(UPDATED_IS_ARCHIVED)
+            .homeSpaceId(UPDATED_HOME_SPACE_ID);
 
         restProfessionalMockMvc
             .perform(
