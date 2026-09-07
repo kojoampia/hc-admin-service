@@ -135,17 +135,39 @@ public class DirectoryLinkResource {
      * cross-stack patient identity is still open (backlog item 22), and a field on the domain record
      * would pre-empt that decision by looking like the answer.
      *
+     * <h2>{@code unlinked}, and why the clinician directory needs it</h2>
+     *
+     * <p>A patient learned from an event is a row with no name; <b>a clinician learned from one is no
+     * row at all.</b> Both types on {@code hc.professional.registration} are {@code LINK_ONLY} — a
+     * {@code Professional} requires a {@code role} and a {@code licenceNumber}, neither of which is on
+     * that topic in any event, in any version (backlog items 33 and 46) — so the registration produces
+     * a link with {@code local_id: null} and nothing else. {@code GET /api/professionals} therefore
+     * cannot show them however it is filtered, and the console asked no other question, so a clinician
+     * who registered on production reached this service, was stored, and was invisible.
+     *
+     * <p>{@code unlinked=true} is that question: the accounts this service knows about and holds no
+     * record for. The professional directory lists them under a heading that says exactly that, and
+     * the dashboard counts them in {@code professionalsAwaitingRecord} — <b>the same rule, read twice,
+     * so the two are asserted against each other</b> in {@code DashboardMetricsResourceIT}.
+     *
+     * <p>{@code unlinked=false} is its complement rather than a convenience, and the pair is why this
+     * is a tri-state {@code Boolean} and not a flag: absent means "do not ask", which is what every
+     * other caller of this endpoint wants.
+     *
      * @param source when present, only that stream's links.
      * @param localIdIn when present, only links naming one of these local records.
+     * @param unlinked when present, only the links that have no local record ({@code true}) or only
+     *                 the ones that have ({@code false}).
      * @param pageable the pagination information.
      */
     @GetMapping("")
     public ResponseEntity<List<DirectoryLink>> getAllDirectoryLinks(
         @RequestParam(required = false) DirectorySource source,
         @RequestParam(name = "localId.in", required = false) List<String> localIdIn,
+        @RequestParam(required = false) Boolean unlinked,
         @org.springdoc.core.annotations.ParameterObject Pageable pageable
     ) {
-        LOG.debug("REST request to get a page of DirectoryLinks for source {}", source);
+        LOG.debug("REST request to get a page of DirectoryLinks for source {}, unlinked {}", source, unlinked);
         if (localIdIn != null && localIdIn.size() > MAX_LOCAL_IDS) {
             throw new BadRequestAlertException("Too many local ids: at most " + MAX_LOCAL_IDS, ENTITY_NAME, "localidintoolong");
         }
@@ -186,7 +208,14 @@ public class DirectoryLinkResource {
 
         // Stored field names, matching PatientResource — `local_id` is what the document carries, and
         // going through the Java property name works only via the @Field indirection.
-        NamedFilters.Builder filters = NamedFilters.builder().equals("source", source).in("local_id", localIds);
+        NamedFilters.Builder filters = NamedFilters
+            .builder()
+            .equals("source", source)
+            .in("local_id", localIds)
+            // `local_id: null` matches a missing field as well as a null one, which is what a link
+            // with no record actually looks like — the projection never writes the field until there
+            // is a record to name. Same match as DirectoryProjectionService.createAndClaim.
+            .isNull("local_id", unlinked);
 
         Page<DirectoryLink> page = filters.isEmpty()
             ? directoryLinkRepository.findAll(pageable)

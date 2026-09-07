@@ -122,6 +122,87 @@ class DirectoryLinkResourceIT {
     }
 
     /**
+     * <b>The read behind the clinician directory's awaiting-a-record panel.</b>
+     *
+     * <p>A clinician who registers on hc-professional produces a link and no {@code Professional} at
+     * all, so {@code GET /api/professionals} cannot show them however it is filtered — the console
+     * asked no other question, and a registration on production was stored and invisible (backlog
+     * item 46). This is the other question.
+     *
+     * <p>The two directions are asserted together on purpose: {@code unlinked=true} and
+     * {@code unlinked=false} have to partition the collection, and a filter that quietly matched
+     * nothing would pass a one-sided test while emptying the panel.
+     */
+    @Test
+    void filtersToTheLinksThatHaveNoLocalRecord() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "a-patient-with-a-record"));
+        directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
+
+        mvc
+            .perform(get("/api/directory-links").param("unlinked", "true"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].externalKey").value("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"))
+            .andExpect(jsonPath("$[0].source").value("HC_PROFESSIONAL"));
+
+        mvc
+            .perform(get("/api/directory-links").param("unlinked", "false"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].localId").value("a-patient-with-a-record"));
+
+        // And with the filter absent, both — "do not ask" is a third answer and not a synonym for
+        // either of the two above.
+        mvc.perform(get("/api/directory-links")).andExpect(status().isOk()).andExpect(header().string("X-Total-Count", "2"));
+    }
+
+    /**
+     * A link with no {@code local_id} field at all matches, not only one carrying an explicit null.
+     *
+     * <p>This is what the collection really holds: {@code DirectoryProjectionService.setIfPresent}
+     * never writes the field until there is a record to name, so every clinician's link is written
+     * <em>without</em> it. A filter built on {@code exists: false} would pass a test whose fixture went
+     * through the Java setter and match nothing in production — the mirror of the defect this whole
+     * item is about.
+     */
+    @Test
+    void anUnwrittenLocalIdCountsAsUnlinked() throws Exception {
+        mongoTemplate.insert(
+            org.bson.Document.parse(
+                """
+                { "source": "HC_PROFESSIONAL", "external_key": "written-by-the-projection",
+                  "subject_kind": "PROFESSIONAL", "state": "APPLICATION_SUBMITTED" }
+                """
+            ),
+            "directory_link"
+        );
+
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].externalKey").value("written-by-the-projection"));
+    }
+
+    /** The source and the unlinked filter compose, which is the request the console actually sends. */
+    @Test
+    void combinesTheSourceAndUnlinkedFilters() throws Exception {
+        // A patient link with no record — an erased subject, or a care angel — is unlinked too, and
+        // it is not a clinician. Asking for one source without the other would list it in the
+        // professional directory.
+        DirectoryLink angel = link("angel@" + EMAIL, null);
+        angel.setSubjectKind(DirectorySubjectKind.CARE_ANGEL);
+        directoryLinkRepository.save(angel);
+        directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
+
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].source").value("HC_PROFESSIONAL"));
+    }
+
+    /**
      * Asking for the links of no records is not asking for all of them.
      *
      * <p><b>The mechanism stated here until 2026-09-07 was wrong.</b> This javadoc, the handler's
@@ -363,6 +444,26 @@ class DirectoryLinkResourceIT {
             .andExpect(jsonPath("$.skipped").value(2));
 
         assertThat(patientRepository.count()).as("neither an angel nor an erased subject is rebuilt as a patient").isZero();
+    }
+
+    /**
+     * A clinician's link: keyed on an {@code accountId}, and with no local record by design.
+     *
+     * <p>{@code localId} is not merely unset here, it is unsettable — {@code Professional} requires a
+     * {@code role} and a {@code licenceNumber} and no event on that topic carries either.
+     */
+    private DirectoryLink clinician(String accountId) {
+        DirectoryLink link = new DirectoryLink();
+        link.setSource(DirectorySource.HC_PROFESSIONAL);
+        link.setExternalKey(accountId);
+        link.setExternalId(accountId);
+        link.setLogin("kquartey");
+        link.setEmail("k.quartey@abofonsa.care");
+        link.setState("DOCUMENTS_SUBMITTED");
+        link.setSubjectKind(DirectorySubjectKind.PROFESSIONAL);
+        link.setFirstSeenAt(Instant.parse("2026-09-03T13:20:00Z"));
+        link.setLastEventAt(Instant.parse("2026-09-05T08:05:00Z"));
+        return link;
     }
 
     private DirectoryLink link(String externalKey, String localId) {

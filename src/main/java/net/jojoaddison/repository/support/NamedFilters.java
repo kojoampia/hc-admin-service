@@ -35,7 +35,7 @@ public final class NamedFilters {
     /**
      * Collects the criteria that were actually supplied. Nulls and blanks are simply absent.
      *
-     * <p><b>The four operators do not agree on what "blank" means, and only {@code equals} is
+     * <p><b>The four value operators do not agree on what "blank" means, and only {@code equals} is
      * currently used with strings.</b> {@code equals} drops a blank string; {@code notEquals} keeps
      * it and would build a real {@code $ne: ""}; {@code in} passes blank elements through;
      * {@code contains} drops blanks and additionally trims. Nothing is wrong today — both
@@ -73,6 +73,28 @@ public final class NamedFilters {
         public Builder in(String field, Collection<?> values) {
             if (values != null && !values.isEmpty()) {
                 criteria.add(Criteria.where(field).in(values));
+            }
+            return this;
+        }
+
+        /**
+         * Whether the field is unset — {@code TRUE} for the documents that do not carry a value,
+         * {@code FALSE} for the ones that do. A null asks nothing, like every other operator here,
+         * which is what lets a handler pass an absent {@code @RequestParam} straight through.
+         *
+         * <p>{@code is(null)} matches a <b>missing</b> field as well as an explicitly null one, and
+         * that is the behaviour wanted rather than a tolerated approximation: nothing in this service
+         * writes an explicit null, so an unset field is an absent one.
+         * {@code DirectoryProjectionService.createAndClaim} relies on the same match to claim a link,
+         * and says so at the query it builds.
+         *
+         * <p>It is here rather than at a call site because it has to compose with the other filters —
+         * "this source, and no local record" is one query, and a handler that ran its own second query
+         * would page and count the two independently.
+         */
+        public Builder isNull(String field, Boolean unset) {
+            if (unset != null) {
+                criteria.add(unset ? Criteria.where(field).is(null) : Criteria.where(field).ne(null));
             }
             return this;
         }

@@ -9,6 +9,7 @@ import ch.qos.logback.core.read.ListAppender;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.DirectoryLink;
@@ -273,6 +274,57 @@ class DirectoryEventConsumptionIT {
     }
 
     /**
+     * <b>Storing a link and creating nothing leaves a trace a person can find.</b>
+     *
+     * <p>The reported half of backlog item 46. On production, a service that had been consuming
+     * {@code hc.professional.registration} since the 2026-09-06 deploy had <b>zero</b> log lines
+     * mentioning {@code HC_PROFESSIONAL} — while the group's offset moved 28 → 32 across a clinician's
+     * registration, with no lag and nothing dead-lettered. Only the creating path logged, and a
+     * {@link net.jojoaddison.service.dto.SiblingDomainEvent.Disposition#LINK_ONLY} event creates
+     * nothing, so an operator could not tell <b>"the event never arrived"</b> from <b>"the event
+     * arrived and was deliberately stored as a link"</b> — two states with opposite responses.
+     *
+     * <p>At {@code INFO}, deliberately: {@code application-prod.yml} runs this package at {@code INFO},
+     * so a line at {@code debug} would be the same absence wearing a level. And asserted on the
+     * <em>content</em> rather than on "something was logged" — the source and the kind are what tell a
+     * reader which stream and which decision, and a line naming neither would pass a "not empty" check
+     * while answering nothing.
+     *
+     * <p>The subject is still a digest, which the sweep in {@code LogPseudonymTest} enforces
+     * statically; here it is asserted positively, because the way this line goes wrong is somebody
+     * dropping the subject from it rather than somebody printing the key.
+     */
+    @Test
+    void aLinkOnlyRegistrationSaysSoAtInfo() {
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        Level original = logger.getLevel();
+        logger.setLevel(Level.INFO);
+        logger.addAppender(appender);
+
+        try {
+            sendProfessional(registrationCreated());
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(original);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+            .as("a registration that creates no record must still say so, at the level production runs")
+            .filteredOn(event -> event.getLevel() == Level.INFO)
+            .anySatisfy(event -> {
+                String line = event.getFormattedMessage();
+                assertThat(line).contains("HC_PROFESSIONAL").contains("PROFESSIONAL").contains("registration.created");
+                assertThat(line)
+                    .as("and name the subject as a digest, so an operator has something to search for")
+                    .contains(LogPseudonym.subject(ACCOUNT_ID));
+                assertThat(line).as("the accountId is a correlation key and is not logged verbatim").doesNotContain(ACCOUNT_ID);
+            });
+    }
+
+    /**
      * <b>The care-angel defect, end to end.</b>
      *
      * <p>hc-patient's {@code CareAngelResource.nominate} publishes {@code AccountCreated} and then
@@ -503,24 +555,69 @@ class DirectoryEventConsumptionIT {
             sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
             sendPatient(accountActivated("2026-09-01T09:00:00Z"));
             sendPatient(accountActivated("2026-09-01T07:30:00Z"));
+            // And the LINK_ONLY disposition, whose announcement is new (backlog item 46). A
+            // clinician's key is an accountId rather than an address, and it goes through the same
+            // digest — a per-source exception here would be a rule nobody could apply.
+            sendProfessional(registrationCreated());
+
+            // What a loaded host does by accident, done on purpose. The test containers relay
+            // mongod's stdout through a logger in this package, and its "Slow query" line quotes the
+            // whole command — external_key and all — so this test failed under load and passed on an
+            // idle machine, which is a flake shaped exactly like the regression it guards against.
+            // Emitting the line here rather than waiting for a slow query is what makes
+            // thisServicesOwnStatements' exclusion provable: delete that filter and this case goes
+            // red every run instead of one run in ten.
+            LoggerFactory.getLogger(MongoDbTestContainer.class).info("STDOUT: {{\"external_key\":\"{}\"}}", EMAIL);
         } finally {
             logger.detachAppender(appender);
             logger.setLevel(original);
             appender.stop();
         }
 
-        assertThat(appender.list).as("nothing was logged at all — this test would then prove nothing").isNotEmpty();
+        List<ILoggingEvent> statements = thisServicesOwnStatements(appender.list);
 
-        assertThat(appender.list)
+        assertThat(statements).as("nothing was logged at all — this test would then prove nothing").isNotEmpty();
+
+        assertThat(statements)
             .as("no statement in this package may render a patient's address, at any level")
             .noneSatisfy(event -> assertThat(event.getFormattedMessage()).contains(EMAIL));
 
         // The local part alone, in case a future line renders the key in pieces or masks the domain.
-        assertThat(appender.list).noneSatisfy(event -> assertThat(event.getFormattedMessage()).contains("ama.mensah"));
+        assertThat(statements).noneSatisfy(event -> assertThat(event.getFormattedMessage()).contains("ama.mensah"));
 
-        assertThat(appender.list)
+        assertThat(statements)
+            .as("nor a clinician's correlation key, which is an accountId and reaches the same lines")
+            .noneSatisfy(event -> assertThat(event.getFormattedMessage()).contains(ACCOUNT_ID));
+
+        assertThat(statements)
             .as("the subject must still be nameable, or an operator holding the address has no query")
             .anySatisfy(event -> assertThat(event.getFormattedMessage()).contains(LogPseudonym.subject(EMAIL)));
+    }
+
+    /**
+     * The events this service actually wrote, without the test containers' relayed output.
+     *
+     * <h2>Why this filter exists, and why it is not a hole in the rule</h2>
+     *
+     * <p>{@code MongoDbTestContainer} and {@code KafkaTestContainer} live in this package and pipe
+     * <b>another process's stdout</b> through a logger of their own at {@code INFO} — so mongod's own
+     * {@code "Slow query"} lines land in this appender, and one of those quotes the whole command,
+     * {@code external_key} and all. The rule this test states is about statements <em>this service</em>
+     * writes; a database echoing a query back on a test host is not one, cannot occur in production,
+     * and is not something the production logger configuration can reach.
+     *
+     * <p><b>Found by running the suite on a loaded host, and it had been failing intermittently
+     * before this change touched the file.</b> A slow query only gets logged when a query is slow, so
+     * the test passed on an idle machine and failed under load — the worst shape of flake, because it
+     * looks like the security regression it exists to catch. Backlog item 46's review section.
+     *
+     * <p><b>Excluded by logger name and not by content.</b> Filtering out lines that <em>contain</em>
+     * the address would delete the assertion; filtering by the two classes that relay somebody else's
+     * output keeps it whole. The suffix rather than two literal names, so a third container added
+     * later is covered — {@code PaginationIT}'s reasoning about enumerations, one test along.
+     */
+    private static List<ILoggingEvent> thisServicesOwnStatements(List<ILoggingEvent> captured) {
+        return captured.stream().filter(event -> !event.getLoggerName().endsWith("TestContainer")).toList();
     }
 
     // --- driving the bindings ---------------------------------------------------------------------

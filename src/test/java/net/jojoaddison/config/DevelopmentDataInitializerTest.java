@@ -694,13 +694,68 @@ class DevelopmentDataInitializerTest {
             .singleElement()
             .satisfies(link -> assertThat(link.getLocalId()).as("an erased subject is not rebuilt as a patient").isNull());
 
-        // And one from the other stack, which reconcile() never walks at all: it reads HC_PATIENT
-        // links only. Its externalKey is an accountId rather than an address, which is why
-        // resolveLinkIdentity in the console refuses to fall back to that field.
+        // And the ones from the other stack, which reconcile() never walks at all: it reads
+        // HC_PATIENT links only. Their externalKey is an accountId rather than an address, which is
+        // why resolveLinkIdentity in the console refuses to fall back to that field. What they are
+        // for is {@link #shouldSeedTwoClinicianLinksThatNoEventCanEverGiveARecord}.
         assertThat(test.getDirectoryLinks())
             .filteredOn(link -> link.getSource() == DirectorySource.HC_PROFESSIONAL)
-            .singleElement()
-            .satisfies(link -> assertThat(link.getLocalId()).isNull());
+            .isNotEmpty()
+            .allSatisfy(link -> assertThat(link.getLocalId()).isNull());
+    }
+
+    /**
+     * <b>Two clinicians this service knows about and holds no record for, which is what backlog item
+     * 46 was reported as.</b>
+     *
+     * <p>A professional who registers on hc-professional reaches this service, is stored as a
+     * {@code DirectoryLink} with {@code local_id: null}, and appears in no {@code Professional}
+     * collection — both event types on that topic are {@code LINK_ONLY}, because {@code role} and
+     * {@code licenceNumber} are {@code @NotNull} here and are on the wire in no event, in any
+     * version. So the dashboard tile could not move and the directory could not list them, and on
+     * production that read as a registration having been lost.
+     *
+     * <p><b>Two rows, because they render differently and item 45 was fixed with only the first of
+     * its two states reachable.</b> {@code dl-prof} carries an address, so the directory names the
+     * row by it. {@code dl-prof-anon} carries neither an address nor a login — the real state of a
+     * subject whose only event was an {@code onboarding.state}, which the parser's own javadoc says
+     * carries no email at all — so the row has to say that its identity is not on file and say only
+     * that. Without the second, the "unidentified" branch is unreachable on every stack again.
+     *
+     * <p>Named rather than counted, on {@link #shouldLeaveTwoNamedCellsUnpricedUnderTest}'s
+     * reasoning: "two professional links" would go on passing if one of them quietly gained an
+     * address, which is precisely the state that stops exercising the screen.
+     */
+    @Test
+    void shouldSeedTwoClinicianLinksThatNoEventCanEverGiveARecord() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<String, DirectoryLink> clinicians = test
+            .getDirectoryLinks()
+            .stream()
+            .filter(link -> link.getSource() == DirectorySource.HC_PROFESSIONAL)
+            .collect(Collectors.toMap(DirectoryLink::getId, link -> link));
+
+        assertThat(clinicians).as("the two rows the professional directory's awaiting-a-record panel is built on").hasSize(2);
+
+        assertThat(clinicians.get("dl-prof"))
+            .as("the named half: the panel shows this address where a name would go")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getSubjectKind()).isEqualTo(DirectorySubjectKind.PROFESSIONAL);
+                assertThat(link.getEmail()).isEqualTo("k.quartey@abofonsa.care");
+                assertThat(link.getLocalId()).as("no local record, and no event can ever supply one").isNull();
+            });
+
+        assertThat(clinicians.get("dl-prof-anon"))
+            .as("the unidentified half — an onboarding.state frame carries neither an address nor a login")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getSubjectKind()).isEqualTo(DirectorySubjectKind.PROFESSIONAL);
+                assertThat(link.getEmail()).isNull();
+                assertThat(link.getLogin()).isNull();
+                assertThat(link.getLocalId()).isNull();
+            });
     }
 
     /**

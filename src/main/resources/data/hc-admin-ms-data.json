@@ -1381,6 +1381,19 @@
         "lastEventAt": "2026-09-05T08:05:00Z",
         "lastEventId": "evt-seed-prof",
         "lastEventType": "onboarding.state"
+      },
+      {
+        "id": "dl-prof-anon",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "b7d21c04-9e63-4f18-8a77-2c5e9f04ab32",
+        "externalId": "b7d21c04-9e63-4f18-8a77-2c5e9f04ab32",
+        "state": "APPLICATION_SUBMITTED",
+        "subjectKind": "PROFESSIONAL",
+        "activated": false,
+        "firstSeenAt": "2026-09-06T09:47:00Z",
+        "lastEventAt": "2026-09-06T09:47:00Z",
+        "lastEventId": "evt-seed-prof-anon",
+        "lastEventType": "onboarding.state"
       }
     ],
     "professionals": [
