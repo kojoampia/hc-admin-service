@@ -2,14 +2,20 @@ package net.jojoaddison.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 /**
  * The two sibling envelopes, read off the wire.
@@ -287,6 +293,68 @@ class SiblingEventParserTest {
         assertThat(parser.parseProfessionalEvent(bytes("{\"eventType\":\"registration.created\",\"payload\":{}}")))
             .as("no accountId means nothing to key on")
             .isEmpty();
+    }
+
+    /**
+     * An unreadable frame is described, never quoted.
+     *
+     * <p>The warn for a frame this parser cannot read is the one statement in this service whose
+     * content nobody on this side vetted — the payload belongs to another product's topic. It logs a
+     * fingerprint now; this pins that.
+     *
+     * <p><b>It asserts the whole rendered line rather than the fingerprint argument</b>, on purpose,
+     * because the argument is not the only way the payload could reach the log: {@code e.toString()}
+     * is Jackson's own message, and Jackson quoted the offending input in it until
+     * {@code INCLUDE_SOURCE_IN_LOCATION} became disabled-by-default in 2.16. That is a library
+     * default rather than something this code controls, so the assertion is on the property — no
+     * payload content anywhere in the line — and would fail if the default were turned back on, or
+     * if somebody restored the excerpt.
+     */
+    @Test
+    void describesAnUnreadableFrameWithoutQuotingIt() {
+        // Distinctive enough that a substring check cannot pass by accident, and shaped like the
+        // thing that would actually hurt: a name and an address in a frame this parser gives up on.
+        String secret = "Ama-Mensah-0244000000-ama.mensah@example.com";
+        byte[] payload = bytes("{\"subject\": \"" + secret + "\", broken");
+
+        List<ILoggingEvent> logged = capture(SiblingEventParser.class, () -> assertThat(parser.parsePatientEvent(payload, null)).isEmpty());
+
+        assertThat(logged).as("an unreadable frame must say so — a silent drop is undiagnosable").isNotEmpty();
+        assertThat(logged)
+            .allSatisfy(event -> {
+                String line = event.getFormattedMessage();
+                assertThat(line).as("no payload content may reach the log, from any argument").doesNotContain(secret);
+                assertThat(line).doesNotContain("ama.mensah@example.com").doesNotContain("0244000000");
+            });
+
+        String warn = logged
+            .stream()
+            .filter(event -> event.getLevel() == Level.WARN)
+            .map(ILoggingEvent::getFormattedMessage)
+            .findFirst()
+            .orElseThrow();
+        assertThat(warn).as("still names the topic it arrived on").contains("patient-events");
+        assertThat(warn)
+            .as("still carries a handle that tells one frame from another")
+            .containsPattern("frame-[0-9a-f]{12} \\(\\d+ bytes\\)");
+    }
+
+    /** Runs {@code work} with the class's logger at TRACE and hands back everything it emitted. */
+    private static List<ILoggingEvent> capture(Class<?> type, Runnable work) {
+        Logger logger = (Logger) LoggerFactory.getLogger(type);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        Level original = logger.getLevel();
+        logger.setLevel(Level.TRACE);
+        logger.addAppender(appender);
+        try {
+            work.run();
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(original);
+            appender.stop();
+        }
+        return appender.list;
     }
 
     // --- the wire formats, copied from the two publishers -----------------------------------------

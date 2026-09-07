@@ -2,6 +2,10 @@ package net.jojoaddison.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,11 +20,13 @@ import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.ProfessionalRepository;
 import net.jojoaddison.service.DirectoryProjectionService;
+import net.jojoaddison.service.LogPseudonym;
 import net.jojoaddison.service.SiblingEventParser;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.cloud.stream.binder.test.InputDestination;
@@ -458,6 +464,63 @@ class DirectoryEventConsumptionIT {
         assertThat(directoryLinkRepository.count()).isEqualTo(2);
         assertThat(link(DirectorySource.HC_PATIENT, EMAIL)).isPresent();
         assertThat(link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID)).isPresent();
+    }
+
+    /**
+     * <b>A patient's email address reaches no log line, at any level.</b>
+     *
+     * <p>{@code subjectKey} is a lowercased email for every patient, and until 2026-09-07
+     * {@code DirectoryProjectionService} logged it verbatim on the creation path at {@code INFO} —
+     * which is the level production runs this package at. It was not confined to the host, either:
+     * the line was found in Loki on the production stack, arriving by two independent paths (the
+     * OpenTelemetry agent's log export and Alloy's container scrape) into a fourteen-day store shared
+     * across six products. Backlog item 43.
+     *
+     * <p><b>The logger is turned up to TRACE, and that is the point of the test rather than
+     * thoroughness.</b> Four of the five statements are {@code debug} and would have been argued as
+     * unreachable in production; they are one {@code POST /management/loggers/net.jojoaddison} away,
+     * a screen in the console drives exactly that, and the person pressing it is by definition
+     * debugging why a subject did not appear — the one moment when every subject on the topic gets
+     * logged rather than only the new ones.
+     *
+     * <p>It asserts the digest is <b>present</b> as well as the address absent, deliberately. The way
+     * this fix goes wrong is not somebody re-adding the email; it is somebody deleting the subject
+     * from the line altogether, leaving an operator holding an address with nothing to search for.
+     */
+    @Test
+    void noLogLineCarriesTheSubjectKey() {
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        Level original = logger.getLevel();
+        logger.setLevel(Level.TRACE);
+        logger.addAppender(appender);
+
+        try {
+            // Every disposition, so that all four reachable statements fire: an update for a subject
+            // with no link yet, a creation, an update, and one behind the watermark.
+            sendPatient(deletionRequestChanged("2026-09-01T07:00:00Z", "REQUESTED"));
+            sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
+            sendPatient(accountActivated("2026-09-01T09:00:00Z"));
+            sendPatient(accountActivated("2026-09-01T07:30:00Z"));
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(original);
+            appender.stop();
+        }
+
+        assertThat(appender.list).as("nothing was logged at all — this test would then prove nothing").isNotEmpty();
+
+        assertThat(appender.list)
+            .as("no statement in this package may render a patient's address, at any level")
+            .noneSatisfy(event -> assertThat(event.getFormattedMessage()).contains(EMAIL));
+
+        // The local part alone, in case a future line renders the key in pieces or masks the domain.
+        assertThat(appender.list).noneSatisfy(event -> assertThat(event.getFormattedMessage()).contains("ama.mensah"));
+
+        assertThat(appender.list)
+            .as("the subject must still be nameable, or an operator holding the address has no query")
+            .anySatisfy(event -> assertThat(event.getFormattedMessage()).contains(LogPseudonym.subject(EMAIL)));
     }
 
     // --- driving the bindings ---------------------------------------------------------------------

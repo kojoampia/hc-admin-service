@@ -129,6 +129,23 @@ import org.springframework.stereotype.Service;
  * applies each event, monotonically, and the reconciliation <b>reads</b> it. Both paths then go
  * through one {@code createAndClaim}. That is as close to "the same path" as the two can honestly be
  * — one is applying an event and the other has none — and it is what the sentence now claims.
+ *
+ * <h2>The subject key is never logged, at any level</h2>
+ *
+ * <p><b>{@code subjectKey} is a patient's email address</b> — {@link SiblingDomainEvent}'s own
+ * javadoc says so — and every one of the five statements in this class that names a subject goes
+ * through {@link LogPseudonym#subject(String)}, which is where the argument for a digest is kept.
+ *
+ * <p><b>All five, not just the one that was live.</b> Four of them are {@code debug} and production
+ * runs this package at {@code INFO}, so it is tempting to leave them and call them unreachable.
+ * They are not unreachable: JHipster ships {@code POST /management/loggers/{name}}, the console has
+ * a screen that drives it, and {@code administration.cy.ts} exercises exactly that. So the level is
+ * one authenticated request away from {@code DEBUG}, with no deploy and no restart — and the person
+ * raising it is by definition someone debugging why a subject did not appear, which is the moment
+ * every one of these fires, for every subject on the topic rather than only the new ones. A rule
+ * that holds at one level and quietly fails at another is not a rule; the guard in
+ * {@code DirectoryEventConsumptionIT} therefore asserts it with this package's logger turned all
+ * the way up. Backlog item 43.
  */
 @Service
 public class DirectoryProjectionService {
@@ -204,7 +221,7 @@ public class DirectoryProjectionService {
                 LOG.debug(
                     "Ignoring {} for {} — this service has no link for that subject and {} does not open one",
                     event.type(),
-                    event.subjectKey(),
+                    LogPseudonym.subject(event.subjectKey()),
                     event.type()
                 );
                 return Outcome.IGNORED;
@@ -222,7 +239,7 @@ public class DirectoryProjectionService {
             LOG.debug(
                 "Ignoring {} for {} — occurred {} which is before the applied watermark {}",
                 event.type(),
-                event.subjectKey(),
+                LogPseudonym.subject(event.subjectKey()),
                 event.occurredAt(),
                 previous.getLastEventAt()
             );
@@ -234,7 +251,7 @@ public class DirectoryProjectionService {
 
         recordEvent(event, localId);
 
-        LOG.debug("Applied {} for {} from {}", event.type(), event.subjectKey(), event.source());
+        LOG.debug("Applied {} for {} from {}", event.type(), LogPseudonym.subject(event.subjectKey()), event.source());
         if (localId != null && !hadRecord) {
             return Outcome.CREATED;
         }
@@ -448,7 +465,14 @@ public class DirectoryProjectionService {
         }
         String created = createAndClaim(event.source(), event.subjectKey(), event.activated(), event.occurredAt(), knownLocalId);
         if (created != null) {
-            LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), event.subjectKey(), created);
+            // The subject is a DIGEST, never the key itself. `subjectKey` is a patient's email
+            // address (see SiblingDomainEvent), this runs at INFO, and prod runs `net.jojoaddison`
+            // at INFO — so the verbatim key that stood here until 2026-09-07 put one address per
+            // registered patient into Loki, where it is queryable across six products for fourteen
+            // days. The line keeps both handles it needs: `created` names the record, and the digest
+            // is what an operator holding the address searches for. LogPseudonym has the argument
+            // and the one-line command that reproduces it. Backlog item 43.
+            LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), LogPseudonym.subject(event.subjectKey()), created);
         }
         return created;
     }
@@ -504,7 +528,10 @@ public class DirectoryProjectionService {
             .getModifiedCount();
 
         if (claimed == 0) {
-            LOG.debug("Another writer claimed the link for {} first — dropping the record this call made", subjectKey);
+            LOG.debug(
+                "Another writer claimed the link for {} first — dropping the record this call made",
+                LogPseudonym.subject(subjectKey)
+            );
             patientRepository.deleteById(patient.getId());
             return null;
         }

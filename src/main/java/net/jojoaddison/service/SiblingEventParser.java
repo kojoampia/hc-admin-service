@@ -67,11 +67,37 @@ import org.springframework.stereotype.Component;
  * {@link net.jojoaddison.config.DirectoryEventConsumers}.
  *
  * <p>The counterpart of the leniency is that a message which is genuinely for this service and
- * genuinely malformed is dropped with a {@code warn} and nothing else. That is a deliberate trade
- * and the log line names the topic and the first hundred characters, because "the directory did not
- * update" has no other evidence behind it. An unrecognised <em>type</em> is logged at {@code debug}
- * instead: it is the normal, expected condition on somebody else's topic, and a warn per frame would
- * fill the log during a backfill with something nobody should act on.
+ * genuinely malformed is dropped with a {@code warn} and nothing else. That is a deliberate trade,
+ * because "the directory did not update" has no other evidence behind it. An unrecognised
+ * <em>type</em> is logged at {@code debug} instead: it is the normal, expected condition on somebody
+ * else's topic, and a warn per frame would fill the log during a backfill with something nobody
+ * should act on.
+ *
+ * <h3>That warn names a fingerprint of the frame, and no longer an excerpt of it</h3>
+ *
+ * <p>It logged the first hundred characters of the payload until 2026-09-07, and that was <b>the one
+ * statement in this service whose content nobody on this side had vetted</b>: the frame is by
+ * definition one this parser could not read, on a topic this service does not own, so what those
+ * hundred characters hold is whatever a sibling — or anything else with write access to the topic —
+ * put there. Everything else in the item 43 pass is about keeping a <em>known</em> identifier out of
+ * an estate-wide log store; leaving open a channel that copies <em>unknown</em> content into the
+ * same place would have been the same defect with the blame moved.
+ *
+ * <p><b>It is not a loss of diagnosability, and on the question actually asked it is a gain.</b>
+ * What this line has to answer is "is this one frame being redelivered, or many different ones?" —
+ * and two frames that differ after the hundredth character are indistinguishable under truncation
+ * and distinct under a digest. The topic and the parser's own complaint are still named, so the
+ * remaining question is what the bytes say; that is answered deliberately, by reading the frame off
+ * the broker with a console consumer, rather than by mirroring every such frame into a fourteen-day
+ * queryable store shared with five other products on the chance that somebody looks.
+ *
+ * <p>One thing this does <b>not</b> control and should not be assumed to: {@code e.toString()} is
+ * the parser's own exception message, and Jackson historically quoted the offending input in it.
+ * {@code StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION} has defaulted to disabled since Jackson 2.16
+ * and this service is well past that, so the message reads {@code REDACTED} where the source used to
+ * be — but that is a library default rather than something this code asserts, so
+ * {@code SiblingEventParserTest} pins the whole line rather than the argument, and would fail if the
+ * default were ever turned back on.
  *
  * <h2>Timestamps are read from both forms, and a frame without one is not an event</h2>
  *
@@ -146,9 +172,6 @@ public class SiblingEventParser {
 
     private static final String PROFESSIONAL_REGISTRATION_CREATED = "registration.created";
     private static final String PROFESSIONAL_ONBOARDING_STATE = "onboarding.state";
-
-    /** How much of an unreadable frame to put in the log. Enough to identify it, not enough to copy it. */
-    private static final int LOG_EXCERPT = 100;
 
     private static final Logger LOG = LoggerFactory.getLogger(SiblingEventParser.class);
 
@@ -377,7 +400,9 @@ public class SiblingEventParser {
             // The exception's message, not the exception. A topic this service does not own can
             // carry frames it will never parse, and one stack trace per message would bury the log
             // in the shape of a stack trace that is not a failure.
-            LOG.warn("Ignoring an unreadable frame on {} ({}): {}", topic, e.toString(), excerpt(payload));
+            //
+            // A FINGERPRINT, not an excerpt of the bytes — see the class javadoc for the argument.
+            LOG.warn("Ignoring an unreadable frame on {} ({}): {}", topic, e.toString(), LogPseudonym.frame(payload));
             return null;
         }
     }
@@ -415,10 +440,5 @@ public class SiblingEventParser {
     private String text(JsonNode node, String field) {
         String value = node.path(field).asText(null);
         return value == null || value.isBlank() ? null : value;
-    }
-
-    private String excerpt(byte[] payload) {
-        String text = new String(payload, java.nio.charset.StandardCharsets.UTF_8);
-        return text.length() <= LOG_EXCERPT ? text : text.substring(0, LOG_EXCERPT) + "…";
     }
 }
