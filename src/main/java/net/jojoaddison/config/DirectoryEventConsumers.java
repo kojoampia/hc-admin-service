@@ -15,7 +15,7 @@ import org.springframework.messaging.Message;
 /**
  * The subscriptions that let this service's directories learn anything.
  *
- * <h2>Two functions, not a widened one</h2>
+ * <h2>Three functions, not a widened one</h2>
  *
  * <p>This service already has {@code kafkaConsumer}, which reads {@code sse-topic} and fans strings
  * out to browsers. It was tempting to route domain events through it and it would have been wrong:
@@ -25,10 +25,12 @@ import org.springframework.messaging.Message;
  * filter out UI traffic and a browser should not receive domain envelopes it cannot read. The same
  * reasoning gives each inbound stream its own function here.
  *
- * <p><b>Two functions rather than one, because a Spring Cloud Stream function has one destination.</b>
- * The two topics have different envelopes, different subject keys and different owners, and folding
- * them together would mean sniffing the payload to decide which parser to use — a guess, where the
- * binding already knows the answer.
+ * <p><b>One function per topic, because a Spring Cloud Stream function has one destination.</b>
+ * The three topics have different envelopes, different subject keys and different owners, and folding
+ * any two together would mean sniffing the payload to decide which parser to use — a guess, where the
+ * binding already knows the answer. The third arrived with backlog item 47: the two phases of the
+ * professional contract are published by two applications, each to the topic it already owns, so
+ * subscribing to both is the cost of that decision rather than an oversight in it.
  *
  * <h2>Groups, and why each one is written down</h2>
  *
@@ -144,21 +146,73 @@ public class DirectoryEventConsumers {
     }
 
     /**
-     * {@code hc.professional.registration} — registrations and onboarding state, keyed on accountId.
+     * {@code hc.professional.registration} — <b>phase 1</b>, plus onboarding state, keyed on accountId.
      *
      * <p>Bound as {@code professionalDirectoryConsumer-in-0}.
      *
-     * <p><b>The sibling's other topic, {@code hc.professional.entity}, is deliberately not consumed.</b>
-     * It carries {@code entity.created} for entity types this service has no collection for,
-     * {@code message.created} which hc-professional consumes itself to push a websocket nudge to the
-     * recipient, and {@code compliance.alert}. Only the last is arguably admin business, and this
-     * service has no alert surface to put it on — subscribing in order to log it would make the
-     * subscription look like a feature. It is written down in the backlog rather than half-built.
+     * <p>This is the gateway's topic and the gateway is what registers an account, so it is where
+     * {@code AccountStatus} belongs: {@code accountId}, {@code login}, {@code email},
+     * {@code activated}, {@code createdDate}, {@code modifiedDate}. Backlog item 47.
      */
     @Bean
     public Consumer<Message<byte[]>> professionalDirectoryConsumer() {
         return message ->
             handle("hc.professional.registration", () -> parser.parseProfessionalEvent(message.getPayload()).map(projection::apply));
+    }
+
+    /**
+     * {@code hc.professional.entity} — <b>phase 2</b>, the profile status, keyed on the same accountId.
+     *
+     * <p>Bound as {@code professionalProfileConsumer-in-0}.
+     *
+     * <h2>Why there is a third subscription rather than a wider second one</h2>
+     *
+     * <p>A clinician is accepted in two phases, and the two are published by two <em>applications</em>:
+     * hc-professional's gateway registers the account and its api owns the profile. The architect's
+     * decision of 2026-09-07 is that each publishes to the topic it already owns — phase 1 on
+     * {@code hc.professional.registration}, phase 2 on {@code hc.professional.entity} — which keeps
+     * the producer boundary clean and costs this service a subscription. A Spring Cloud Stream
+     * function has one destination, so a second topic is a second function; there was never an option
+     * to widen the one above.
+     *
+     * <p><b>This entry used to say the opposite, and the reversal is the point of reading it.</b>
+     * Until 2026-09-07 the class javadoc for {@code professionalDirectoryConsumer} recorded that
+     * {@code hc.professional.entity} was <em>deliberately not consumed</em>: it carried
+     * {@code entity.created} for entity types this service has no collection for,
+     * {@code message.created}, and {@code compliance.alert}, none of which hc-admin had a surface for.
+     * That reasoning was correct about the topic's contents at the time and is superseded by the
+     * contract putting {@code ProfileStatus} on it, not by anybody deciding the old argument was
+     * wrong.
+     *
+     * <h2>The filter is in the parser, before anything is written</h2>
+     *
+     * <p>Item 35 measured this topic at <b>82% {@code Task}</b>. {@code SiblingEventParser} refuses
+     * everything that is not a profile — by type, then by {@code entityType} — so a backfill from the
+     * earliest offset is a read and a discard rather than thousands of no-op writes.
+     *
+     * <h2>Its own group, its own dead-letter queue, its own offsets</h2>
+     *
+     * <p>{@code hc-admin-directory-professional-profile}, and it may not share
+     * {@code hc-admin-directory-professional}: two consumers in one group split the partitions and
+     * each sees part of the traffic. The cost the decision carries is that following one clinician
+     * through both phases now means reading two {@code --describe} outputs and two DLQs — which is
+     * easy to half-do, so {@code ConfigurationBindingTest} names the third topic, group and dlq
+     * explicitly rather than sweeping for them.
+     *
+     * <p><b>And the function name has to reach every deployment that overrides the definition list.</b>
+     * {@code SPRING_CLOUD_FUNCTION_DEFINITION} <em>replaces</em> the shipped value rather than adding
+     * to it, so a function missing from {@code quality/compose.yml}'s copy is a bean that exists, a
+     * binding that is configured, and no message ever delivered, with nothing logged at any level.
+     * That is item 25's original defect exactly, and it is the reason this subscription is the easiest
+     * one in the estate to ship broken.
+     */
+    @Bean
+    public Consumer<Message<byte[]>> professionalProfileConsumer() {
+        return message ->
+            handle(
+                "hc.professional.entity",
+                () -> parser.parseProfessionalProfileEvent(message.getPayload()).map(projection::applyProfileStatus)
+            );
     }
 
     /**

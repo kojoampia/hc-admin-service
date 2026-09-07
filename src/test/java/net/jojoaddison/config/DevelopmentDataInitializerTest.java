@@ -6,6 +6,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import java.io.InputStream;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneOffset;
@@ -697,7 +698,7 @@ class DevelopmentDataInitializerTest {
         // And the ones from the other stack, which reconcile() never walks at all: it reads
         // HC_PATIENT links only. Their externalKey is an accountId rather than an address, which is
         // why resolveLinkIdentity in the console refuses to fall back to that field. What they are
-        // for is {@link #shouldSeedThreeClinicianLinksThatNoEventCanEverGiveARecord}.
+        // for is {@link #shouldSeedFiveClinicianLinksSpanningBothPhasesOfTheContract}.
         assertThat(test.getDirectoryLinks())
             .filteredOn(link -> link.getSource() == DirectorySource.HC_PROFESSIONAL)
             .isNotEmpty()
@@ -705,8 +706,8 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
-     * <b>Two clinicians this service knows about and holds no record for, which is what backlog item
-     * 46 was reported as.</b>
+     * <b>Five clinicians this service knows about and holds no record for — the five states the
+     * two-phase contract can put one in.</b>
      *
      * <p>A professional who registers on hc-professional reaches this service, is stored as a
      * {@code DirectoryLink} with {@code local_id: null}, and appears in no {@code Professional}
@@ -715,27 +716,40 @@ class DevelopmentDataInitializerTest {
      * version. So the dashboard tile could not move and the directory could not list them, and on
      * production that read as a registration having been lost.
      *
-     * <p><b>Three rows, because they render differently and item 45 was fixed with only the first of
-     * its states reachable.</b> {@code dl-prof} carries an address, so the directory names the
-     * row by it. {@code dl-prof-anon} carries neither an address nor a login — the real state of a
-     * subject whose only event was an {@code onboarding.state}, which the parser's own javadoc says
-     * carries no email at all — so the row has to say that its identity is not on file and say only
-     * that. Without the second, the "unidentified" branch is unreachable on every stack again.
+     * <p><b>Five rows, because they render differently, and every one of them was added after a
+     * branch turned out to be unreachable on every stack but production.</b> That has now happened
+     * three times in this file — item 45's nameless patient, item 46's unidentified clinician, item
+     * 46's review finding a freshly registered one — so the rows for item 47 were written with the
+     * screen open rather than after it.
      *
-     * <p><b>{@code dl-prof-fresh} is the third, added by item 46's own review, and it is the case the
-     * item was reported for.</b> A clinician whose only event is a {@code registration.created} has
-     * <em>no state</em>: that event carries no {@code state} field, and since 2026-09-07 the parser no
-     * longer falls back to the event type — which had been printing the string
-     * {@code "registration.created"} on the panel as if it were a status. So the panel's
-     * no-state branch existed and no fixture reached it, which is the third time in this file that
-     * the newest branch was the unreachable one.
+     * <ul>
+     *   <li>{@code dl-prof} — phase 1 only, <b>not activated</b>. Named by its login, incomplete and
+     *       unverified because no {@code ProfileStatus} has arrived, which the row must render as
+     *       <em>unknown</em> and not as "no".</li>
+     *   <li>{@code dl-prof-anon} — neither an address nor a login, the real state of a subject whose
+     *       only event was an {@code onboarding.state}. It is what makes the "identity not on file"
+     *       branch reachable.</li>
+     *   <li>{@code dl-prof-fresh} — phase 1 only, <b>activated</b>, and with no onboarding state at
+     *       all: {@code registration.created} carries no {@code state} field, and since 2026-09-07
+     *       the parser no longer falls back to the event type. The pair with {@code dl-prof} is what
+     *       makes the two activation states distinguishable on screen, which is why backlog item 47
+     *       added {@code activated} to the display list.</li>
+     *   <li>{@code dl-prof-profile-only} — <b>phase 2 with no phase 1</b>. Not an error and not
+     *       rare enough to leave untested: the two phases are on two topics with no ordering between
+     *       them and both groups read from the earliest offset, so this is normal on every backfill.
+     *       The row must render keyed on the accountId rather than be held back until a name
+     *       arrives.</li>
+     *   <li>{@code dl-prof-complete} — <b>both phases joined</b>, complete and verified, with a
+     *       {@code lastModifiedBy} that is an accountId. The only row on which the phase-2 half of
+     *       the table has anything in it, and still no {@code Professional}.</li>
+     * </ul>
      *
      * <p>Named rather than counted, on {@link #shouldLeaveTwoNamedCellsUnpricedUnderTest}'s
-     * reasoning: "three professional links" would go on passing if one of them quietly gained an
-     * address, which is precisely the state that stops exercising the screen.
+     * reasoning: "five professional links" would go on passing if one of them quietly gained an
+     * address or a profile status, which is precisely the state that stops exercising the screen.
      */
     @Test
-    void shouldSeedThreeClinicianLinksThatNoEventCanEverGiveARecord() throws Exception {
+    void shouldSeedFiveClinicianLinksSpanningBothPhasesOfTheContract() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
         Map<String, DirectoryLink> clinicians = test
@@ -744,7 +758,7 @@ class DevelopmentDataInitializerTest {
             .filter(link -> link.getSource() == DirectorySource.HC_PROFESSIONAL)
             .collect(Collectors.toMap(DirectoryLink::getId, link -> link));
 
-        assertThat(clinicians).as("the rows the professional directory's awaiting-a-record panel is built on").hasSize(3);
+        assertThat(clinicians).as("the rows the professional directory's two-phase table is built on").hasSize(5);
 
         assertThat(clinicians.get("dl-prof"))
             .as("the named half: the panel shows this address where a name would go")
@@ -777,6 +791,48 @@ class DevelopmentDataInitializerTest {
                     .as("the type is still recorded — in the field that is for types")
                     .isEqualTo("registration.created");
                 assertThat(link.getLocalId()).isNull();
+                assertThat(link.getActivated()).as("phase 1 says this account can sign in, and the row shows it").isTrue();
+                assertThat(link.getAccountCreatedDate())
+                    .as("the ACCOUNT's own date, which is not firstSeenAt and must not be rendered as it")
+                    .isEqualTo(Instant.parse("2026-09-07T06:12:00Z"));
+                assertThat(link.getProfileEventAt()).as("and no phase 2 at all: verified and complete are UNKNOWN here").isNull();
+                assertThat(link.getProfileComplete()).isNull();
+                assertThat(link.getProfileVerified()).isNull();
+            });
+
+        assertThat(clinicians.get("dl-prof-profile-only"))
+            .as("phase 2 with no phase 1 — a profile for an account nobody has told this service about")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getLastEventAt())
+                    .as("no registration has been seen: this is the state two topics with no ordering between them produce")
+                    .isNull();
+                assertThat(link.getLogin()).as("so there is nothing to name the row by, and nothing is invented").isNull();
+                assertThat(link.getEmail()).isNull();
+                assertThat(link.getActivated()).as("and activation is unknown rather than false").isNull();
+                assertThat(link.getProfileId()).isEqualTo("prof-profile-9001");
+                assertThat(link.getProfileComplete()).as("reported as incomplete, which is not the same as unreported").isFalse();
+                assertThat(link.getProfileVerified()).isFalse();
+                assertThat(link.getLocalId()).isNull();
+            });
+
+        assertThat(clinicians.get("dl-prof-complete"))
+            .as("both phases, joined on accountId — complete, verified, and still no Professional record")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getLogin()).as("phase 1 names the row; the email is on the wire and off the screen").isEqualTo("yasante");
+                assertThat(link.getActivated()).isTrue();
+                assertThat(link.getProfileComplete()).isTrue();
+                assertThat(link.getProfileVerified()).isTrue();
+                assertThat(link.getProfileLastModifiedBy())
+                    .as("an accountId, which IS the gateway User.id — never a display name")
+                    .isEqualTo("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+                assertThat(link.getProfileModifiedDate())
+                    .as("the profile's own date, which is what the row shows once a ProfileStatus has landed")
+                    .isEqualTo(Instant.parse("2026-09-02T14:47:00Z"));
+                assertThat(link.getLocalId())
+                    .as("a complete, verified profile is still not a role and a licence number, so no record is created")
+                    .isNull();
             });
     }
 

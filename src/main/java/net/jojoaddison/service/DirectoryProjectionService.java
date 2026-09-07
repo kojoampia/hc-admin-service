@@ -12,6 +12,7 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.service.dto.DirectoryReconciliationDTO;
+import net.jojoaddison.service.dto.ProfileStatusEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
 import org.slf4j.Logger;
@@ -265,7 +266,253 @@ public class DirectoryProjectionService {
         // a patient arriving.
         Outcome outcome = localId != null && !hadRecord ? Outcome.CREATED : firstSighting ? Outcome.LINKED : Outcome.UPDATED;
         announce(event, outcome, localId);
+        if (firstSighting && event.source() == DirectorySource.HC_PROFESSIONAL) {
+            warnIfTheTwoPhasesNeverJoin(event.subjectKey());
+        }
         return outcome;
+    }
+
+    /**
+     * Applies one <b>phase-2</b> profile status, and answers what it did.
+     *
+     * <h2>The two phases join on {@code accountId}, and the join is this upsert</h2>
+     *
+     * <p>Backlog item 47 accepts a clinician in two phases: an account first, a profile afterwards.
+     * Both address the same document — {@code (HC_PROFESSIONAL, accountId)} — so pairing them is not
+     * a query anybody has to write correctly, it is the write itself. Two consequences follow, and
+     * they are the two properties item 47 asks for by name:
+     *
+     * <ul>
+     *   <li><b>Either phase may arrive first, or alone.</b> A profile status for an account no
+     *       registration has been seen for opens the link and writes the profile half of it. Nothing
+     *       is dropped and no name is invented — {@code login} and {@code email} stay absent, and the
+     *       console renders that row as "identity not on file, and here is what its profile says",
+     *       which is exactly true.</li>
+     *   <li><b>They cannot disagree, only be incomplete.</b> The two halves are disjoint sets of
+     *       fields on one document: phase 1 writes identity and activation, phase 2 writes the seven
+     *       profile fields, and neither touches the other's. There is no merge rule to get wrong,
+     *       which is deliberate — {@code Patient}'s merge rule is the hardest thing in this class and
+     *       nothing here needed a second one.</li>
+     * </ul>
+     *
+     * <h2>Its own watermark, compared against nothing else</h2>
+     *
+     * <p>{@code profile_event_at}, not {@code last_event_at}. The two phases are published by two
+     * applications with two clocks onto two topics, so their {@code occurredAt} sequences are
+     * independent; comparing a profile event against a registration's watermark would discard it
+     * whenever the gateway ran ahead — silently, and looking exactly like hc-professional not having
+     * published. Within phase 2 the watermark does its usual job: a replayed older status does not
+     * wind {@code isComplete} back.
+     *
+     * <h2>What it may not do</h2>
+     *
+     * <p>It may not create a {@code Professional}, at any level of completeness. Neither phase carries
+     * a {@code role} or a {@code licenceNumber} — the contract deliberately does not — so
+     * {@code local_id} stays null and the clinician stays in the awaiting-a-record panel with real
+     * information on the row instead of no row at all. A fabricated licence number in the directory
+     * that exists to verify licences is the worst available outcome and is what items 27(a), 33, 46
+     * and 47 each refuse in turn.
+     *
+     * <p>Never throws for a message it cannot use, for the reason {@code apply} gives.
+     */
+    public Outcome applyProfileStatus(ProfileStatusEvent event) {
+        if (event == null || event.accountId() == null || event.accountId().isBlank()) {
+            // Silent for the same reason apply's first branch is: SiblingEventParser refuses a
+            // keyless profile frame and warns as it does, so nothing from a consumer reaches here.
+            return Outcome.IGNORED;
+        }
+
+        DirectoryLink previous = upsertProfileLink(event);
+        boolean firstSighting = previous == null;
+
+        if (!firstSighting && previous.getProfileEventAt() != null && event.occurredAt().isBefore(previous.getProfileEventAt())) {
+            LOG.debug(
+                "Ignoring the profile status {} for {} — occurred {} which is before the applied profile watermark {}",
+                event.type(),
+                LogPseudonym.subject(event.accountId()),
+                event.occurredAt(),
+                previous.getProfileEventAt()
+            );
+            return Outcome.STALE;
+        }
+
+        recordProfileStatus(event);
+
+        // LINKED rather than CREATED, and the distinction is the one Outcome already draws: a local
+        // record was not created, because for a clinician none ever is. UPDATED when the account was
+        // already known, whether from phase 1, from an earlier phase 2, or from both.
+        Outcome outcome = firstSighting ? Outcome.LINKED : Outcome.UPDATED;
+        announceProfileStatus(event, outcome, firstSighting);
+        if (firstSighting) {
+            warnIfTheTwoPhasesNeverJoin(event.accountId());
+        }
+        return outcome;
+    }
+
+    /**
+     * Says what a profile status did, at the level the fact deserves.
+     *
+     * <p>{@code INFO} for a first sighting, {@code debug} for an update, which is
+     * {@link #announce}'s split and is here for the same reason: a replay re-reads a whole topic and
+     * one {@code INFO} per frame buries the lines that say something happened.
+     *
+     * <p><b>It names which phase this was, in words.</b> The reported failure behind item 46 was an
+     * operator unable to tell "the event never arrived" from "the event arrived and was deliberately
+     * stored as a link", and phase 2 adds a third state to that question — the account is known and
+     * its profile is not, or the reverse. The line says which, so
+     * {@code grep 'Directory learned'} still finds every kind and a reader chasing a missing clinician
+     * can see how far the two phases got.
+     */
+    private void announceProfileStatus(ProfileStatusEvent event, Outcome outcome, boolean firstSighting) {
+        String subject = LogPseudonym.subject(event.accountId());
+        if (outcome == Outcome.LINKED) {
+            LOG.info(
+                "Directory learned a PROFILE from HC_PROFESSIONAL ({}): {} — phase 2 arrived before phase 1, so this account " +
+                "has a profile status and no registration yet, and no local record is created for a clinician either way",
+                event.type(),
+                subject
+            );
+        } else {
+            LOG.debug(
+                "Applied a profile status {} for {} from HC_PROFESSIONAL — {} (first sighting: {})",
+                event.type(),
+                subject,
+                outcome,
+                firstSighting
+            );
+        }
+    }
+
+    /**
+     * <b>The one failure that looks correct on both sides.</b>
+     *
+     * <p>If hc-professional's two publishers ever key their phases on different identifiers — the
+     * gateway's {@code User.id} against a profile-local id, say — then every event of both kinds is
+     * published, delivered, parsed and stored, both consumer groups sit at lag zero, nothing is
+     * dead-lettered, and this service fills up with rows that can never be paired: half of them named
+     * with no profile, half of them with a profile and no name. Item 47 names it as the failure to
+     * guard, and it is invisible to every check either product can run on itself.
+     *
+     * <p>So it is checked where it becomes detectable — a first sighting on the professional source,
+     * which is the moment a new unpaired row is created — and the condition is deliberately narrow:
+     * <b>no account anywhere has ever had both phases, and there is at least one of each kind waiting
+     * on its own.</b> Either half alone is the ordinary early state of a stack that has consumed one
+     * phase and not the other, and warning about that would be an alarm that is always on.
+     *
+     * <p>It is not perfectly precise and does not need to be. There is a window — the first profile to
+     * arrive out of order, before any account has both — in which it fires and nothing is wrong; that
+     * window closes the moment one account pairs, and the line says what to compare rather than
+     * asserting a fault. A guard that occasionally asks a question beats one that is silent through
+     * the failure it exists for.
+     *
+     * <p>Two counts on a first sighting only, so this costs nothing on the ordinary path.
+     */
+    private void warnIfTheTwoPhasesNeverJoin(String accountId) {
+        Criteria professional = Criteria.where("source").is(DirectorySource.HC_PROFESSIONAL.name());
+        long joined = mongoTemplate.count(
+            Query.query(new Criteria().andOperator(professional, Criteria.where("last_event_at").ne(null), profileSeen())),
+            DirectoryLink.class
+        );
+        if (joined > 0) {
+            return;
+        }
+        long registrationOnly = mongoTemplate.count(
+            Query.query(new Criteria().andOperator(professional, Criteria.where("last_event_at").ne(null), profileUnseen())),
+            DirectoryLink.class
+        );
+        long profileOnly = mongoTemplate.count(
+            Query.query(new Criteria().andOperator(professional, Criteria.where("last_event_at").is(null), profileSeen())),
+            DirectoryLink.class
+        );
+        if (registrationOnly > 0 && profileOnly > 0) {
+            LOG.warn(
+                "No hc-professional account has both phases: {} registrations have no profile status and {} profile statuses " +
+                "have no registration, including {}. The two phases join on accountId and must match exactly — compare the " +
+                "accountId hc-professional's gateway publishes on hc.professional.registration with the one its api publishes " +
+                "on hc.professional.entity. Both streams being healthy is what this failure looks like.",
+                registrationOnly,
+                profileOnly,
+                LogPseudonym.subject(accountId)
+            );
+        }
+    }
+
+    /** A link that phase 2 has written to. The watermark, because it is the field phase 2 always sets. */
+    private static Criteria profileSeen() {
+        return Criteria.where("profile_event_at").ne(null);
+    }
+
+    /** And its complement, which matches a missing field as well as an explicitly null one. */
+    private static Criteria profileUnseen() {
+        return Criteria.where("profile_event_at").is(null);
+    }
+
+    /**
+     * Inserts the link if phase 1 has not already, and answers the state it was in before this call.
+     *
+     * <p><b>Identity fields on insert, and deliberately none of phase 1's content.</b> The subject
+     * kind is {@code PROFESSIONAL} because a profile status on hc-professional's entity topic is by
+     * definition about a clinician; the {@code external_id} is the {@code accountId}, which is what
+     * that field holds for this source. What is <em>not</em> written is a login, an email or an
+     * activation state — phase 2 carries none of them, and defaulting any of them would put a name or
+     * a status on a row that nobody has told this service anything about.
+     */
+    private DirectoryLink upsertProfileLink(ProfileStatusEvent event) {
+        Query query = Query.query(
+            Criteria.where("source").is(DirectorySource.HC_PROFESSIONAL.name()).and("external_key").is(event.accountId())
+        );
+        Update onInsert = new Update()
+            .setOnInsert("source", DirectorySource.HC_PROFESSIONAL)
+            .setOnInsert("external_key", event.accountId())
+            .setOnInsert("external_id", event.accountId())
+            .setOnInsert("subject_kind", DirectorySubjectKind.PROFESSIONAL)
+            .setOnInsert("first_seen_at", event.occurredAt());
+
+        return mongoTemplate.findAndModify(
+            query,
+            onInsert,
+            FindAndModifyOptions.options().upsert(true).returnNew(false),
+            DirectoryLink.class
+        );
+    }
+
+    /**
+     * Writes the seven profile fields, field by field, after the watermark has had its say.
+     *
+     * <p>Each is written only when the event carries it, and a missing one leaves the stored value
+     * alone rather than clearing it — the rule {@link #recordEvent} follows for identity, for the
+     * same reason: a later frame that omits a field is not a frame saying the field is now empty.
+     *
+     * <p><b>The two booleans are written when they are non-null, including when they are false.</b>
+     * That is the difference between "not reported" and "reported as incomplete", and it is the
+     * whole reason they are {@code Boolean} rather than {@code boolean} from the wire down: a
+     * profile going from complete back to incomplete is a real change the console has to be able to
+     * show, and an absent field is not it.
+     */
+    private void recordProfileStatus(ProfileStatusEvent event) {
+        Update update = new Update().set("profile_event_at", event.occurredAt());
+
+        setIfPresent(update, "profile_event_id", event.eventId());
+        setIfPresent(update, "profile_id", event.profileId());
+        setIfPresent(update, "profile_last_modified_by", event.lastModifiedBy());
+        if (event.complete() != null) {
+            update.set("profile_complete", event.complete());
+        }
+        if (event.verified() != null) {
+            update.set("profile_verified", event.verified());
+        }
+        if (event.createdDate() != null) {
+            update.set("profile_created_date", event.createdDate());
+        }
+        if (event.modifiedDate() != null) {
+            update.set("profile_modified_date", event.modifiedDate());
+        }
+
+        mongoTemplate.updateFirst(
+            Query.query(Criteria.where("source").is(DirectorySource.HC_PROFESSIONAL.name()).and("external_key").is(event.accountId())),
+            update,
+            DirectoryLink.class
+        );
     }
 
     /**
@@ -529,11 +776,39 @@ public class DirectoryProjectionService {
             // upsertLink writes the kind on insert only.
             update.set("subject_kind", event.subjectKind());
         }
-        if (event.activated()) {
-            // Monotone: set true, never back to false. The link's copy of the PENDING -> ACTIVE rule
-            // that governs the Patient it names, and it is here so the reconciliation can READ the
-            // answer the consumer reached rather than derive its own from the last event type.
+        // Activation, and the one rule in this method that differs by source.
+        //
+        // HC_PATIENT is monotone — set true, never back to false. That is the link's copy of the
+        // PENDING -> ACTIVE rule governing the Patient it names, and it is here so the reconciliation
+        // can READ the answer the consumer reached rather than derive its own from the last event
+        // type. The stream never says "deactivated" on that side, and an administrator's SUSPENDED
+        // is this service's own decision, which a replay must not undo.
+        //
+        // HC_PROFESSIONAL writes what the event says, INCLUDING false. There the field is phase 1's
+        // `isActivated` (backlog item 47): the account's own state, owned outright by the far side,
+        // and an account that is deactivated after its profile is complete is a state the contract
+        // names explicitly. Nothing local hangs off it — no Professional exists to be promoted — so
+        // there is no administrator's decision to defend, only a fact to record.
+        //
+        // Null is neither, on both sources: no event has said, and the field is left exactly as it
+        // was rather than written false. That is what keeps "not reported" distinguishable from
+        // "deactivated" on the console, and it is why SiblingDomainEvent.activated is a Boolean.
+        if (Boolean.TRUE.equals(event.activated())) {
             update.set("activated", true);
+        } else if (Boolean.FALSE.equals(event.activated()) && event.source() == DirectorySource.HC_PROFESSIONAL) {
+            update.set("activated", false);
+        }
+        // The account's own dates, from phase 1. Written only when the event carries them, and
+        // deliberately NOT defaulted to occurredAt or to now: `first_seen_at` and `last_event_at`
+        // already record when this service heard something, and the whole reason this pair exists is
+        // that those two answer a different question. A createdDate filled in from a frame's arrival
+        // would be a plausible wrong date on a screen headed "created", which is item 45's defect
+        // with a timestamp instead of an id.
+        if (event.accountCreatedDate() != null) {
+            update.set("account_created_date", event.accountCreatedDate());
+        }
+        if (event.accountModifiedDate() != null) {
+            update.set("account_modified_date", event.accountModifiedDate());
         }
         setIfPresent(update, "local_id", localId);
 
@@ -573,7 +848,10 @@ public class DirectoryProjectionService {
         // What this created — or did not — is announced by `apply`, not here. The line that stood on
         // this branch was the whole of the service's visibility, so a LINK_ONLY event wrote nothing
         // at all and an operator could not tell it from an event that never arrived. See `announce`.
-        return createAndClaim(event.source(), event.subjectKey(), event.activated(), event.occurredAt(), knownLocalId);
+        // An event that says nothing about activation is not an event saying the account is inactive:
+        // a new Patient created from one starts PENDING, which is what it started as before this
+        // field became a Boolean and is the honest reading of "nobody has said".
+        return createAndClaim(event.source(), event.subjectKey(), Boolean.TRUE.equals(event.activated()), event.occurredAt(), knownLocalId);
     }
 
     /**
@@ -649,7 +927,7 @@ public class DirectoryProjectionService {
         // PENDING to ACTIVE only. An administrator's SUSPENDED, ON_LEAVE or UNDER_REVIEW is a
         // decision taken here about a person this stream knows nothing about, and a replay of the
         // activation that preceded it must not read as a reinstatement.
-        if (event.activated() && patient.getStatus() == AccountStatus.PENDING) {
+        if (Boolean.TRUE.equals(event.activated()) && patient.getStatus() == AccountStatus.PENDING) {
             patient.setStatus(AccountStatus.ACTIVE);
             changed = true;
         }

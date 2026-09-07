@@ -62,6 +62,7 @@ class DirectoryEventConsumptionIT {
 
     private static final String PATIENT_TOPIC = "patient-events";
     private static final String PROFESSIONAL_TOPIC = "hc.professional.registration";
+    private static final String PROFESSIONAL_ENTITY_TOPIC = "hc.professional.entity";
     private static final String EMAIL = "ama.mensah@directory-consumption-it.example.com";
     private static final String ACCOUNT_ID = "acc-directory-consumption-it";
 
@@ -286,6 +287,217 @@ class DirectoryEventConsumptionIT {
 
         assertThat(professionalRepository.count()).isZero();
         assertThat(patientRepository.count()).as("and a clinician is certainly not a patient").isZero();
+    }
+
+    // --- the two-phase professional contract, backlog item 47 -------------------------------------
+
+    /**
+     * <b>The two phases join on {@code accountId} and produce one row, whichever order they land in.</b>
+     *
+     * <p>This is the contract's central claim and the reason it is asserted in both directions in the
+     * next case: phase 1 is published by hc-professional's gateway to
+     * {@code hc.professional.registration} and phase 2 by its api to {@code hc.professional.entity},
+     * and <em>between two topics there is no ordering at all</em>. Both consumer groups read from the
+     * earliest offset, so either sequence is ordinary.
+     *
+     * <p>Asserted on the fields rather than on a count, because the failure this guards is not "two
+     * rows" — it is one row with half of it silently missing, which a count cannot see.
+     */
+    @Test
+    void bothPhasesLandOnOneRowJoinedOnTheAccountId() {
+        sendProfessional(accountStatus(true));
+        sendProfessionalEntity(profileStatus(ACCOUNT_ID, "2026-09-02T14:47:05Z", true, true));
+
+        assertThat(directoryLinkRepository.count()).as("one clinician is one link, not one per topic").isEqualTo(1);
+
+        DirectoryLink link = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
+        assertThat(link.getLogin()).as("phase 1 — the field the console shows, and never the email").isEqualTo("kboateng");
+        assertThat(link.getActivated()).as("phase 1 — read from the event, never inferred").isTrue();
+        assertThat(link.getAccountCreatedDate()).isEqualTo(Instant.parse("2026-08-19T10:04:00Z"));
+        assertThat(link.getProfileId()).as("phase 2").isEqualTo("prof-9");
+        assertThat(link.getProfileComplete()).isTrue();
+        assertThat(link.getProfileVerified()).isTrue();
+        assertThat(link.getProfileModifiedDate()).isEqualTo(Instant.parse("2026-09-02T14:47:00Z"));
+        assertThat(link.getProfileLastModifiedBy()).isEqualTo("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+
+        assertThat(professionalRepository.count())
+            .as("a complete, verified profile is still not a role and a licence number — no Professional is invented")
+            .isZero();
+    }
+
+    /**
+     * <b>Phase 2 first, which is the ordering the console has to be right about and the one nobody
+     * writes a fixture for.</b>
+     *
+     * <p>A profile status for an account this service has not been told about is <em>not an error</em>
+     * and must not be buffered waiting for a name: the row is created keyed on the {@code accountId},
+     * with the identity fields absent, and phase 1 fills them in when it arrives. Holding it back
+     * would make a clinician invisible for as long as the two topics disagreed, which on a backfill
+     * is the whole backfill.
+     */
+    @Test
+    void aProfileStatusArrivingFirstCreatesTheRowAndPhaseOneFillsItIn() {
+        sendProfessionalEntity(profileStatus(ACCOUNT_ID, "2026-09-02T14:47:05Z", false, false));
+
+        DirectoryLink alone = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
+        assertThat(alone.getSubjectKind())
+            .as("a profile on that topic is a clinician's, so the row knows what it is before it knows who")
+            .isEqualTo(DirectorySubjectKind.PROFESSIONAL);
+        assertThat(alone.getLogin()).as("and nothing is invented to name it by").isNull();
+        assertThat(alone.getEmail()).isNull();
+        assertThat(alone.getActivated()).as("nor is activation guessed from a profile existing").isNull();
+        assertThat(alone.getProfileComplete()).as("reported as incomplete — which is a fact, unlike the nulls above").isFalse();
+        assertThat(alone.getLastEventAt()).as("no phase 1 has been seen, and the row says so by omission").isNull();
+
+        sendProfessional(accountStatus(true));
+
+        DirectoryLink joined = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
+        assertThat(directoryLinkRepository.count()).as("still one row — the second phase filled it in rather than adding one").isEqualTo(1);
+        assertThat(joined.getLogin()).isEqualTo("kboateng");
+        assertThat(joined.getActivated()).isTrue();
+        assertThat(joined.getProfileComplete()).as("and phase 1 did not overwrite phase 2's half").isFalse();
+        assertThat(joined.getProfileId()).isEqualTo("prof-9");
+    }
+
+    /**
+     * <b>Unknown is not false, end to end.</b>
+     *
+     * <p>A clinician with a registration and no profile status has {@code complete} and
+     * {@code verified} <em>unknown</em>. Storing them as false would make the console assert
+     * something about a person from the absence of a message — items 27(a) and 46's prohibition one
+     * column along — and it is exactly the shape a {@code boolean} field or an
+     * {@code asBoolean(false)} at the edge would produce silently.
+     */
+    @Test
+    void aRegistrationWithNoProfileStatusLeavesTheProfileFieldsUnknown() {
+        sendProfessional(accountStatus(false));
+
+        DirectoryLink link = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
+        assertThat(link.getActivated()).as("this account is reported as NOT activated, which is a fact").isFalse();
+        assertThat(link.getProfileComplete()).as("and its profile status is unknown, which is not the same as incomplete").isNull();
+        assertThat(link.getProfileVerified()).isNull();
+        assertThat(link.getProfileEventAt()).isNull();
+    }
+
+    /**
+     * The phase-2 watermark is its own, and comparing it against phase 1's would discard real events.
+     *
+     * <p>Two applications, two clocks, two topics. A profile status dated before the registration's
+     * {@code occurredAt} is entirely ordinary — the profile may genuinely predate the account event
+     * this service happens to have, and the gateway's clock need not agree with the api's — so
+     * sharing {@code last_event_at} would drop it as stale while both streams sat at lag zero.
+     *
+     * <p>Inverted by construction: the profile status here is dated a month <em>before</em> the
+     * registration, so a shared watermark makes this case fail on the profile fields being null.
+     */
+    @Test
+    void thePhaseTwoWatermarkIsSeparateFromPhaseOnes() {
+        sendProfessional(accountStatus(true));
+        sendProfessionalEntity(profileStatus(ACCOUNT_ID, "2026-08-01T09:00:00Z", true, false));
+
+        DirectoryLink link = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
+        assertThat(link.getProfileComplete()).as("an older profile event is not stale against a newer registration").isTrue();
+        assertThat(link.getProfileEventAt()).isEqualTo(Instant.parse("2026-08-01T09:00:00Z"));
+        assertThat(link.getLastEventAt()).as("and phase 1's watermark is untouched by it").isEqualTo(Instant.parse("2026-09-01T08:00:00Z"));
+    }
+
+    /** Within phase 2, the watermark does its usual job: a replayed older status writes nothing. */
+    @Test
+    void anOlderProfileStatusDoesNotWindTheProfileBack() {
+        sendProfessionalEntity(profileStatus(ACCOUNT_ID, "2026-09-02T14:47:05Z", true, true));
+        sendProfessionalEntity(profileStatus(ACCOUNT_ID, "2026-08-01T09:00:00Z", false, false));
+
+        DirectoryLink link = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
+        assertThat(link.getProfileComplete()).as("the replay is older than what has been applied and is discarded").isTrue();
+        assertThat(link.getProfileVerified()).isTrue();
+    }
+
+    /**
+     * <b>The 82%, refused before anything is written.</b>
+     *
+     * <p>Asserted on the collection being empty rather than on the parser answering empty, because
+     * the cost this avoids is a write per frame during a backfill from the earliest offset — and a
+     * consumer that parsed the Task and then declined to store it would pass a parser-level test
+     * while still opening a link for every task in the topic.
+     */
+    @Test
+    void aTaskOnTheEntityTopicWritesNothingAtAll() {
+        sendProfessionalEntity(taskCreated());
+
+        assertThat(directoryLinkRepository.count()).as("this service has no Task and must not learn a clinician from one").isZero();
+    }
+
+    /**
+     * <b>The failure that looks correct on both sides.</b>
+     *
+     * <p>If the two publishers ever key their phases on different identifiers, every event of both
+     * kinds is published, delivered, parsed and stored; both groups sit at lag zero; nothing is
+     * dead-lettered; and this service fills with rows that can never be paired. Backlog item 47 names
+     * it as the one failure to guard, and no check either product can run on itself would see it.
+     *
+     * <p>So it is a {@code WARN}, on the narrow condition that <b>no</b> account has ever had both
+     * phases while there is at least one of each waiting alone. The line names what to compare rather
+     * than asserting a fault, because there is a legitimate window — the first out-of-order profile,
+     * before anything has paired — in which it fires and nothing is wrong. That window closes on the
+     * first pairing, which {@link #theJoinWarningIsSilentOnceAnyAccountHasBothPhases} pins.
+     */
+    @Test
+    void aSystematicAccountIdMismatchIsReportedRatherThanSilent() {
+        sendProfessional(accountStatus(true));
+
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            // The same clinician, from the api, under a key that does not match the gateway's.
+            sendProfessionalEntity(profileStatus("a-different-key-entirely", "2026-09-02T14:47:05Z", true, true));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(directoryLinkRepository.count()).as("two rows for one person, which is what the mismatch produces").isEqualTo(2);
+        assertThat(appender.list)
+            .as("and it has to be reported: both streams are healthy and the console is permanently half empty")
+            .anySatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage())
+                    .contains("accountId")
+                    .contains("hc.professional.registration")
+                    .contains("hc.professional.entity");
+            });
+    }
+
+    /**
+     * And it is silent in the ordinary out-of-order case, which is what stops it being an alarm that
+     * is always on.
+     *
+     * <p>One account with both phases is enough to prove the two producers agree on the key space, so
+     * a second account arriving phase-2-first says nothing about a mismatch — it says the topics are
+     * unordered, which they are.
+     */
+    @Test
+    void theJoinWarningIsSilentOnceAnyAccountHasBothPhases() {
+        sendProfessional(accountStatus(true));
+        sendProfessionalEntity(profileStatus(ACCOUNT_ID, "2026-09-02T14:47:05Z", true, true));
+
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            sendProfessionalEntity(profileStatus("another-clinician", "2026-09-02T14:48:00Z", false, false));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+            .as("an unordered arrival is the primary path, not a fault, and must not warn")
+            .noneSatisfy(event -> assertThat(event.getLevel()).isEqualTo(Level.WARN));
     }
 
     /**
@@ -696,6 +908,21 @@ class DirectoryEventConsumptionIT {
         send(PROFESSIONAL_TOPIC, MessageBuilder.withPayload(json.getBytes(StandardCharsets.UTF_8)).build());
     }
 
+    /**
+     * Phase 2, on the api's own topic — a <b>third</b> binding, and the one likeliest to be shipped
+     * silent.
+     *
+     * <p>If {@code professionalProfileConsumer} is missing from
+     * {@code spring.cloud.function.definition}, or the binding names no destination, this send finds
+     * no channel and {@link #send} turns the binder's {@code NullPointerException} into a sentence
+     * naming the topic. That is the whole reason these cases drive the binding rather than calling
+     * the projection: a configured-but-unsubscribed consumer and a working one are identical from
+     * every other test in this suite.
+     */
+    private void sendProfessionalEntity(String json) {
+        send(PROFESSIONAL_ENTITY_TOPIC, MessageBuilder.withPayload(json.getBytes(StandardCharsets.UTF_8)).build());
+    }
+
     private Optional<DirectoryLink> link(DirectorySource source, String key) {
         return directoryLinkRepository.findSubject(source, key);
     }
@@ -773,6 +1000,49 @@ class DirectoryEventConsumptionIT {
             "\"source\":\"hc-professional-gateway\",\"actor\":\"anonymous\",\"payload\":{\"accountId\":\"" +
             ACCOUNT_ID +
             "\",\"login\":\"kboateng\",\"email\":\"k.boateng@example.com\",\"langKey\":\"en\",\"origin\":\"self-service\"}}"
+        );
+    }
+
+    /**
+     * Phase 1 as backlog item 47 specifies it — the registration envelope plus {@code activated} and
+     * the account's own two dates.
+     */
+    private static String accountStatus(boolean activated) {
+        return (
+            "{\"eventId\":\"evt-account-status\",\"eventType\":\"registration.created\",\"occurredAt\":\"2026-09-01T08:00:00Z\"," +
+            "\"source\":\"hc-professional-gateway\",\"actor\":\"anonymous\",\"payload\":{\"accountId\":\"" +
+            ACCOUNT_ID +
+            "\",\"login\":\"kboateng\",\"email\":\"k.boateng@example.com\",\"activated\":" +
+            activated +
+            ",\"createdDate\":\"2026-08-19T10:04:00Z\",\"modifiedDate\":\"2026-09-01T09:20:00Z\"}}"
+        );
+    }
+
+    /** Phase 2: the profile status, keyed on the same accountId, on hc-professional's entity topic. */
+    private static String profileStatus(String accountId, String occurredAt, boolean complete, boolean verified) {
+        return (
+            "{\"eventId\":\"evt-profile-status\",\"eventType\":\"entity.created\",\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hc-professional-service\",\"actor\":\"admin\"," +
+            "\"payload\":{\"entityType\":\"Profile\",\"profileId\":\"prof-9\",\"accountId\":\"" +
+            accountId +
+            "\",\"isComplete\":" +
+            complete +
+            ",\"isVerified\":" +
+            verified +
+            ",\"createdDate\":\"2026-08-19T11:30:00Z\",\"modifiedDate\":\"2026-09-02T14:47:00Z\"," +
+            "\"lastModifiedBy\":\"a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11\"}}"
+        );
+    }
+
+    /** A Task on the same topic — 82% of it, and none of this service's business. */
+    private static String taskCreated() {
+        return (
+            "{\"eventId\":\"evt-task\",\"eventType\":\"entity.created\",\"occurredAt\":\"2026-09-02T14:47:05Z\"," +
+            "\"source\":\"hc-professional-service\",\"actor\":\"admin\",\"payload\":{\"entityType\":\"Task\"," +
+            "\"entityId\":\"task-1\",\"accountId\":\"" +
+            ACCOUNT_ID +
+            "\"}}"
         );
     }
 

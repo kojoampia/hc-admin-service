@@ -1380,7 +1380,9 @@
         "firstSeenAt": "2026-09-03T13:20:00Z",
         "lastEventAt": "2026-09-05T08:05:00Z",
         "lastEventId": "evt-seed-prof",
-        "lastEventType": "onboarding.state"
+        "lastEventType": "onboarding.state",
+        "accountCreatedDate": "2026-09-03T13:20:00Z",
+        "accountModifiedDate": "2026-09-05T08:05:00Z"
       },
       {
         "id": "dl-prof-anon",
@@ -1407,7 +1409,50 @@
         "firstSeenAt": "2026-09-07T06:12:00Z",
         "lastEventAt": "2026-09-07T06:12:00Z",
         "lastEventId": "evt-seed-prof-fresh",
-        "lastEventType": "registration.created"
+        "lastEventType": "registration.created",
+        "accountCreatedDate": "2026-09-07T06:12:00Z",
+        "accountModifiedDate": "2026-09-07T06:12:00Z"
+      },
+      {
+        "id": "dl-prof-profile-only",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "5e0b9a63-1d47-4c8a-93be-71ca8d6f2b05",
+        "externalId": "5e0b9a63-1d47-4c8a-93be-71ca8d6f2b05",
+        "subjectKind": "PROFESSIONAL",
+        "firstSeenAt": "2026-09-07T05:02:00Z",
+        "profileId": "prof-profile-9001",
+        "profileComplete": false,
+        "profileVerified": false,
+        "profileCreatedDate": "2026-09-07T05:01:30Z",
+        "profileModifiedDate": "2026-09-07T05:01:30Z",
+        "profileLastModifiedBy": "5e0b9a63-1d47-4c8a-93be-71ca8d6f2b05",
+        "profileEventAt": "2026-09-07T05:02:00Z",
+        "profileEventId": "evt-seed-prof-profile-only"
+      },
+      {
+        "id": "dl-prof-complete",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "c41f7b28-6ad9-4e35-8b12-90de4f7a1c63",
+        "externalId": "c41f7b28-6ad9-4e35-8b12-90de4f7a1c63",
+        "login": "yasante",
+        "email": "y.asante@abofonsa.care",
+        "state": "COMPLETED",
+        "subjectKind": "PROFESSIONAL",
+        "activated": true,
+        "accountCreatedDate": "2026-08-19T10:04:00Z",
+        "accountModifiedDate": "2026-09-01T09:20:00Z",
+        "firstSeenAt": "2026-08-19T10:05:00Z",
+        "lastEventAt": "2026-09-01T09:21:00Z",
+        "lastEventId": "evt-seed-prof-complete",
+        "lastEventType": "onboarding.state",
+        "profileId": "prof-profile-8842",
+        "profileComplete": true,
+        "profileVerified": true,
+        "profileCreatedDate": "2026-08-19T11:30:00Z",
+        "profileModifiedDate": "2026-09-02T14:47:00Z",
+        "profileLastModifiedBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "profileEventAt": "2026-09-02T14:47:05Z",
+        "profileEventId": "evt-seed-prof-complete-profile"
       }
     ],
     "professionals": [
