@@ -4,8 +4,6 @@ import java.util.List;
 import java.util.Optional;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.enumeration.DirectorySource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -30,10 +28,16 @@ public interface DirectoryLinkRepository extends MongoRepository<DirectoryLink, 
     @Query("{ 'source': ?0, 'external_key': ?1 }")
     Optional<DirectoryLink> findSubject(DirectorySource source, String externalKey);
 
-    /** The console's list, and the sweep the reconciliation walks. */
-    @Query("{ 'source': ?0 }")
-    Page<DirectoryLink> findBySource(DirectorySource source, Pageable pageable);
-
+    /**
+     * The sweep the reconciliation walks.
+     *
+     * <p>There was a {@code Page}-returning overload beside this one, serving
+     * {@code GET /api/directory-links?source=…}. It went when that handler gained a second optional
+     * filter ({@code localId.in}, backlog item 45) and moved to {@link net.jojoaddison.repository.support.NamedFilters}:
+     * two independent optional filters need four derived methods, which is the growth that support
+     * class exists to stop. This overload stays because the reconciliation wants every link of one
+     * source unpaged, which is not what the endpoint asks for.
+     */
     @Query("{ 'source': ?0 }")
     List<DirectoryLink> findBySource(DirectorySource source);
 }

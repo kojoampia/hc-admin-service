@@ -83,6 +83,83 @@ class DirectoryLinkResourceIT {
     }
 
     /**
+     * The read behind the patient directory's name column, for a patient learned from an event.
+     *
+     * <p>Such a patient has no {@code Profile} and can never be given one from the wire, so the row's
+     * only identity is on the link. The console sends the ids of the nameless rows on the page it is
+     * showing — one request, not one per row — and this is that request.
+     */
+    @Test
+    void filtersByLocalIdSoOnePageCostsOneRequest() throws Exception {
+        DirectoryLink wanted = directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
+        directoryLinkRepository.save(link("someone.else@" + EMAIL, "patient-on-another-page"));
+
+        mvc
+            .perform(get("/api/directory-links").param("localId.in", "patient-on-screen", "an-id-with-no-link"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].id").value(wanted.getId()))
+            .andExpect(jsonPath("$[0].localId").value("patient-on-screen"))
+            // The address is what the screen renders in place of a name. This endpoint may serve it;
+            // a log may not — the class javadoc argues why those are consistent.
+            .andExpect(jsonPath("$[0].email").value(EMAIL));
+    }
+
+    /** The two filters compose rather than one silently winning. */
+    @Test
+    void combinesTheSourceAndLocalIdFilters() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
+
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PATIENT").param("localId.in", "patient-on-screen"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1));
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("localId.in", "patient-on-screen"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isEmpty());
+    }
+
+    /**
+     * Asking for the links of no records is not asking for all of them.
+     *
+     * <p>{@code ?localId.in=} binds to a list holding one empty string, the handler drops the blank,
+     * and {@code NamedFilters} then drops the emptied collection — a filter that vanishes is a query
+     * that returns everything, which that class's own javadoc warns about at the call site.
+     *
+     * <p><b>Verified by inversion rather than by reading it:</b> with the handler's early return
+     * disabled this case fails with {@code X-Total-Count expected:<0> but was:<1>}, so the guard is
+     * what produces the answer and the case is not passing on the {@code $in: [""]} it would
+     * otherwise have built.
+     */
+    @Test
+    void anEmptyLocalIdFilterMatchesNothingRatherThanEverything() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
+
+        mvc
+            .perform(get("/api/directory-links").param("localId.in", ""))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "0"))
+            .andExpect(jsonPath("$").isEmpty());
+    }
+
+    /**
+     * Refused rather than truncated.
+     *
+     * <p>A silently shortened filter returns fewer links than the caller named, and the console would
+     * render the remainder as unresolved — which is the defect this parameter was added to fix,
+     * wearing a different cause.
+     */
+    @Test
+    void refusesMoreLocalIdsThanAPageCouldHold() throws Exception {
+        String[] tooMany = new String[DirectoryLinkResource.MAX_LOCAL_IDS + 1];
+        java.util.Arrays.setAll(tooMany, index -> "id-" + index);
+
+        mvc.perform(get("/api/directory-links").param("localId.in", tooMany)).andExpect(status().isBadRequest());
+    }
+
+    /**
      * A link whose local record has gone — a restore from a backup older than the consumer group's
      * committed offsets, or a row deleted by hand.
      *
