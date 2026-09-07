@@ -149,12 +149,32 @@ public class DirectoryLinkResource {
         if (localIdIn != null && localIdIn.size() > MAX_LOCAL_IDS) {
             throw new BadRequestAlertException("Too many local ids: at most " + MAX_LOCAL_IDS, ENTITY_NAME, "localidintoolong");
         }
-        // Blanks are dropped, and then a filter that was asked for but named nobody answers with
-        // nobody. Both halves matter and neither is theoretical: `?localId.in=` binds to a list of
-        // one empty string rather than to an empty list, so without the trim this would query
-        // `$in: [""]`, and without the early return NamedFilters would drop the emptied collection —
+        // A filter that was asked for but named nobody answers with nobody. Asking for the links of
+        // no records is not asking for all of them — NamedFilters drops an emptied collection, and
         // its own javadoc warns at the call site that a filter which vanishes is a query returning
-        // everything. Asking for the links of no records is not asking for all of them.
+        // everything.
+        //
+        // How a blank parameter actually binds was got WRONG here until 2026-09-07, in this comment,
+        // in the IT's javadoc and in the commit message: all three said `?localId.in=` produces a
+        // list holding one empty string. It does not. Measured against the versions on this
+        // classpath, with a probe controller under standalone MockMvc:
+        //
+        //   ?localId.in=                 -> []          an EMPTY list
+        //   ?localId.in=,                -> ["", ""]
+        //   ?localId.in=&localId.in=     -> ["", ""]
+        //
+        // A single value reaches the type converter as a String and StringToCollectionConverter runs
+        // it through commaDelimitedListToStringArray, which yields nothing at all for "". Two values
+        // reach it as a String[] and every element survives.
+        //
+        // So the EMPTINESS CHECK is the guard, and it is load-bearing: removing it makes both blank
+        // cases in DirectoryLinkResourceIT fail with `X-Total-Count expected:<0> but was:<1>`.
+        // The BLANK-STRIP is a normalisation and nothing more — measured, removing it changes no
+        // outcome at all, because `NamedFilters.in` passes blank elements straight through (its
+        // javadoc says so) and no stored `local_id` is ever the empty string, so `$in: ["", ""]`
+        // matches exactly as little as no query does. It is kept so that all three forms above take
+        // one code path rather than two that happen to agree, and so that a `local_id: ""` arriving
+        // some day cannot turn a blank into a match. Do not describe it as the guard.
         List<String> localIds = localIdIn == null ? null : localIdIn.stream().filter(id -> id != null && !id.isBlank()).toList();
         if (localIds != null && localIds.isEmpty()) {
             Page<DirectoryLink> none = Page.empty(pageable);

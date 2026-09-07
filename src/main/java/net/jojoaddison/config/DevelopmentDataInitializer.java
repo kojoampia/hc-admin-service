@@ -14,6 +14,7 @@ import net.jojoaddison.domain.AuditLog;
 import net.jojoaddison.domain.CareActivity;
 import net.jojoaddison.domain.Category;
 import net.jojoaddison.domain.Contact;
+import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Facility;
 import net.jojoaddison.domain.GeographicSpace;
 import net.jojoaddison.domain.HCProfile;
@@ -44,6 +45,7 @@ import net.jojoaddison.repository.AuditLogRepository;
 import net.jojoaddison.repository.CareActivityRepository;
 import net.jojoaddison.repository.CategoryRepository;
 import net.jojoaddison.repository.ContactRepository;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.DocumentRepository;
 import net.jojoaddison.repository.FacilityRepository;
 import net.jojoaddison.repository.GeographicSpaceRepository;
@@ -101,6 +103,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
     private final HubRepository hubRepository;
     private final AngelRepository angelRepository;
     private final PatientRepository patientRepository;
+    private final DirectoryLinkRepository directoryLinkRepository;
     private final ProfessionalRepository professionalRepository;
     private final VendorRepository vendorRepository;
     private final MessageRepository messageRepository;
@@ -147,6 +150,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         HubRepository hubRepository,
         AngelRepository angelRepository,
         PatientRepository patientRepository,
+        DirectoryLinkRepository directoryLinkRepository,
         ProfessionalRepository professionalRepository,
         VendorRepository vendorRepository,
         MessageRepository messageRepository,
@@ -182,6 +186,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         this.hubRepository = hubRepository;
         this.angelRepository = angelRepository;
         this.patientRepository = patientRepository;
+        this.directoryLinkRepository = directoryLinkRepository;
         this.professionalRepository = professionalRepository;
         this.vendorRepository = vendorRepository;
         this.messageRepository = messageRepository;
@@ -250,6 +255,13 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         save("servicePlans", servicePlanRepository, profileData.getServicePlans());
         save("planFeatures", planFeatureRepository, profileData.getPlanFeatures());
         save("patients", patientRepository, profileData.getPatients());
+        // After the patients, because a link names one by `local_id`. Nothing enforces that either
+        // — see the note above `geographicSpaces` — but the whole reason this collection is seeded
+        // is that without it the console's "a patient learned from an event" path is unreachable on
+        // every stack short of production: `Patient.profile` is null there and only the link names
+        // the person, so a seed with no links renders no such row and exercises none of the code
+        // that draws it (backlog item 45).
+        save("directoryLinks", directoryLinkRepository, profileData.getDirectoryLinks());
         save("vendors", vendorRepository, profileData.getVendors());
         save("messages", messageRepository, profileData.getMessages());
         save("tasks", taskRepository, profileData.getTasks());
@@ -329,6 +341,7 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
         private List<Hub> hubs = new ArrayList<>();
         private List<Angel> angels = new ArrayList<>();
         private List<Patient> patients = new ArrayList<>();
+        private List<DirectoryLink> directoryLinks = new ArrayList<>();
         private List<Professional> professionals = new ArrayList<>();
         private List<Vendor> vendors = new ArrayList<>();
         private List<Message> messages = new ArrayList<>();
@@ -467,6 +480,14 @@ public class DevelopmentDataInitializer implements ApplicationRunner {
 
         public void setPatients(List<Patient> patients) {
             this.patients = nullSafe(patients);
+        }
+
+        public List<DirectoryLink> getDirectoryLinks() {
+            return directoryLinks;
+        }
+
+        public void setDirectoryLinks(List<DirectoryLink> directoryLinks) {
+            this.directoryLinks = nullSafe(directoryLinks);
         }
 
         public List<Professional> getProfessionals() {

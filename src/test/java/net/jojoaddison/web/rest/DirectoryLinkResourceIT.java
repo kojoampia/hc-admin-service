@@ -124,14 +124,30 @@ class DirectoryLinkResourceIT {
     /**
      * Asking for the links of no records is not asking for all of them.
      *
-     * <p>{@code ?localId.in=} binds to a list holding one empty string, the handler drops the blank,
-     * and {@code NamedFilters} then drops the emptied collection — a filter that vanishes is a query
-     * that returns everything, which that class's own javadoc warns about at the call site.
+     * <p><b>The mechanism stated here until 2026-09-07 was wrong.</b> This javadoc, the handler's
+     * comment and the commit message all said {@code ?localId.in=} binds to a list holding one empty
+     * string. Measured against the versions on this classpath, with a probe controller under
+     * standalone MockMvc:
      *
-     * <p><b>Verified by inversion rather than by reading it:</b> with the handler's early return
-     * disabled this case fails with {@code X-Total-Count expected:<0> but was:<1>}, so the guard is
-     * what produces the answer and the case is not passing on the {@code $in: [""]} it would
-     * otherwise have built.
+     * <pre>
+     *   ?localId.in=                 ==&gt; []            an empty list
+     *   ?localId.in=,                ==&gt; ["", ""]
+     *   ?localId.in=&amp;localId.in=     ==&gt; ["", ""]
+     * </pre>
+     *
+     * <p>A single value reaches the converter as a {@code String} and
+     * {@code StringToCollectionConverter} yields nothing for {@code ""}; two values reach it as a
+     * {@code String[]} and every element survives.
+     *
+     * <p><b>Verified by inversion, both halves, and the result is not what the old note claimed
+     * either.</b> Removing the handler's early return fails this case <em>and</em>
+     * {@link #aFilterOfNothingButBlanksMatchesNothingEither} with
+     * {@code X-Total-Count expected:<0> but was:<1>}, so that check is the guard. Removing the
+     * blank-strip fails <b>nothing</b> — all 15 cases stay green — because {@code NamedFilters.in}
+     * passes blank elements through and no stored {@code local_id} is ever the empty string, so
+     * {@code $in: ["", ""]} matches exactly as little as the early return returns. The strip is a
+     * normalisation, kept so the three forms above take one path; it is not what makes the answer
+     * right, and the class it is in now says so too.
      */
     @Test
     void anEmptyLocalIdFilterMatchesNothingRatherThanEverything() throws Exception {
@@ -142,6 +158,42 @@ class DirectoryLinkResourceIT {
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"))
             .andExpect(jsonPath("$").isEmpty());
+    }
+
+    /**
+     * The form that really does bind blanks — the one the old note thought {@code ?localId.in=} was.
+     *
+     * <p>It is here because the binding is surprising and the surprise should be executable rather
+     * than only written down. It does <b>not</b> prove the blank-strip: see the inversion above.
+     */
+    @Test
+    void aFilterOfNothingButBlanksMatchesNothingEither() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
+
+        mvc
+            .perform(get("/api/directory-links").param("localId.in", "", " "))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "0"))
+            .andExpect(jsonPath("$").isEmpty());
+    }
+
+    /**
+     * A blank beside a real id names that id, rather than widening the query or emptying it.
+     *
+     * <p>The case that would go wrong if somebody "simplified" the emptiness check into a blanket
+     * "any blank means match nothing": one stray blank in a page's worth of ids would then unresolve
+     * every row on it.
+     */
+    @Test
+    void aBlankBesideARealIdIsDroppedAndTheRealIdStillMatches() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
+        directoryLinkRepository.save(link("someone.else@" + EMAIL, "patient-on-another-page"));
+
+        mvc
+            .perform(get("/api/directory-links").param("localId.in", "", "patient-on-screen"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].localId").value("patient-on-screen"));
     }
 
     /**

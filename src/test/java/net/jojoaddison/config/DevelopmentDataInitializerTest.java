@@ -13,11 +13,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import net.jojoaddison.domain.DirectoryLink;
+import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.WageRate;
+import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.BillingType;
+import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.domain.enumeration.MessageStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
 import net.jojoaddison.domain.enumeration.ShiftType;
@@ -139,7 +144,7 @@ class DevelopmentDataInitializerTest {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
         assertThat(test.getPersonProfiles()).hasSize(22);
-        assertThat(test.getPatients()).hasSize(12);
+        assertThat(test.getPatients()).hasSize(14);
         assertThat(test.getProfessionals()).hasSize(9);
         assertThat(test.getVendors()).hasSize(9);
         // The relation itself, not just the two collections. Both sides are DBRefs and only the
@@ -589,6 +594,129 @@ class DevelopmentDataInitializerTest {
                     .as("home region of %s", professional.getId())
                     .isEqualTo(parentOf.get(parentOf.get(professional.getHomeSpaceId())))
             );
+    }
+
+    /**
+     * <b>Two patients have no {@code Profile}, and only one of them has a link that names them.</b>
+     *
+     * <p>This is the state a patient learned from a sibling domain event is permanently in — the
+     * streams carry no name, date of birth, phone number or document number, so no {@code Profile}
+     * can be created from one at all — and until 2026-09-07 <b>it existed in production and nowhere
+     * else</b>. Every seeded patient had a profile, so on {@code quality/}, on
+     * {@code deploy/e2e/compose.yml} and under {@code ng serve} with this profile, the console's
+     * whole "name a patient from the link" path returned early on every page and none of it ran:
+     * not the address as a name, not the mailbox initials, not "Identity not on file", not the
+     * {@code localId.in} round trip. Running a quality stack proved nothing about the change,
+     * which is what makes the fixture part of the fix rather than a convenience.
+     *
+     * <p><b>Both states are here because they render differently and neither may be guessed at.</b>
+     * {@code a13} is linked, so the row shows the address off the link. {@code a14} has no link at
+     * all — a real and permanent state, not a pending one — so the row says its name is not on file
+     * and says only that.
+     *
+     * <p>Named rather than counted, for the reason {@link #shouldLeaveTwoNamedCellsUnpricedUnderTest}
+     * gives: "two patients without a profile" would go on passing if a different two lost theirs,
+     * and an accidentally profile-less patient is exactly what a fixture guard should catch.
+     */
+    @Test
+    void shouldSeedAPatientWithNoProfileBothWithAndWithoutALinkToNameThem() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getPatients())
+            .filteredOn(patient -> patient.getProfile() == null)
+            .extracting(Patient::getId)
+            .as("the two rows that exercise the learned-patient rendering")
+            .containsExactlyInAnyOrder("a13", "a14");
+
+        Map<String, DirectoryLink> linkByLocalId = test
+            .getDirectoryLinks()
+            .stream()
+            .filter(link -> link.getLocalId() != null)
+            .collect(Collectors.toMap(DirectoryLink::getLocalId, link -> link));
+
+        assertThat(linkByLocalId.get("a13"))
+            .as("a13 is the linked half: the row shows this address where a name would go")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getEmail()).isEqualTo("naa.adjeley@mail.gh");
+                assertThat(link.getSource()).isEqualTo(DirectorySource.HC_PATIENT);
+                assertThat(link.getSubjectKind()).isEqualTo(DirectorySubjectKind.PATIENT);
+            });
+        assertThat(linkByLocalId).as("a14 is the unlinked half and must stay unlinked").doesNotContainKey("a14");
+    }
+
+    /**
+     * <b>{@code a13} is {@code PENDING}, and the count of pending patients has not moved.</b>
+     *
+     * <p>A patient the consumer opens is {@code PENDING} until the stream says the account is
+     * activated ({@code DirectoryProjectionService.createAndClaim}), so the dashboard's "Needs your
+     * approval" card is where an administrator meets a nameless row first — it joins the profile's
+     * name fields and has no link read behind it, so before this it rendered an empty title under an
+     * empty avatar. Seeding a {@code PENDING} patient with no profile is what makes that reachable.
+     *
+     * <p><b>{@code a12} was flipped to {@code ACTIVE} in the same change and that is deliberate.</b>
+     * {@code dashboard.cy.ts} asserts five approval rows against {@code APPROVAL_ROWS = 5}; a sixth
+     * pending account would push the card into its overflow state and drop the vendor off it, which
+     * is a change to a gate that cannot be run from here. Holding the total keeps that spec's
+     * deliberate fixture coupling intact while the nameless row becomes reachable.
+     */
+    @Test
+    void shouldKeepThePendingApprovalCountWhileMakingOneOfThemNameless() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getPatients())
+            .filteredOn(patient -> patient.getStatus() == AccountStatus.PENDING)
+            .extracting(Patient::getId)
+            .containsExactlyInAnyOrder("a7", "a13");
+    }
+
+    /**
+     * The links that keep no local record, which is the shape {@code /reconcile} has to leave alone.
+     *
+     * <p>A care angel and an erased subject are both links with a null {@code localId} <em>by
+     * design</em>, so "the record is missing" is their normal state — and both were live defects
+     * before 2026-09-05, when an untyped creation path made every nomination an ACTIVE patient and
+     * the erasure event was what started storing them. Seeding them is what lets a person press
+     * Reconcile on a quality stack and see {@code skipped} be a number rather than a zero that
+     * proves nothing.
+     */
+    @Test
+    void shouldSeedTheLinkKindsThatDeliberatelyKeepNoLocalRecord() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getDirectoryLinks())
+            .filteredOn(link -> link.getSubjectKind() == DirectorySubjectKind.CARE_ANGEL)
+            .singleElement()
+            .satisfies(link -> assertThat(link.getLocalId()).as("a nomination never opens a patient record").isNull());
+
+        assertThat(test.getDirectoryLinks())
+            .filteredOn(link -> link.getErasedAt() != null)
+            .singleElement()
+            .satisfies(link -> assertThat(link.getLocalId()).as("an erased subject is not rebuilt as a patient").isNull());
+
+        // And one from the other stack, which reconcile() never walks at all: it reads HC_PATIENT
+        // links only. Its externalKey is an accountId rather than an address, which is why
+        // resolveLinkIdentity in the console refuses to fall back to that field.
+        assertThat(test.getDirectoryLinks())
+            .filteredOn(link -> link.getSource() == DirectorySource.HC_PROFESSIONAL)
+            .singleElement()
+            .satisfies(link -> assertThat(link.getLocalId()).isNull());
+    }
+
+    /**
+     * The natural key is unique, which is what the startup index enforces at runtime.
+     *
+     * <p>{@code DirectoryLinkIndexes} creates a unique index on {@code (source, external_key)}, so a
+     * seed file with two rows sharing one would fail {@code saveAll} — and the initializer catches
+     * per collection, so the failure would be one log line on a stack that otherwise starts
+     * healthily.
+     */
+    @Test
+    void shouldSeedDirectoryLinksWithADistinctNaturalKey() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getDirectoryLinks().stream().map(link -> link.getSource() + "/" + link.getExternalKey()).distinct())
+            .hasSameSizeAs(test.getDirectoryLinks());
     }
 
     /**

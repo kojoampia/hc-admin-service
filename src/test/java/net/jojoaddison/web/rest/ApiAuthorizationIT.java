@@ -225,6 +225,56 @@ class ApiAuthorizationIT {
         mvc.perform(get("/api/patients").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
     }
 
+    // --- directory links: the endpoint that serves the correlation key -----------------------------
+
+    /**
+     * <b>{@code /api/directory-links} serves a patient's email address, and this is the only place
+     * the rule that gates it is executed.</b>
+     *
+     * <p>The endpoint is covered by the blanket read/write split rather than a matcher of its own,
+     * which is correct — but "covered by a blanket rule" and "asserted" are different things, and
+     * every case in {@code DirectoryLinkResourceIT} runs {@code addFilters = false}, so none of them
+     * would notice the chain being opened. The class javadoc on {@code DirectoryLinkResource} argues
+     * at length that this endpoint may return the correlation key <em>because the reader is named and
+     * authorised</em> — item 43 having taken the same value out of every log line — and that argument
+     * is only as good as the authority behind it. So the authority is asserted here, where the filter
+     * chain is on, rather than left implied by the sentence that depends on it.
+     *
+     * <p>Both halves: the read reaches an operator, and the reconciliation — which writes to the
+     * patient directory — does not.
+     */
+    @Test
+    void anOperatorReadsTheDirectoryLinksAndAnAnonymousCallerDoesNot() throws Exception {
+        mvc.perform(get("/api/directory-links").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
+        mvc.perform(get("/api/directory-links").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isOk());
+        mvc.perform(get("/api/directory-links")).andExpect(status().isUnauthorized());
+    }
+
+    /**
+     * Authentication alone is not enough to read somebody's address here.
+     *
+     * <p>{@code ROLE_USER} is the authority every account on this gateway holds as a baseline, and
+     * {@code ROLE_PATIENT} arrives on tokens hc-patient issues against the shared signing key — so
+     * this is the case where a patient could otherwise read the whole directory of addresses.
+     */
+    @Test
+    void neitherAPlainUserNorAPatientReachesTheDirectoryLinks() throws Exception {
+        mvc.perform(get("/api/directory-links").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/directory-links").with(as("ROLE_PATIENT"))).andExpect(status().isForbidden());
+    }
+
+    /**
+     * The reconciliation writes {@code Patient} rows, so it is the administrator's alone.
+     *
+     * <p>The admin half is asserted too, so that "an operator is refused" cannot be satisfied by the
+     * endpoint being unreachable for everybody — which is the same trap the export cases above name.
+     */
+    @Test
+    void onlyAnAdminReconcilesTheDirectory() throws Exception {
+        mvc.perform(post("/api/directory-links/reconcile").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/directory-links/reconcile").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isOk());
+    }
+
     /**
      * Recording a verification is a write, so it is the administrator's.
      *
