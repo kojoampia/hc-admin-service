@@ -161,9 +161,18 @@ class DirectoryLinkResourceIT {
      *
      * <p>This is what the collection really holds: {@code DirectoryProjectionService.setIfPresent}
      * never writes the field until there is a record to name, so every clinician's link is written
-     * <em>without</em> it. A filter built on {@code exists: false} would pass a test whose fixture went
-     * through the Java setter and match nothing in production — the mirror of the defect this whole
-     * item is about.
+     * <em>without</em> it.
+     *
+     * <p><b>The reason given for this case until 2026-09-07 was backwards</b>, here and in the commit
+     * message: both said an {@code exists: false} filter "would pass against a fixture built through
+     * the Java setter and match nothing in production". It is the other way round —
+     * {@code MappingMongoConverter} omits a null property rather than writing an explicit null, so a
+     * {@code DirectoryLink} saved through the setter with no local id has no {@code local_id} field
+     * either, exactly like the document the projection writes. {@code exists: false} would have
+     * matched both. {@code is(null)} is still the right filter, because it is the same match
+     * {@code createAndClaim} uses and it covers an explicit null if one is ever written; the case
+     * still earns its place by inserting the raw document, since that is the shape production really
+     * holds and a fixture is not evidence about it. Only the justification was wrong.
      */
     @Test
     void anUnwrittenLocalIdCountsAsUnlinked() throws Exception {
@@ -182,6 +191,96 @@ class DirectoryLinkResourceIT {
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].externalKey").value("written-by-the-projection"));
+    }
+
+    /**
+     * The corrected half of the case above, made executable rather than only written down.
+     *
+     * <p>A link saved through the Java setter with a null local id carries <b>no</b> {@code local_id}
+     * field, because {@code MappingMongoConverter} omits a null property instead of writing an
+     * explicit null. That is what makes the old justification backwards: the two fixtures produce the
+     * same document, so {@code exists: false} would have matched them both. Asserted here so that a
+     * mapping configuration which started writing nulls — {@code MongoMappingContext} can be told to
+     * — would redden a case that names the property, rather than quietly making one of these two
+     * fixtures stop representing production.
+     */
+    @Test
+    void aNullLocalIdIsNotWrittenToTheDocumentAtAll() {
+        DirectoryLink saved = directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
+        assertThat(saved.getLocalId()).isNull();
+
+        org.bson.Document stored = mongoTemplate.getCollection("directory_link").find().first();
+
+        assertThat(stored).isNotNull();
+        assertThat(stored.containsKey("local_id")).as("a null property is omitted, not written as null").isFalse();
+    }
+
+    /**
+     * <b>A blank {@code unlinked} is a mistake, not a synonym for "do not ask".</b>
+     *
+     * <p>Item 45's review found that a blank {@code ?localId.in=} could silently become no filter at
+     * all; this is the same hole one parameter along, and it is the one that mattered.
+     * {@code unlinked} is a {@code Boolean}, and Spring's converter answers {@code null} for the empty
+     * string with no exception — measured on this classpath — so
+     * {@code ?source=HC_PROFESSIONAL&unlinked=} added no criterion and returned <b>every</b> link of
+     * that source.
+     *
+     * <p>It was not a live defect, which is exactly why it needs a test: the console always sends
+     * {@code true} and every {@code HC_PROFESSIONAL} link is unlinked today, so both answers are the
+     * same page and no screen could have shown the difference. They diverge the day backlog item 35
+     * fills clinician records in, and the panel would then list clinicians who have a record under a
+     * heading saying they have none.
+     *
+     * <p>Inverted, both halves: removing either {@code rejectBlank} call turns the matching case here
+     * from {@code 400} into {@code 200} with the whole source in the body, which is why the count is
+     * asserted on the control request rather than the error being asserted on its own.
+     */
+    @Test
+    void aBlankUnlinkedIsRefusedRatherThanReadAsAbsent() throws Exception {
+        directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
+        DirectoryLink withRecord = clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a12");
+        withRecord.setLocalId("a-clinician-with-a-record");
+        directoryLinkRepository.save(withRecord);
+
+        // The control: two links of this source, one of which the panel must never list.
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "2"));
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"));
+
+        mvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", ""))
+            .andExpect(status().isBadRequest());
+        // Whitespace binds null too, and " " is not blank to every String check in this codebase.
+        mvc.perform(get("/api/directory-links").param("unlinked", " ")).andExpect(status().isBadRequest());
+    }
+
+    /**
+     * The same hole on the other typed parameter, and it composes with the one above.
+     *
+     * <p>{@code ?source=} binds null for the identical reason — the enum converter answers null for
+     * the empty string — so {@code ?source=&unlinked=true} would have listed hc-patient's care angels
+     * and erased subjects in the clinician directory. {@code combinesTheSourceAndUnlinkedFilters}
+     * exists because that page must be one query; this exists because the query must have been asked.
+     */
+    @Test
+    void aBlankSourceIsRefusedToo() throws Exception {
+        directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
+
+        mvc.perform(get("/api/directory-links").param("source", "").param("unlinked", "true")).andExpect(status().isBadRequest());
+    }
+
+    /** Absent stays absent: the refusal is about a blank value, not about the parameter being optional. */
+    @Test
+    void anAbsentFilterIsStillNoFilter() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "a-patient-with-a-record"));
+        directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
+
+        mvc.perform(get("/api/directory-links")).andExpect(status().isOk()).andExpect(header().string("X-Total-Count", "2"));
     }
 
     /** The source and the unlinked filter compose, which is the request the console actually sends. */

@@ -1394,6 +1394,20 @@
         "lastEventAt": "2026-09-06T09:47:00Z",
         "lastEventId": "evt-seed-prof-anon",
         "lastEventType": "onboarding.state"
+      },
+      {
+        "id": "dl-prof-fresh",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "3ac58e10-77b4-4d92-b0e1-8f6a25c7de44",
+        "externalId": "3ac58e10-77b4-4d92-b0e1-8f6a25c7de44",
+        "login": "aowusu",
+        "email": "a.owusu@abofonsa.care",
+        "subjectKind": "PROFESSIONAL",
+        "activated": true,
+        "firstSeenAt": "2026-09-07T06:12:00Z",
+        "lastEventAt": "2026-09-07T06:12:00Z",
+        "lastEventId": "evt-seed-prof-fresh",
+        "lastEventType": "registration.created"
       }
     ],
     "professionals": [

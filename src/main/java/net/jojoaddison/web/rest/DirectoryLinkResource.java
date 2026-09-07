@@ -1,5 +1,6 @@
 package net.jojoaddison.web.rest;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.enumeration.DirectorySource;
@@ -154,6 +155,36 @@ public class DirectoryLinkResource {
      * is a tri-state {@code Boolean} and not a flag: absent means "do not ask", which is what every
      * other caller of this endpoint wants.
      *
+     * <h2>A blank {@code source} or {@code unlinked} is refused, not read as absent</h2>
+     *
+     * <p>Both are typed parameters, and Spring's converters answer {@code null} for the empty string
+     * — measured on this classpath, {@code DefaultConversionService.convert("", Boolean.class)} and
+     * the same call for an enum both return {@code null}, with no exception. So
+     * {@code ?source=HC_PROFESSIONAL&unlinked=} bound {@code unlinked} to null, {@code isNull} added
+     * no criterion, and the request answered with <b>every</b> link of that source. That is item 45's
+     * blank-parameter finding one parameter along: a filter that vanishes is a query that returns
+     * everything.
+     *
+     * <p><b>It was not a live defect and it is still worth an error.</b> The console always sends
+     * {@code true}, and every {@code HC_PROFESSIONAL} link is unlinked today, so the two answers
+     * coincide exactly. They stop coinciding the day backlog item 35 fills clinician records in, and
+     * the wrong answer then is the panel listing clinicians who <em>do</em> have a record under a
+     * heading reading "Registered, no record here yet" — the fabrication this whole item exists to
+     * refuse, arrived at by a query that returned more than it was asked for.
+     *
+     * <p><b>Refused rather than defaulted, and that is the difference from {@code localId.in}.</b>
+     * An empty {@code localId.in} has a safe reading — the links of no records are nobody — so it
+     * answers with an empty page. A blank {@code unlinked} has none: there is no third value of the
+     * tri-state meaning "match nothing", and picking either {@code true} or {@code false} would
+     * invent an answer the caller did not ask for. Same for a blank {@code source}. 400 is the only
+     * honest response, and it follows {@code VendorResource}'s {@code accountId.equals}.
+     *
+     * <p><b>The related trap this cannot close: a rolling deploy in the wrong order.</b> A console
+     * that sends {@code unlinked=true} to an api built before this parameter existed gets every
+     * {@code HC_PROFESSIONAL} link, because Spring drops an <em>undeclared</em> request parameter
+     * silently — the failure the class javadoc opens with, and one no check on either side can see.
+     * Deploy the api before the console.
+     *
      * @param source when present, only that stream's links.
      * @param localIdIn when present, only links naming one of these local records.
      * @param unlinked when present, only the links that have no local record ({@code true}) or only
@@ -165,9 +196,15 @@ public class DirectoryLinkResource {
         @RequestParam(required = false) DirectorySource source,
         @RequestParam(name = "localId.in", required = false) List<String> localIdIn,
         @RequestParam(required = false) Boolean unlinked,
-        @org.springdoc.core.annotations.ParameterObject Pageable pageable
+        @org.springdoc.core.annotations.ParameterObject Pageable pageable,
+        // Not a parameter of this API: the raw request is the only thing left that can tell a blank
+        // typed parameter from an absent one, because the converter has already turned both into
+        // null by the time the arguments above are bound. springdoc ignores it.
+        HttpServletRequest request
     ) {
         LOG.debug("REST request to get a page of DirectoryLinks for source {}, unlinked {}", source, unlinked);
+        rejectBlank(request, "source");
+        rejectBlank(request, "unlinked");
         if (localIdIn != null && localIdIn.size() > MAX_LOCAL_IDS) {
             throw new BadRequestAlertException("Too many local ids: at most " + MAX_LOCAL_IDS, ENTITY_NAME, "localidintoolong");
         }
@@ -222,6 +259,26 @@ public class DirectoryLinkResource {
             : NamedFilters.page(mongoTemplate, DirectoryLink.class, filters, pageable);
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
+    }
+
+    /**
+     * Refuses a typed filter that was sent and left blank.
+     *
+     * <p>Reads the <b>raw</b> value rather than testing the bound argument, and that is the whole
+     * point: a {@code Boolean} or an enum {@code @RequestParam} sent as {@code ?unlinked=} has
+     * already been converted to {@code null}, so by the time the handler runs, "blank" and "absent"
+     * are the same value. Only {@code getParameter} still knows which it was.
+     *
+     * <p>Deliberately <b>not</b> applied to {@code localId.in}. That one is a collection with a safe
+     * empty reading, it is answered with an empty page a few lines below, and two
+     * {@code DirectoryLinkResourceIT} cases pin that answer — turning it into a 400 would be a
+     * behaviour change nobody asked for on the parameter that is already right.
+     */
+    private static void rejectBlank(HttpServletRequest request, String name) {
+        String raw = request.getParameter(name);
+        if (raw != null && raw.isBlank()) {
+            throw new BadRequestAlertException(name + " was sent but is blank", ENTITY_NAME, "blankfilter");
+        }
     }
 
     /**

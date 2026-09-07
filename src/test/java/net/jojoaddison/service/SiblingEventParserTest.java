@@ -205,6 +205,16 @@ class SiblingEventParserTest {
         assertThat(event.activated()).as("onboarding says nothing about whether an account can sign in").isFalse();
     }
 
+    /**
+     * <b>A registration reports no onboarding state, and must not invent one from its own type.</b>
+     *
+     * <p>{@code state} is the one field the console renders verbatim, on the awaiting-a-record panel
+     * that backlog item 46 added. This parser fell back to the event type where the payload carried
+     * no {@code state}, so a clinician who had just registered — the exact case item 46 was reported
+     * for — was shown as "no record in this directory · registration.created": a wire identifier
+     * printed as a status. The type is stored in its own right as {@code lastEventType}; this field
+     * is the far side's own word or nothing.
+     */
     @Test
     void readsAProfessionalRegistration() {
         SiblingDomainEvent event = parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow();
@@ -215,6 +225,7 @@ class SiblingEventParserTest {
         assertThat(event.email()).isEqualTo("k.boateng@example.com");
         assertThat(event.login()).isEqualTo("kboateng");
         assertThat(event.activated()).isTrue();
+        assertThat(event.state()).as("registration.created carries no state, and the type is not one").isNull();
     }
 
     /**

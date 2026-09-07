@@ -205,6 +205,12 @@ public class DirectoryProjectionService {
      */
     public Outcome apply(SiblingDomainEvent event) {
         if (event == null || event.subjectKey() == null || event.subjectKey().isBlank()) {
+            // Deliberately silent, and the only one of the three early returns that is.
+            // SiblingEventParser refuses a keyless frame on both topics and WARNs as it does, so
+            // nothing arriving from a consumer reaches this line — it guards a caller other than
+            // the consumer, and a second warning would be the same fact twice. It also cannot go
+            // through announce(): that method's first act is to digest event.subjectKey(), which is
+            // the value this branch exists because it has not got.
             return Outcome.IGNORED;
         }
 
@@ -282,10 +288,31 @@ public class DirectoryProjectionService {
      * question is answered by reading rather than by inferring from an absence.
      *
      * <p><b>Stated on the outcome rather than added to a second branch</b>, which is the part worth
-     * keeping: a third disposition, or a fourth subject kind, is logged by construction instead of by
-     * somebody remembering. {@link Outcome#UPDATED}, {@link Outcome#STALE} and {@link Outcome#IGNORED}
-     * stay at {@code debug} — a replay re-reads a whole topic, and one {@code INFO} per frame would
-     * bury the two lines that say something happened.
+     * keeping — but it covers less than this javadoc claimed until 2026-09-07, and the difference is
+     * the whole defect being fixed, so it is spelled out rather than glossed:
+     *
+     * <ul>
+     *   <li><b>A new subject kind is covered by construction.</b> The kind is read off the event by
+     *       {@code subjectKindOf} inside the two {@code INFO} branches, so a fourth one is named
+     *       without touching this method at all.</li>
+     *   <li><b>A new <em>disposition</em> is covered only if it reaches here.</b> {@code apply} has
+     *       three early returns that never call this method: a null or keyless event answers
+     *       {@link Outcome#IGNORED} silently, an {@code UPDATE_ONLY} event for an unknown subject
+     *       logs its own {@code debug} at the point it decides, and a stale frame does the same. So
+     *       {@code default} below is reached for {@link Outcome#UPDATED} and nothing else. A
+     *       disposition added with an early return of its own would be exactly as silent as
+     *       {@link Disposition#LINK_ONLY} was, which is the defect this method exists to fix — the
+     *       mechanism to copy is the two lines above it, not this method's existence.</li>
+     * </ul>
+     *
+     * <p>The three early returns were left where they are rather than routed through here on purpose:
+     * each says <em>why</em> it declined, naming the type, the subject and the watermark it compared
+     * against, and the generic line below would replace that with the word {@code IGNORED}. Two
+     * {@code debug} lines that diagnose beat one {@code debug} line that is uniform.
+     *
+     * <p>{@link Outcome#UPDATED}, {@link Outcome#STALE} and {@link Outcome#IGNORED} are all at
+     * {@code debug} wherever they are written — a replay re-reads a whole topic, and one {@code INFO}
+     * per frame would bury the two lines that say something happened.
      *
      * <p><b>The subject is a digest and never the key</b>, at every level, for the reason
      * {@link LogPseudonym} gives at length: {@code subjectKey} is a patient's email address, these
@@ -321,6 +348,9 @@ public class DirectoryProjectionService {
                 subject,
                 event.disposition()
             );
+            // UPDATED, and today nothing else — STALE and IGNORED return before this method is
+            // called and log at the point they decide, which is where the reason is known. A new
+            // Outcome that also returns early lands nowhere: see the javadoc's second bullet.
             default -> LOG.debug("Applied {} for {} from {} — {}", event.type(), subject, event.source(), outcome);
         }
     }

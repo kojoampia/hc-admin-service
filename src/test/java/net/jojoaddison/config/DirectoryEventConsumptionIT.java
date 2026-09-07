@@ -258,10 +258,25 @@ class DirectoryEventConsumptionIT {
      * {@code ValidatingMongoEventListener} enforces both; neither is on a registration event, because
      * they are what credentialing collects. A row carrying a made-up licence number, in the directory
      * whose purpose is verifying licences, would be the most plausible possible wrong answer.
+     *
+     * <p>The two frames are asserted apart as well as together, because the registration on its own is
+     * the case item 46 was reported for and it renders differently: {@code state} is the one field the
+     * console prints verbatim, and this parser fell back to the event type where the payload carried
+     * none, so a clinician who had just registered was shown as "· registration.created".
      */
     @Test
     void aProfessionalRegistrationIsRecordedWithoutInventingALicence() {
         sendProfessional(registrationCreated());
+
+        assertThat(link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow())
+            .as("a registration is not a stage of onboarding, and its own type is not a state")
+            .satisfies(fresh -> {
+                assertThat(fresh.getState()).isNull();
+                assertThat(fresh.getLastEventType())
+                    .as("the type is recorded, in the field that is for types")
+                    .isEqualTo("registration.created");
+            });
+
         sendProfessional(onboardingState("COMPLETED"));
 
         DirectoryLink link = link(DirectorySource.HC_PROFESSIONAL, ACCOUNT_ID).orElseThrow();
@@ -615,9 +630,21 @@ class DirectoryEventConsumptionIT {
      * the address would delete the assertion; filtering by the two classes that relay somebody else's
      * output keeps it whole. The suffix rather than two literal names, so a third container added
      * later is covered — {@code PaginationIT}'s reasoning about enumerations, one test along.
+     *
+     * <p><b>The package is checked as well as the suffix, since 2026-09-07.</b> The suffix alone also
+     * matches a <em>main</em> class called anything{@code TestContainer} — nothing is named that
+     * today, and a rule that silently widens the day one is would be this test quietly excusing a
+     * production logger from the only guard it has. {@code net.jojoaddison.config} is where both
+     * container classes live and where a third would go; a container added somewhere else fails this
+     * test loudly, which is the right way round.
      */
     private static List<ILoggingEvent> thisServicesOwnStatements(List<ILoggingEvent> captured) {
-        return captured.stream().filter(event -> !event.getLoggerName().endsWith("TestContainer")).toList();
+        return captured
+            .stream()
+            .filter(event ->
+                !(event.getLoggerName().startsWith("net.jojoaddison.config.") && event.getLoggerName().endsWith("TestContainer"))
+            )
+            .toList();
     }
 
     // --- driving the bindings ---------------------------------------------------------------------

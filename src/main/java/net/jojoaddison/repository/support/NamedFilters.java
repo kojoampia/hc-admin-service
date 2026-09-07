@@ -47,6 +47,14 @@ public final class NamedFilters {
      * returns everything. Where a filter decides <em>who the caller is</em> rather than what they are
      * browsing, reject the blank at the handler instead — {@code VendorResource}'s
      * {@code accountId.equals} does, and says why.
+     *
+     * <p><b>A blank never reaches a non-String operator as a blank, which is why the rule above is
+     * not enough on its own.</b> Spring's own converters answer {@code null} for the empty string —
+     * measured on this classpath, {@code DefaultConversionService.convert("", Boolean.class)} and the
+     * same for an enum both return {@code null} — so {@code ?unlinked=} and {@code ?source=} arrive
+     * here already indistinguishable from having been left off. Nothing in this class can tell the
+     * two apart, and nothing in it should try: the handler is the only place that still holds the raw
+     * request. {@code DirectoryLinkResource} refuses both, and says why there.
      */
     public static final class Builder {
 
@@ -79,8 +87,15 @@ public final class NamedFilters {
 
         /**
          * Whether the field is unset — {@code TRUE} for the documents that do not carry a value,
-         * {@code FALSE} for the ones that do. A null asks nothing, like every other operator here,
-         * which is what lets a handler pass an absent {@code @RequestParam} straight through.
+         * {@code FALSE} for the ones that do. A null asks nothing, like every other operator here.
+         *
+         * <p><b>Null means "was not asked", and that is not the same as "was left blank" — the
+         * caller has to have decided which it is before calling.</b> This javadoc said a null was
+         * what lets a handler pass an absent {@code @RequestParam} straight through, which conflated
+         * the two: a {@code Boolean @RequestParam} sent as {@code ?unlinked=} binds null as well, so
+         * a handler passing its parameter straight through drops the filter and answers with the
+         * whole collection. That is item 45's own review finding, one parameter along, and it is why
+         * {@code DirectoryLinkResource} rejects the blank before it gets here.
          *
          * <p>{@code is(null)} matches a <b>missing</b> field as well as an explicitly null one, and
          * that is the behaviour wanted rather than a tolerated approximation: nothing in this service
