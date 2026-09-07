@@ -113,6 +113,13 @@ public class DirectoryLink implements Serializable {
      * The last lifecycle state this subject was reported in — an event type for hc-patient, the
      * {@code state} payload field for hc-professional's {@code onboarding.state}.
      *
+     * <p><b>Null for a clinician whose only event is a {@code registration.created}</b>, and that is
+     * the intended answer rather than a gap: that event carries no {@code state} field, because a
+     * registration is not a stage of onboarding. The parser fell back to the event type here until
+     * 2026-09-07, which put the string {@code "registration.created"} on the console's
+     * awaiting-a-record panel, where this field is rendered verbatim. {@link #lastEventType} is where
+     * the type is recorded, and it always was.
+     *
      * <p>A free string on purpose. Both producers say plainly that a consumer meeting a type it does
      * not know must ignore it, so binding this to an enum here would turn "they added an event"
      * into "this service refuses a message".

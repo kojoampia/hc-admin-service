@@ -178,6 +178,13 @@ public class DirectoryEventConsumers {
      * returned one and nothing looked at it, so the enum described behaviour rather than reporting it —
      * and "a care angel was linked and no record made" is exactly the kind of thing that has to be
      * visible in a log when somebody asks why a registration did not appear.
+     *
+     * <p><b>This line stays at {@code debug} and is deliberately not the answer to that question.</b>
+     * It names the topic, which is what the binder's own message does not; what happened to the
+     * subject is announced by {@code DirectoryProjectionService.announce}, at {@code INFO}, where the
+     * outcome is decided and where the subject can be named as a digest. Two {@code INFO} lines per
+     * frame, one of them without a subject on it, would be a worse log than one — and the reason the
+     * production case was invisible was an absent statement, not a quiet one. Backlog item 46.
      */
     private void handle(String topic, Supplier<Optional<DirectoryProjectionService.Outcome>> body) {
         try {

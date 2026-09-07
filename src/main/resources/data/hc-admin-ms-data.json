@@ -1278,7 +1278,7 @@
       {
         "id": "a12",
         "isArchived": false,
-        "status": "PENDING",
+        "status": "ACTIVE",
         "joinedOn": "2026-08-04",
         "lastActiveOn": "2026-08-04",
         "caseCount": 0,
@@ -1303,6 +1303,111 @@
           "id": "hub-1",
           "name": "Accra Hub"
         }
+      },
+      {
+        "id": "a13",
+        "isArchived": false,
+        "status": "PENDING",
+        "joinedOn": "2026-09-06",
+        "lastActiveOn": "2026-09-06",
+        "caseCount": 0
+      },
+      {
+        "id": "a14",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2026-09-06",
+        "lastActiveOn": "2026-09-06",
+        "caseCount": 0
+      }
+    ],
+    "directoryLinks": [
+      {
+        "id": "dl-a13",
+        "source": "HC_PATIENT",
+        "externalKey": "naa.adjeley@mail.gh",
+        "externalId": "hcp-8814",
+        "login": "nadjeley",
+        "email": "naa.adjeley@mail.gh",
+        "state": "OnboardingStarted",
+        "subjectKind": "PATIENT",
+        "activated": true,
+        "localId": "a13",
+        "firstSeenAt": "2026-09-06T07:41:00Z",
+        "lastEventAt": "2026-09-06T07:43:12Z",
+        "lastEventId": "evt-seed-a13-2",
+        "lastEventType": "OnboardingStarted"
+      },
+      {
+        "id": "dl-angel",
+        "source": "HC_PATIENT",
+        "externalKey": "kojo.sarsah@mail.gh",
+        "login": "ksarsah",
+        "email": "kojo.sarsah@mail.gh",
+        "state": "AccountCreated",
+        "subjectKind": "CARE_ANGEL",
+        "activated": true,
+        "firstSeenAt": "2026-09-05T16:02:00Z",
+        "lastEventAt": "2026-09-05T16:02:00Z",
+        "lastEventId": "evt-seed-angel",
+        "lastEventType": "AccountCreated"
+      },
+      {
+        "id": "dl-erased",
+        "source": "HC_PATIENT",
+        "externalKey": "former.patient@mail.gh",
+        "login": "fpatient",
+        "email": "former.patient@mail.gh",
+        "state": "DeletionRequestChanged",
+        "subjectKind": "PATIENT",
+        "activated": true,
+        "erasedAt": "2026-09-04T09:30:00Z",
+        "firstSeenAt": "2026-08-30T11:15:00Z",
+        "lastEventAt": "2026-09-04T09:30:00Z",
+        "lastEventId": "evt-seed-erased",
+        "lastEventType": "DeletionRequestChanged"
+      },
+      {
+        "id": "dl-prof",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11",
+        "externalId": "9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11",
+        "login": "kquartey",
+        "email": "k.quartey@abofonsa.care",
+        "state": "DOCUMENTS_SUBMITTED",
+        "subjectKind": "PROFESSIONAL",
+        "activated": false,
+        "firstSeenAt": "2026-09-03T13:20:00Z",
+        "lastEventAt": "2026-09-05T08:05:00Z",
+        "lastEventId": "evt-seed-prof",
+        "lastEventType": "onboarding.state"
+      },
+      {
+        "id": "dl-prof-anon",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "b7d21c04-9e63-4f18-8a77-2c5e9f04ab32",
+        "externalId": "b7d21c04-9e63-4f18-8a77-2c5e9f04ab32",
+        "state": "APPLICATION_SUBMITTED",
+        "subjectKind": "PROFESSIONAL",
+        "activated": false,
+        "firstSeenAt": "2026-09-06T09:47:00Z",
+        "lastEventAt": "2026-09-06T09:47:00Z",
+        "lastEventId": "evt-seed-prof-anon",
+        "lastEventType": "onboarding.state"
+      },
+      {
+        "id": "dl-prof-fresh",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "3ac58e10-77b4-4d92-b0e1-8f6a25c7de44",
+        "externalId": "3ac58e10-77b4-4d92-b0e1-8f6a25c7de44",
+        "login": "aowusu",
+        "email": "a.owusu@abofonsa.care",
+        "subjectKind": "PROFESSIONAL",
+        "activated": true,
+        "firstSeenAt": "2026-09-07T06:12:00Z",
+        "lastEventAt": "2026-09-07T06:12:00Z",
+        "lastEventId": "evt-seed-prof-fresh",
+        "lastEventType": "registration.created"
       }
     ],
     "professionals": [

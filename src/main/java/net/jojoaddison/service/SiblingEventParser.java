@@ -289,9 +289,24 @@ public class SiblingEventParser {
             return Optional.empty();
         }
 
-        // `state` where the event carries one (onboarding.state does, registration.created does
-        // not), otherwise the type itself — so the link always records something a reader can act
-        // on rather than sometimes recording null.
+        // The far side's own word for how far onboarding has got, or nothing at all. Only
+        // `onboarding.state` carries one; `registration.created` has no `state` field, because a
+        // registration is not a stage of onboarding.
+        //
+        // THIS FELL BACK TO THE EVENT TYPE until 2026-09-07, on the reasoning that the link should
+        // "always record something a reader can act on rather than sometimes recording null". It
+        // recorded the wrong thing instead: `state` is the one field the console renders verbatim
+        // on the awaiting-a-record panel, so a freshly registered clinician — the exact case backlog
+        // item 46 was reported for — read "no record in this directory · registration.created", a
+        // wire identifier printed as if it were a status. Nothing is lost by dropping it: the type
+        // is already stored in its own right on `last_event_type`, and the panel renders no suffix
+        // at all when there is no state, which is the honest answer for somebody who has just
+        // registered and started nothing.
+        //
+        // hc-patient's half of this parser deliberately does the opposite and stores the type here.
+        // That is not an inconsistency to tidy away: on that stream the type IS the lifecycle
+        // (`AccountCreated`, `OnboardingStarted`), where on this one the two are separate fields
+        // published by a producer that models them separately.
         String state = text(content, "state");
 
         return Optional.of(
@@ -304,7 +319,7 @@ public class SiblingEventParser {
                 text(content, "email"),
                 text(content, "login"),
                 accountId,
-                state != null ? state : type,
+                state,
                 // A registration is an account that exists and can sign in; hc-professional has no
                 // separate activation event on this topic. Onboarding state changes say nothing
                 // about sign-in and must not move a status.

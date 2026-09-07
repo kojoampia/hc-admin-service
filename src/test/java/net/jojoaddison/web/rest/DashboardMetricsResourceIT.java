@@ -1,11 +1,16 @@
 package net.jojoaddison.web.rest;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import net.jojoaddison.IntegrationTest;
+import net.jojoaddison.domain.DirectoryLink;
+import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -39,6 +44,9 @@ class DashboardMetricsResourceIT {
     @Autowired
     private MockMvc restMockMvc;
 
+    @Autowired
+    private DirectoryLinkRepository directoryLinkRepository;
+
     @Test
     void endpointAnswers() throws Exception {
         restMockMvc
@@ -68,6 +76,7 @@ class DashboardMetricsResourceIT {
             "$.sparklines",
             "$.capabilities",
             "$.uptime",
+            "$.professionalsAwaitingRecord",
         }
     )
     void servesEveryFieldTheClientReads(String path) throws Exception {
@@ -129,6 +138,116 @@ class DashboardMetricsResourceIT {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.uptime.percent").doesNotExist())
             .andExpect(jsonPath("$.uptime.windowDays").value(7));
+    }
+
+    /**
+     * <b>A clinician this service knows about and holds no record for is counted, and counted
+     * apart.</b>
+     *
+     * <p>Backlog item 46, reported from production: a professional registered, the consumer group's
+     * offset moved with no lag, the link was written — and the dashboard did not move, because
+     * {@code network.professionals} counts {@code Professional} documents and a link is not one. It
+     * still counts documents, deliberately; what is new is that the ones with no document are a figure
+     * of their own rather than nothing at all.
+     *
+     * <p>The tile's own number is asserted here too, and that is the point of the case rather than
+     * thoroughness: the way this goes wrong is somebody folding the links into
+     * {@code network.professionals} to make the tile move, which would silently redefine three other
+     * figures derived from that collection — the account-mix chart, the professionals sparkline whose
+     * last point {@code SparklinesIT} pins to this number, and {@code loaded}.
+     *
+     * <p><b>A before/after delta, not {@code == 1} and {@code == 0}.</b> It was the literals until
+     * 2026-09-07, which made this case depend on no other integration test leaving an
+     * {@code HC_PROFESSIONAL} link behind — a dependency nothing declares and nothing enforces, in a
+     * repository whose backlog carries three separate incidents of a literal another test could move
+     * (items 15, 34 and 45). The delta is immune to it and says the same thing more exactly: what is
+     * being asserted is that <em>one</em> link moves this figure by one and the other figure not at
+     * all, which is the property, where "the answer is 1" is a coincidence of an empty database.
+     */
+    @Test
+    void countsTheCliniciansItKnowsAboutSeparatelyFromTheOnesItHasRecordsFor() throws Exception {
+        int awaitingBefore = readInt("$.professionalsAwaitingRecord");
+        int professionalsBefore = readInt("$.network.professionals");
+
+        DirectoryLink clinician = new DirectoryLink();
+        clinician.setSource(DirectorySource.HC_PROFESSIONAL);
+        clinician.setExternalKey("acc-dashboard-metrics-it");
+        clinician.setSubjectKind(DirectorySubjectKind.PROFESSIONAL);
+        directoryLinkRepository.save(clinician);
+
+        try {
+            restMockMvc
+                .perform(get(ENDPOINT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.professionalsAwaitingRecord").value(awaitingBefore + 1))
+                .andExpect(jsonPath("$.network.professionals").value(professionalsBefore));
+        } finally {
+            directoryLinkRepository.deleteById(clinician.getId());
+        }
+    }
+
+    /**
+     * <b>The tile and the list it links to are one rule, not two spellings of it.</b>
+     *
+     * <p>The dashboard counts through {@code DirectoryLinkRepository.countBySourceWithNoLocalRecord}
+     * and the professional directory lists through
+     * {@code GET /api/directory-links?source=HC_PROFESSIONAL&unlinked=true}. Those are two queries,
+     * and a figure that disagrees with the rows underneath it is the defect this dashboard has
+     * already had twice — the hero saying 0% cover over a grid saying 80%, and an account-mix chart
+     * counted a second time. Asserted against each other rather than each against a literal, which
+     * would pass with both wrong the same way.
+     *
+     * <p>The "non-zero first" guard is a <b>delta</b> since 2026-09-07 and no longer the literal
+     * {@code "1"}, for the reason given on the case above: the literal was a claim about every other
+     * integration test in the suite, not about this one. Both readings still have to move, and move
+     * together — two counts that agree on a number neither of them changed would prove nothing.
+     */
+    @Test
+    void theTileAgreesWithTheListItSendsYouTo() throws Exception {
+        int listedBefore = listedAwaitingClinicians();
+        int tileBefore = readInt("$.professionalsAwaitingRecord");
+
+        DirectoryLink clinician = new DirectoryLink();
+        clinician.setSource(DirectorySource.HC_PROFESSIONAL);
+        clinician.setExternalKey("acc-dashboard-metrics-it-agreement");
+        clinician.setSubjectKind(DirectorySubjectKind.PROFESSIONAL);
+        directoryLinkRepository.save(clinician);
+
+        try {
+            int listed = listedAwaitingClinicians();
+
+            // Both readings moved, by this one link: two figures agreeing on a number that neither
+            // of them changed is the state every stack that has consumed no registration is in, and
+            // it would pass with the endpoint returning a constant.
+            assertThat(listed).as("the list is one longer for the link just written").isEqualTo(listedBefore + 1);
+            restMockMvc
+                .perform(get(ENDPOINT))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.professionalsAwaitingRecord").value(listed))
+                .andExpect(jsonPath("$.professionalsAwaitingRecord").value(tileBefore + 1));
+        } finally {
+            directoryLinkRepository.deleteById(clinician.getId());
+        }
+    }
+
+    /** One figure off the dashboard payload, so a case can assert what a write moved rather than what it landed on. */
+    private int readInt(String jsonPath) throws Exception {
+        return com.jayway.jsonpath.JsonPath.read(
+            restMockMvc.perform(get(ENDPOINT)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString(),
+            jsonPath
+        );
+    }
+
+    /** The same rule read the other way — through the endpoint the tile links to. */
+    private int listedAwaitingClinicians() throws Exception {
+        String total = restMockMvc
+            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getHeader("X-Total-Count");
+        assertThat(total).as("every list endpoint here is paginated and says so in a header").isNotNull();
+        return Integer.parseInt(total);
     }
 
     /** Capabilities are present even on an empty database, and none of them claims to be Live. */

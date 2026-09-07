@@ -133,10 +133,13 @@ import org.springframework.stereotype.Service;
  * <h2>The subject key is never logged, at any level</h2>
  *
  * <p><b>{@code subjectKey} is a patient's email address</b> — {@link SiblingDomainEvent}'s own
- * javadoc says so — and every one of the five statements in this class that names a subject goes
+ * javadoc says so — and every one of the six statements in this class that names a subject goes
  * through {@link LogPseudonym#subject(String)}, which is where the argument for a digest is kept.
+ * (Five until 2026-09-07, when {@link #announce} split the one {@code INFO} line into the two
+ * outcomes it was conflating; a clinician's key is an {@code accountId} rather than an address and
+ * goes through the same call, because a per-source exception is a rule nobody can apply.)
  *
- * <p><b>All five, not just the one that was live.</b> Four of them are {@code debug} and production
+ * <p><b>All six, not just the ones that are live.</b> Four of them are {@code debug} and production
  * runs this package at {@code INFO}, so it is tempting to leave them and call them unreachable.
  * They are not unreachable: JHipster ships {@code POST /management/loggers/{name}}, the console has
  * a screen that drives it, and {@code administration.cy.ts} exercises exactly that. So the level is
@@ -202,6 +205,12 @@ public class DirectoryProjectionService {
      */
     public Outcome apply(SiblingDomainEvent event) {
         if (event == null || event.subjectKey() == null || event.subjectKey().isBlank()) {
+            // Deliberately silent, and the only one of the three early returns that is.
+            // SiblingEventParser refuses a keyless frame on both topics and WARNs as it does, so
+            // nothing arriving from a consumer reaches this line — it guards a caller other than
+            // the consumer, and a second warning would be the same fact twice. It also cannot go
+            // through announce(): that method's first act is to digest event.subjectKey(), which is
+            // the value this branch exists because it has not got.
             return Outcome.IGNORED;
         }
 
@@ -251,14 +260,112 @@ public class DirectoryProjectionService {
 
         recordEvent(event, localId);
 
-        LOG.debug("Applied {} for {} from {}", event.type(), LogPseudonym.subject(event.subjectKey()), event.source());
-        if (localId != null && !hadRecord) {
-            return Outcome.CREATED;
-        }
         // A first sighting that keeps no local record is still something happening — a care angel or
         // a clinician is now known, and the link is what stops the next event on them being read as
         // a patient arriving.
-        return firstSighting ? Outcome.LINKED : Outcome.UPDATED;
+        Outcome outcome = localId != null && !hadRecord ? Outcome.CREATED : firstSighting ? Outcome.LINKED : Outcome.UPDATED;
+        announce(event, outcome, localId);
+        return outcome;
+    }
+
+    /**
+     * Says what this event did, once, where the outcome is decided.
+     *
+     * <h2>Why this is not a log line on the creating branch</h2>
+     *
+     * <p>It was, and the asymmetry was a reported defect. {@code ensureLocalRecord} logged
+     * <em>"Directory learned a patient"</em> at {@code INFO} when it created a record, and nothing
+     * logged anything when a {@link Disposition#LINK_ONLY} event stored a link and deliberately
+     * created none. So on production, on a service that had been consuming
+     * {@code hc.professional.registration} since the 2026-09-06 deploy, <b>zero log lines mentioned
+     * {@code HC_PROFESSIONAL} at all</b> — while the consumer group's offset moved 28 → 32 across a
+     * clinician's registration with no lag and nothing dead-lettered. Backlog item 46.
+     *
+     * <p>That left an operator unable to tell <b>"the event never arrived"</b> from <b>"the event
+     * arrived and was deliberately stored as a link"</b>, and the two demand opposite responses: the
+     * first is a broker or a routing problem on another stack, the second is this service working as
+     * designed. Both are now one {@code INFO} line naming the source, the type and the kind, so the
+     * question is answered by reading rather than by inferring from an absence.
+     *
+     * <p><b>Stated on the outcome rather than added to a second branch</b>, which is the part worth
+     * keeping — but it covers less than this javadoc claimed until 2026-09-07, and the difference is
+     * the whole defect being fixed, so it is spelled out rather than glossed:
+     *
+     * <ul>
+     *   <li><b>A new subject kind is covered by construction.</b> The kind is read off the event by
+     *       {@code subjectKindOf} inside the two {@code INFO} branches, so a fourth one is named
+     *       without touching this method at all.</li>
+     *   <li><b>A new <em>disposition</em> is covered only if it reaches here.</b> {@code apply} has
+     *       three early returns that never call this method: a null or keyless event answers
+     *       {@link Outcome#IGNORED} silently, an {@code UPDATE_ONLY} event for an unknown subject
+     *       logs its own {@code debug} at the point it decides, and a stale frame does the same. So
+     *       {@code default} below is reached for {@link Outcome#UPDATED} and nothing else. A
+     *       disposition added with an early return of its own would be exactly as silent as
+     *       {@link Disposition#LINK_ONLY} was, which is the defect this method exists to fix — the
+     *       mechanism to copy is the two lines above it, not this method's existence.</li>
+     * </ul>
+     *
+     * <p>The three early returns were left where they are rather than routed through here on purpose:
+     * each says <em>why</em> it declined, naming the type, the subject and the watermark it compared
+     * against, and the generic line below would replace that with the word {@code IGNORED}. Two
+     * {@code debug} lines that diagnose beat one {@code debug} line that is uniform.
+     *
+     * <p>{@link Outcome#UPDATED}, {@link Outcome#STALE} and {@link Outcome#IGNORED} are all at
+     * {@code debug} wherever they are written — a replay re-reads a whole topic, and one {@code INFO}
+     * per frame would bury the two lines that say something happened.
+     *
+     * <p><b>The subject is a digest and never the key</b>, at every level, for the reason
+     * {@link LogPseudonym} gives at length: {@code subjectKey} is a patient's email address, these
+     * lines reach an unauthenticated estate-wide Loki, and an operator holding an address can still
+     * reproduce the digest in one line of shell. Backlog item 43. A clinician's key is an
+     * {@code accountId} rather than an address and is hashed under the same rule — one shape of line,
+     * no per-source exception for somebody to reason about later.
+     *
+     * <p><b>The creation line's wording changed here and nothing outside this repository read it</b>
+     * — checked rather than assumed. It said "Directory learned a patient from HC_PATIENT" and now
+     * names the stored {@code subject_kind}, so {@code grep 'Directory learned'} finds every kind and
+     * {@code grep HC_PROFESSIONAL} finds the stream that had nothing to find.
+     */
+    private void announce(SiblingDomainEvent event, Outcome outcome, String localId) {
+        String subject = LogPseudonym.subject(event.subjectKey());
+        switch (outcome) {
+            case CREATED -> LOG.info(
+                "Directory learned a {} from {} ({}): {} -> {}",
+                subjectKindOf(event),
+                event.source(),
+                event.type(),
+                subject,
+                localId
+            );
+            // Deliberately says only that no record was created, and not what the console does with
+            // it: that differs by kind — a clinician is counted and listed as awaiting a record, a
+            // care angel is neither — and a line that generalised would be wrong for one of them.
+            case LINKED -> LOG.info(
+                "Directory linked a {} from {} ({}): {} — {}, so no local record is created for this kind",
+                subjectKindOf(event),
+                event.source(),
+                event.type(),
+                subject,
+                event.disposition()
+            );
+            // UPDATED, and today nothing else — STALE and IGNORED return before this method is
+            // called and log at the point they decide, which is where the reason is known. A new
+            // Outcome that also returns early lands nowhere: see the javadoc's second bullet.
+            default -> LOG.debug("Applied {} for {} from {} — {}", event.type(), subject, event.source(), outcome);
+        }
+    }
+
+    /**
+     * What the link says this subject is, for the two lines above.
+     *
+     * <p>Never null in practice on either of them — a {@link Disposition#CREATE} carries
+     * {@code PATIENT} and a {@link Disposition#LINK_ONLY} carries {@code CARE_ANGEL} or
+     * {@code PROFESSIONAL} — but a log statement is the wrong place to depend on that, and "subject"
+     * reads better than the word {@code null} in the one line an operator is reading because
+     * something has gone wrong.
+     */
+    private String subjectKindOf(SiblingDomainEvent event) {
+        return event.subjectKind() == null ? "subject" : event.subjectKind().name();
     }
 
     /**
@@ -463,18 +570,10 @@ public class DirectoryProjectionService {
             // dangling reference for the reconciliation to rebuild instead of silently dropping it.
             return knownLocalId;
         }
-        String created = createAndClaim(event.source(), event.subjectKey(), event.activated(), event.occurredAt(), knownLocalId);
-        if (created != null) {
-            // The subject is a DIGEST, never the key itself. `subjectKey` is a patient's email
-            // address (see SiblingDomainEvent), this runs at INFO, and prod runs `net.jojoaddison`
-            // at INFO — so the verbatim key that stood here until 2026-09-07 put one address per
-            // registered patient into Loki, where it is queryable across six products for fourteen
-            // days. The line keeps both handles it needs: `created` names the record, and the digest
-            // is what an operator holding the address searches for. LogPseudonym has the argument
-            // and the one-line command that reproduces it. Backlog item 43.
-            LOG.info("Directory learned a patient from {}: {} -> {}", event.source(), LogPseudonym.subject(event.subjectKey()), created);
-        }
-        return created;
+        // What this created — or did not — is announced by `apply`, not here. The line that stood on
+        // this branch was the whole of the service's visibility, so a LINK_ONLY event wrote nothing
+        // at all and an operator could not tell it from an event that never arrived. See `announce`.
+        return createAndClaim(event.source(), event.subjectKey(), event.activated(), event.occurredAt(), knownLocalId);
     }
 
     /**

@@ -19,8 +19,10 @@ import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.RosterWeek;
 import net.jojoaddison.domain.ShiftAssignment;
 import net.jojoaddison.domain.enumeration.AccountStatus;
+import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.ServiceHealth;
 import net.jojoaddison.domain.enumeration.ShiftType;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.service.dto.DashboardMetricsDTO;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -85,18 +87,23 @@ public class DashboardMetricsService {
 
     private final ProfessionalVerificationService verificationService;
 
+    /** For the clinicians this service knows about and holds no record for — see {@link #metrics()}. */
+    private final DirectoryLinkRepository directoryLinkRepository;
+
     public DashboardMetricsService(
         MongoTemplate mongoTemplate,
         ObservabilityClient observability,
         CurrentRosterWeekService currentRosterWeek,
         Clock clock,
-        ProfessionalVerificationService verificationService
+        ProfessionalVerificationService verificationService,
+        DirectoryLinkRepository directoryLinkRepository
     ) {
         this.mongoTemplate = mongoTemplate;
         this.observability = observability;
         this.currentRosterWeek = currentRosterWeek;
         this.clock = clock;
         this.verificationService = verificationService;
+        this.directoryLinkRepository = directoryLinkRepository;
     }
 
     public DashboardMetricsDTO metrics() {
@@ -111,6 +118,11 @@ public class DashboardMetricsService {
             count(Message.class, Criteria.where("status").is("NEW")),
             count(net.jojoaddison.domain.Task.class, Criteria.where("state").in("TODO", "DOING")),
             count(Professional.class, Criteria.where("verification").is("PENDING")),
+            // Links, not documents — the one figure on this payload that is not a count of records
+            // in this service, and DashboardMetricsDTO says at length why it sits beside the
+            // professionals tile rather than inside it. Read through the repository so that this and
+            // GET /api/directory-links?unlinked=true are one rule rather than two spellings of it.
+            directoryLinkRepository.countBySourceWithNoLocalRecord(DirectorySource.HC_PROFESSIONAL),
             roster(),
             degradedServices(),
             platformServiceTotals(),

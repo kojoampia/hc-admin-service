@@ -31,8 +31,23 @@ import org.junit.jupiter.api.Test;
  * arrives at and the ones added next year.
  *
  * <p>A source-reading test is a blunt instrument and it is used deliberately narrowly — it asks one
- * question about one identifier in two files, and the thing it is protecting is a defect that
- * shipped to production and was invisible to every green build.
+ * question about a handful of identifiers, and the thing it is protecting is a defect that shipped
+ * to production and was invisible to every green build.
+ *
+ * <h2>The file set is derived, and it was a list of two names until 2026-09-07</h2>
+ *
+ * <p>It named {@code DirectoryProjectionService} and {@code SiblingEventParser}. That was every file
+ * that could log the key on the day it was written and it stopped being so the moment
+ * {@code DirectoryLinkResource} gained the {@code localId.in} filter — a class that reads links,
+ * holds a logger, and is the one place in the service where the log/screen distinction is argued at
+ * length. Nothing failed; the sweep simply did not look at it.
+ *
+ * <p>So the set is now discovered rather than enumerated, on the same reasoning {@code PaginationIT}
+ * records: <b>a test whose coverage has to be extended by hand silently stops covering things.</b>
+ * Any file under {@code src/main/java} that mentions the link, the event or the key is swept, which
+ * means a new consumer, a new resource or a new reconciliation job is covered on the commit that
+ * creates it. {@link #theSweepStillFindsTheStatementsItIsSweeping} is what keeps the discovery
+ * honest — a pattern that has stopped matching would otherwise make all of this pass vacuously.
  */
 class LogPseudonymTest {
 
@@ -48,38 +63,89 @@ class LogPseudonymTest {
      */
     private static final Pattern WRAPPED = Pattern.compile("LogPseudonym\\.subject\\((?:[^()]|\\([^()]*\\))*\\)");
 
+    /** What makes a file part of this concern: it handles the link, the event, or the key itself. */
+    private static final Pattern IN_SCOPE = Pattern.compile("DirectoryLink|SiblingDomainEvent|subjectKey");
+
+    /**
+     * The identifiers that must never reach a log line, and why each is on the list.
+     *
+     * <ul>
+     *   <li>{@code subjectKey} — the correlation key on an inbound event. A lowercased email address
+     *       for a patient, which is what backlog item 43 was about.</li>
+     *   <li>{@code externalKey} / {@code getExternalKey} — the same value, read back off a stored
+     *       {@code DirectoryLink} rather than off the wire. It is the field the resource added a
+     *       filter over, so this is the reachable form now.</li>
+     *   <li>{@code getEmail} — a link's address, which is a patient's {@code externalKey} under
+     *       another name and the only field on a {@code DirectoryLink} a screen renders.</li>
+     * </ul>
+     *
+     * <p>Deliberately not on the list: {@code getLogin}, because this service already writes a login
+     * into every {@code AuditLog} row by design, and {@code getExternalId}, which is a patient id
+     * rather than an address. The rule is about the correlation key, not about identity in general —
+     * widening it to everything would make it a rule nobody could apply.
+     */
+    private static final List<String> FORBIDDEN = List.of("subjectKey", "externalKey", "getExternalKey", "getEmail");
+
     @Test
     void noLogStatementPassesTheSubjectKeyUnwrapped() {
-        for (Path source : List.of(main("DirectoryProjectionService"), main("SiblingEventParser"))) {
+        for (Path source : inScopeSources()) {
             String text = read(source);
             Matcher call = LOG_CALL.matcher(text);
             while (call.find()) {
                 String arguments = call.group(2);
-                assertThat(WRAPPED.matcher(arguments).replaceAll("").contains("subjectKey"))
-                    .as(
-                        "%s logs the correlation key unwrapped — it is a patient's email address. " +
-                        "Wrap it in LogPseudonym.subject(...), which explains why. Statement: LOG.%s(%s)",
-                        source.getFileName(),
-                        call.group(1),
-                        arguments.strip()
-                    )
-                    .isFalse();
+                String unwrapped = WRAPPED.matcher(arguments).replaceAll("");
+                for (String forbidden : FORBIDDEN) {
+                    assertThat(unwrapped.contains(forbidden))
+                        .as(
+                            "%s logs %s unwrapped — it is a patient's email address. Wrap it in " +
+                            "LogPseudonym.subject(...), which explains why, and note that a screen is a " +
+                            "different question with a different answer (DirectoryLinkResource's javadoc). " +
+                            "Statement: LOG.%s(%s)",
+                            source.getFileName(),
+                            forbidden,
+                            call.group(1),
+                            arguments.strip()
+                        )
+                        .isFalse();
+                }
             }
         }
     }
 
-    /** The sweep is worthless if its pattern has stopped matching the file it reads. */
+    /**
+     * The sweep is worthless if its patterns have stopped matching, and there are now two of them.
+     *
+     * <p>The file discovery can fail as quietly as the statement pattern can — a rename, a move to
+     * another source root, or a smaller {@code IN_SCOPE} would leave a green build sweeping nothing.
+     * So both are pinned: the three files that carry the concern today must be found by name, and the
+     * statements inside the discovered set must still be matched.
+     */
     @Test
     void theSweepStillFindsTheStatementsItIsSweeping() {
-        long statements = Stream
-            .of(main("DirectoryProjectionService"), main("SiblingEventParser"))
-            .map(LogPseudonymTest::read)
-            .mapToLong(text -> LOG_CALL.matcher(text).results().count())
-            .sum();
+        List<Path> sources = inScopeSources();
+
+        assertThat(sources.stream().map(path -> path.getFileName().toString()))
+            .as("the file discovery has stopped finding the classes this rule exists for")
+            .contains("DirectoryProjectionService.java", "SiblingEventParser.java", "DirectoryLinkResource.java");
+
+        long statements = sources.stream().map(LogPseudonymTest::read).mapToLong(text -> LOG_CALL.matcher(text).results().count()).sum();
 
         assertThat(statements)
             .as("the log-call pattern matches nothing, so the sweep above passes vacuously — fix the pattern, not this number")
             .isGreaterThanOrEqualTo(10);
+    }
+
+    /** Every main source that touches the sibling-link identity, whatever package it lives in. */
+    private static List<Path> inScopeSources() {
+        try (Stream<Path> tree = Files.walk(Path.of("src/main/java"))) {
+            return tree
+                .filter(path -> path.getFileName().toString().endsWith(".java"))
+                .filter(path -> IN_SCOPE.matcher(read(path)).find())
+                .sorted()
+                .toList();
+        } catch (IOException e) {
+            throw new IllegalStateException("cannot walk src/main/java — is this running from the module root?", e);
+        }
     }
 
     /**
@@ -122,10 +188,6 @@ class LogPseudonymTest {
         assertThat(LogPseudonym.frame(one)).as("the same frame redelivered reads the same").isEqualTo(LogPseudonym.frame(one));
         assertThat(LogPseudonym.frame(one)).containsPattern("^frame-[0-9a-f]{12} \\(\\d+ bytes\\)$");
         assertThat(LogPseudonym.frame(null)).as("an absent payload is describable rather than a crash").contains("(0 bytes)");
-    }
-
-    private static Path main(String simpleName) {
-        return Path.of("src/main/java/net/jojoaddison/service", simpleName + ".java");
     }
 
     private static String read(Path path) {

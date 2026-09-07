@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.service.dto.DashboardMetricsDTO;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -39,7 +40,11 @@ class DashboardMetricsCapabilityTest {
         // test is about capability badges. Nought is also production's answer.
         ProfessionalVerificationService verifications = mock(ProfessionalVerificationService.class);
         when(verifications.verifiedSince(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
-        return new DashboardMetricsService(mongo, observability, rosterWeek, Clock.systemUTC(), verifications).metrics();
+        // Likewise for the clinicians known but not on file: a mock returning 0 is what a stack that
+        // has consumed no registration reports, and this test is about capability badges.
+        DirectoryLinkRepository links = mock(DirectoryLinkRepository.class);
+        when(links.countBySourceWithNoLocalRecord(org.mockito.ArgumentMatchers.any())).thenReturn(0L);
+        return new DashboardMetricsService(mongo, observability, rosterWeek, Clock.systemUTC(), verifications, links).metrics();
     }
 
     private static String statusOf(DashboardMetricsDTO metrics, String capability) {

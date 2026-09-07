@@ -33,6 +33,37 @@ public record DashboardMetricsDTO(
     long unreadMessages,
     long openTasks,
     long pendingApprovals,
+    /**
+     * Clinicians this service knows about and holds no {@code Professional} for.
+     *
+     * <p><b>A figure of its own, deliberately, rather than added into {@code network.professionals}
+     * — and the alternative was considered rather than skipped.</b> A clinician who registers on
+     * hc-professional arrives here as a {@code DirectoryLink} with {@code local_id: null} and no
+     * local record at all: both event types on that topic are {@code LINK_ONLY}, because
+     * {@code Professional} requires a {@code role} and a {@code licenceNumber} and neither is on the
+     * wire in any event, in any version. So the professionals tile could not move when somebody
+     * registered, which is what an administrator reported from production (backlog item 46).
+     *
+     * <p>Folding them into the tile would have made it move, and would have changed what it means
+     * without saying so, in four places at once. {@code network.professionals} is a count of
+     * <em>records</em>, and three other figures are derived from that same collection and would then
+     * disagree with it: the account-mix chart is a breakdown of these totals, the professionals
+     * sparkline is a running total over {@code joined_on} whose last point {@code SparklinesIT}
+     * requires to equal the tile, and {@code loaded} excludes archived records — a property a link
+     * does not have. A tile and a chart beside it answering one question differently is the defect
+     * this dashboard has already had twice, with roster cover and with the account mix.
+     *
+     * <p>So the tile keeps its meaning — <b>clinicians on file</b> — and this says what is known and
+     * not on file. The console renders it under that tile as its own line, and the professional
+     * directory lists the same rows from
+     * {@code GET /api/directory-links?source=HC_PROFESSIONAL&unlinked=true}, so the number is one
+     * click from the people it counts.
+     *
+     * <p>It is not a backlog that clears itself: nothing on the topic can ever complete these
+     * records, which is backlog item 35 and needs a read hc-professional does not yet expose (item
+     * 36). Zero is the normal answer on a stack that has never consumed a registration.
+     */
+    long professionalsAwaitingRecord,
     RosterSummary roster,
     List<DegradedService> degradedServices,
     PlatformServiceTotals platformServices,
@@ -61,6 +92,13 @@ public record DashboardMetricsDTO(
      *
      * <p>The distinction matters on screen: the directories list active records, so a total that
      * included archived rows would disagree with the table underneath it.
+     *
+     * <p><b>All three count documents in this service, and {@code professionals} is the one where
+     * that is a narrower claim than it sounds.</b> A clinician who has registered on hc-professional
+     * but has no record here is not in it and deliberately is not — see
+     * {@link DashboardMetricsDTO#professionalsAwaitingRecord()}, which counts exactly those and is
+     * kept separate so that the account-mix chart and the sparklines, both derived from these
+     * numbers, keep agreeing with them.
      */
     public record NetworkTotals(long patients, long professionals, long vendors) implements Serializable {}
 

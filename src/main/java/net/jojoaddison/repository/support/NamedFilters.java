@@ -35,7 +35,7 @@ public final class NamedFilters {
     /**
      * Collects the criteria that were actually supplied. Nulls and blanks are simply absent.
      *
-     * <p><b>The four operators do not agree on what "blank" means, and only {@code equals} is
+     * <p><b>The four value operators do not agree on what "blank" means, and only {@code equals} is
      * currently used with strings.</b> {@code equals} drops a blank string; {@code notEquals} keeps
      * it and would build a real {@code $ne: ""}; {@code in} passes blank elements through;
      * {@code contains} drops blanks and additionally trims. Nothing is wrong today — both
@@ -47,6 +47,14 @@ public final class NamedFilters {
      * returns everything. Where a filter decides <em>who the caller is</em> rather than what they are
      * browsing, reject the blank at the handler instead — {@code VendorResource}'s
      * {@code accountId.equals} does, and says why.
+     *
+     * <p><b>A blank never reaches a non-String operator as a blank, which is why the rule above is
+     * not enough on its own.</b> Spring's own converters answer {@code null} for the empty string —
+     * measured on this classpath, {@code DefaultConversionService.convert("", Boolean.class)} and the
+     * same for an enum both return {@code null} — so {@code ?unlinked=} and {@code ?source=} arrive
+     * here already indistinguishable from having been left off. Nothing in this class can tell the
+     * two apart, and nothing in it should try: the handler is the only place that still holds the raw
+     * request. {@code DirectoryLinkResource} refuses both, and says why there.
      */
     public static final class Builder {
 
@@ -73,6 +81,35 @@ public final class NamedFilters {
         public Builder in(String field, Collection<?> values) {
             if (values != null && !values.isEmpty()) {
                 criteria.add(Criteria.where(field).in(values));
+            }
+            return this;
+        }
+
+        /**
+         * Whether the field is unset — {@code TRUE} for the documents that do not carry a value,
+         * {@code FALSE} for the ones that do. A null asks nothing, like every other operator here.
+         *
+         * <p><b>Null means "was not asked", and that is not the same as "was left blank" — the
+         * caller has to have decided which it is before calling.</b> This javadoc said a null was
+         * what lets a handler pass an absent {@code @RequestParam} straight through, which conflated
+         * the two: a {@code Boolean @RequestParam} sent as {@code ?unlinked=} binds null as well, so
+         * a handler passing its parameter straight through drops the filter and answers with the
+         * whole collection. That is item 45's own review finding, one parameter along, and it is why
+         * {@code DirectoryLinkResource} rejects the blank before it gets here.
+         *
+         * <p>{@code is(null)} matches a <b>missing</b> field as well as an explicitly null one, and
+         * that is the behaviour wanted rather than a tolerated approximation: nothing in this service
+         * writes an explicit null, so an unset field is an absent one.
+         * {@code DirectoryProjectionService.createAndClaim} relies on the same match to claim a link,
+         * and says so at the query it builds.
+         *
+         * <p>It is here rather than at a call site because it has to compose with the other filters —
+         * "this source, and no local record" is one query, and a handler that ran its own second query
+         * would page and count the two independently.
+         */
+        public Builder isNull(String field, Boolean unset) {
+            if (unset != null) {
+                criteria.add(unset ? Criteria.where(field).is(null) : Criteria.where(field).ne(null));
             }
             return this;
         }
