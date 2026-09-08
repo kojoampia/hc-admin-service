@@ -399,11 +399,26 @@ public class DirectoryLink implements Serializable {
     // state and not a partial write. The console renders it as "no tier named" rather than as a blank.
     //
     // WHY THERE IS NO FIFTH FIELD HOLDING A WATERMARK, WHICH PHASE 2 ABOVE DOES HAVE. A plan choice
-    // arrives on `patient-events`, from the same application, keyed on the same lowercased email, as
-    // every other event this document already orders by `last_event_at` — one producer, one clock,
-    // one partition. Phase 2 needed `profile_event_at` because it is a DIFFERENT application on a
-    // DIFFERENT topic, whose occurredAt sequence is independent; that argument does not reach here,
-    // and a second watermark on one stream would be a field nothing could ever disagree with.
+    // arrives on `patient-events`, keyed on the same lowercased email, as every other event this
+    // document already orders by `last_event_at`, so it shares that watermark.
+    //
+    // THE FIRST VERSION OF THIS COMMENT SAID "one producer, one clock, one partition" AND THAT IS
+    // FALSE. `patient-events` has TWO producers: hc-patient's own `PatientEventType` javadoc records
+    // that `AccountCreated` and `AccountActivated` are emitted by their GATEWAY, while `PlanChosen`
+    // comes from their API. Two applications, two clocks — which is the shape phase 2 opened
+    // `profile_event_at` for, so the distinction drawn here is not the one that was claimed.
+    //
+    // The decision to share the watermark stands anyway, on the true premise: the skew is between
+    // two containers on one host, bounded by seconds, against events that are minutes apart in
+    // practice. What is ACCEPTED rather than absent is the tail — if the gateway's clock leads the
+    // api's by more than the gap between an activation and a plan choice, the `PlanChosen` is
+    // discarded as STALE at debug level.
+    //
+    // That tail costs more here than elsewhere on this stream, and that is the part to weigh if this
+    // is ever revisited: every other event is re-carried by a later one, so a discarded frame
+    // self-heals. `PlanChosen` is published ONCE — hc-patient announces on POST only — so a frame
+    // dropped as stale is a prompt lost for good. Give it its own watermark the day that is observed,
+    // or the day the two applications stop sharing a host.
     //
     // AND WHY THERE IS NO "CHOSEN ON" DATE. The event carries no membership creation date — the only
     // timestamp on the frame is the envelope's `occurredAt`, which is when the announcement was

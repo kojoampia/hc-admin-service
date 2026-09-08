@@ -287,7 +287,16 @@ public class DirectoryProjectionService {
 
         // After the write and only when one was made — a stale or unknown-subject plan choice returns
         // above, so this line means "the console will show this row" rather than "a frame arrived".
-        if (event.planChoice() != null) {
+        //
+        // The membershipId condition mirrors `recordEvent`'s exactly, and must keep doing so. That
+        // method writes the plan group only for a frame carrying a usable membershipId, because the
+        // group is written wholesale and keyed on it; announcing on the weaker `planChoice() != null`
+        // meant a malformed frame logged "the choice is stored and shown" about a write that was
+        // refused a few lines earlier. Unreachable from either of hc-patient's clients today, which
+        // is exactly why it would have gone unnoticed — the log was the only thing that would ever
+        // have said so, and it was saying the opposite.
+        PlanChoice announced = event.planChoice();
+        if (announced != null && announced.membershipId() != null && !announced.membershipId().isBlank()) {
             announcePlanChoice(event);
         }
 

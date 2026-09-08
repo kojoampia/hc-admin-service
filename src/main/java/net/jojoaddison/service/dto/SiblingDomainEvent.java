@@ -102,8 +102,12 @@ public record SiblingDomainEvent(
      *
      * <h2>The contract, read from the producer and not from the backlog entry</h2>
      *
-     * <p>hc-patient's {@code PatientEventType.PLAN_CHOSEN} — their {@code origin/main} {@code 5a90145},
-     * 2026-09-08 — states it: the type string is {@code "PlanChosen"} and the payload is
+     * <p>hc-patient's {@code PatientEventType.PLAN_CHOSEN} — read at their {@code 5a90145}, 2026-09-08,
+     * and <b>that is where it was read, not where their {@code main} is</b>: it had already moved to
+     * {@code ed9bcbd} by the time this was reviewed, one commit later, which changed the unkeyed-frame
+     * rule and left the keyed contract below untouched. Cite a producer by the commit you read, never
+     * as though it were current, or the next reader diffs against the wrong thing and concludes the
+     * contract drifted when it did not — states it: the type string is {@code "PlanChosen"} and the payload is
      * {@code membershipId}, {@code planCode}, {@code planName}, {@code status}, keyed on the
      * lowercased email like every other event on that stream. Their {@code MembershipPlanEventTest}
      * pins all five strings as literals rather than as constants, in their own words because
