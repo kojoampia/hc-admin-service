@@ -12,10 +12,12 @@ import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
+import net.jojoaddison.repository.ServicePlanRepository;
 import net.jojoaddison.service.dto.DirectoryReconciliationDTO;
 import net.jojoaddison.service.dto.ProfileStatusEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
+import net.jojoaddison.service.dto.SiblingDomainEvent.PlanChoice;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
@@ -86,6 +88,13 @@ import org.springframework.stereotype.Service;
  *       local record.</li>
  * </ul>
  *
+ * <p><b>{@code PlanChosen} is an {@link Disposition#UPDATE_ONLY} of the strictest kind</b>, and the
+ * reason is worth having beside the rule rather than only in the parser. hc-patient writes a
+ * {@code Membership} only for a patient whose {@code AccountCreated} and {@code OnboardingStarted}
+ * were published earlier on the same key, so a plan choice for a subject this service has never seen
+ * does not mean a new person — it means those earlier events were missed. Opening a record from a
+ * tier code would put a patient on every tile whose only content is which plan they picked.
+ *
  * <p>Two of those exist because of what happened without them, and both are worth keeping named.
  * <b>A care-angel nomination publishes {@code AccountCreated} keyed on the angel's own address</b>,
  * so a creation path that read only the type made every nomination an {@code ACTIVE} patient — on
@@ -135,13 +144,19 @@ import org.springframework.stereotype.Service;
  * <h2>The subject key is never logged, at any level</h2>
  *
  * <p><b>{@code subjectKey} is a patient's email address</b> — {@link SiblingDomainEvent}'s own
- * javadoc says so — and every one of the six statements in this class that names a subject goes
- * through {@link LogPseudonym#subject(String)}, which is where the argument for a digest is kept.
- * (Five until 2026-09-07, when {@link #announce} split the one {@code INFO} line into the two
- * outcomes it was conflating; a clinician's key is an {@code accountId} rather than an address and
- * goes through the same call, because a per-source exception is a rule nobody can apply.)
+ * javadoc says so — and <b>every</b> statement in this class that names a subject goes through
+ * {@link LogPseudonym#subject(String)}, which is where the argument for a digest is kept. A
+ * clinician's key is an {@code accountId} rather than an address and goes through the same call,
+ * because a per-source exception is a rule nobody can apply.
  *
- * <p><b>All six, not just the ones that are live.</b> Four of them are {@code debug} and production
+ * <p><b>This sentence used to carry a count and the count was wrong.</b> It said five, then six, and
+ * was six when this class had ten such statements — item 47 added three and item 48 two more, and
+ * neither moved the number, because nothing fails when a figure in a comment goes stale. It is
+ * "every" now, which is the claim that was always meant and the only one that stays true; what
+ * enforces it is {@code LogPseudonymTest}, which sweeps the source for an unwrapped key and pins its
+ * own patterns so it cannot pass vacuously.
+ *
+ * <p><b>Every one, not just the ones that are live.</b> Most are {@code debug} and production
  * runs this package at {@code INFO}, so it is tempting to leave them and call them unreachable.
  * They are not unreachable: JHipster ships {@code POST /management/loggers/{name}}, the console has
  * a screen that drives it, and {@code administration.cy.ts} exercises exactly that. So the level is
@@ -189,14 +204,22 @@ public class DirectoryProjectionService {
     private final DirectoryLinkRepository directoryLinkRepository;
     private final PatientRepository patientRepository;
 
+    /**
+     * Read for one purpose only: to say out loud when a plan choice names a tier this catalogue does
+     * not hold. Nothing here ever writes a {@code ServicePlan} — see {@link #announcePlanChoice}.
+     */
+    private final ServicePlanRepository servicePlanRepository;
+
     public DirectoryProjectionService(
         MongoTemplate mongoTemplate,
         DirectoryLinkRepository directoryLinkRepository,
-        PatientRepository patientRepository
+        PatientRepository patientRepository,
+        ServicePlanRepository servicePlanRepository
     ) {
         this.mongoTemplate = mongoTemplate;
         this.directoryLinkRepository = directoryLinkRepository;
         this.patientRepository = patientRepository;
+        this.servicePlanRepository = servicePlanRepository;
     }
 
     /**
@@ -261,6 +284,21 @@ public class DirectoryProjectionService {
         String localId = ensureLocalRecord(event, firstSighting ? null : previous.getLocalId());
 
         recordEvent(event, localId, joinsThePhases(event.source(), firstSighting ? null : previous, DirectoryLink::getProfileEventAt));
+
+        // After the write and only when one was made — a stale or unknown-subject plan choice returns
+        // above, so this line means "the console will show this row" rather than "a frame arrived".
+        //
+        // The membershipId condition mirrors `recordEvent`'s exactly, and must keep doing so. That
+        // method writes the plan group only for a frame carrying a usable membershipId, because the
+        // group is written wholesale and keyed on it; announcing on the weaker `planChoice() != null`
+        // meant a malformed frame logged "the choice is stored and shown" about a write that was
+        // refused a few lines earlier. Unreachable from either of hc-patient's clients today, which
+        // is exactly why it would have gone unnoticed — the log was the only thing that would ever
+        // have said so, and it was saying the opposite.
+        PlanChoice announced = event.planChoice();
+        if (announced != null && announced.membershipId() != null && !announced.membershipId().isBlank()) {
+            announcePlanChoice(event);
+        }
 
         // A first sighting that keeps no local record is still something happening — a care angel or
         // a clinician is now known, and the link is what stops the next event on them being read as
@@ -649,6 +687,63 @@ public class DirectoryProjectionService {
     }
 
     /**
+     * Says that a patient chose a tier, and says loudly when this catalogue has never heard of it.
+     *
+     * <h2>The failure item 51 predicted, made audible</h2>
+     *
+     * <p>Backlog item 51 named this exactly, before either half was built: hc-patient publishes
+     * {@code PEAR} / {@code PAWPAW} / {@code MELON}, and while this service's catalogue held
+     * {@code Bridge Essential} / {@code Plus} / {@code Family} <em>"the event will arrive, parse, and
+     * resolve to nothing — and nothing will say so. That is the same shape as item 26's wrong join
+     * key and item 25's non-consumption: a healthy service, a consumer group with no lag, and a
+     * screen that is simply wrong."</em> Item 51 has since put the codes into
+     * {@code ServicePlan.code}, so the ordinary case now resolves; this line exists for the case that
+     * still does not, which is a tier Abofonsa has published and
+     * {@code ServicePlanCatalogueSyncService} has not yet brought across.
+     *
+     * <p><b>A warn, and deliberately not a refusal.</b> The frame is about a patient this service
+     * holds and the choice is real whether or not the catalogue knows the tier; discarding it would
+     * lose the back-office prompt the whole item exists to deliver. The row is written, the console
+     * renders the code and hc-patient's own name for it, and says in words that it is not in this
+     * catalogue. <b>No {@code ServicePlan} is created</b> — that would be a fourth restatement of a
+     * price list, which is the thing item 51 closed.
+     *
+     * <p>The subject is a digest, at both levels, for the reason {@link LogPseudonym} gives: it is a
+     * patient's email address and these lines reach an unauthenticated estate-wide Loki (item 43).
+     * <b>The tier code is not</b>, and that is not an oversight: {@code PAWPAW} names a product, not a
+     * person, and a digest of it would make the one line an operator reads to find out which tier is
+     * missing unable to say which tier is missing.
+     */
+    private void announcePlanChoice(SiblingDomainEvent event) {
+        PlanChoice plan = event.planChoice();
+        String subject = LogPseudonym.subject(event.subjectKey());
+        // findOneByCode over a uniquely-indexed field — ServicePlanIndexes creates it, so more than
+        // one match is a data fault rather than something to tolerate here. A null code cannot be
+        // looked up at all and takes the same branch as an unmatched one, which is right: an event
+        // naming no tier is as unresolvable as one naming an unknown tier, and both need saying.
+        boolean known = plan.code() != null && servicePlanRepository.findOneByCode(plan.code()).isPresent();
+        if (known) {
+            LOG.info(
+                "Directory learned a plan choice from HC_PATIENT ({}): {} chose {} — reported {}",
+                event.type(),
+                subject,
+                plan.code(),
+                plan.status()
+            );
+        } else {
+            LOG.warn(
+                "Directory learned a plan choice from HC_PATIENT ({}): {} chose '{}' ({}), which is not a code in this catalogue — " +
+                "the choice is stored and shown, but no ServicePlan matches it, so no price is resolvable. Either Abofonsa has " +
+                "published a tier ServicePlanCatalogueSyncService has not brought across yet, or the two vocabularies have parted.",
+                event.type(),
+                subject,
+                plan.code(),
+                plan.name()
+            );
+        }
+    }
+
+    /**
      * What the link says this subject is, for the two lines above.
      *
      * <p>Never null in practice on either of them — a {@link Disposition#CREATE} carries
@@ -866,6 +961,43 @@ public class DirectoryProjectionService {
         if (event.accountModifiedDate() != null) {
             update.set("account_modified_date", event.accountModifiedDate());
         }
+        // The membership tier, from hc-patient's PlanChosen and from nothing else — backlog item 48.
+        //
+        // WRITTEN AS A GROUP, NOT FIELD BY FIELD, AND THAT IS THE ONE RULE HERE THAT DIFFERS FROM
+        // EVERY FIELD ABOVE. The identity fields use setIfPresent because they arrive from eight
+        // different event types that each carry a different subset, so "this frame omits a login" is
+        // not "this subject has no login". These four are the opposite case: they are one membership's
+        // facts, built at one call site in hc-patient's announceChosenPlan, and they describe the
+        // membership named by plan_membership_id. Mixing a new membership's id with an old
+        // membership's tier produces a row asserting a tier nobody chose for it — item 45's
+        // plausible-wrong-answer defect, on the one field this panel exists to show.
+        //
+        // THIS WAS A DEFECT UNTIL THE ITEM 48 REVIEW, and the comment that stood here was the cause:
+        // it claimed "all four arrive together or none does", citing their containsOnlyKeys test. That
+        // test pins the KEY SET, not the values. `Membership.plan` carries no @NotNull and
+        // `data.put("planCode", membership.getPlan())` puts a null straight on the wire, so an
+        // administrator creating a membership through their CRUD path with no tier named publishes
+        // planCode: null and planName: null with a real membershipId and status. Their own javadoc
+        // warns about exactly this path by name — "the administrative CRUD path is the exception, and
+        // a consumer should not generalise from the sentence above" — and the sentence I generalised
+        // from was the one it was warning about. Read the producer's nullability, not its test.
+        //
+        // Keyed on the membership rather than on the tier: a frame naming no membership describes
+        // nothing and is left to touch nothing, where one naming a membership replaces the group
+        // wholesale. membershipId is the reliable field — it is read off the saved document, after
+        // the save — so this is a guard against a malformed frame rather than against their CRUD path.
+        //
+        // NOTHING IS RESOLVED HERE AND NO ServicePlan IS CREATED. The code is stored as sent and
+        // matched against this catalogue at read time, so a tier the sync has not brought across yet
+        // starts resolving when it does rather than being frozen as unknown on the way in. See
+        // DirectoryLink.planCode and announcePlanChoice.
+        PlanChoice plan = event.planChoice();
+        if (plan != null && plan.membershipId() != null && !plan.membershipId().isBlank()) {
+            setOrUnset(update, "plan_membership_id", plan.membershipId());
+            setOrUnset(update, "plan_code", plan.code());
+            setOrUnset(update, "plan_name", plan.name());
+            setOrUnset(update, "plan_status", plan.status());
+        }
         setIfPresent(update, "local_id", localId);
 
         mongoTemplate.updateFirst(
@@ -878,6 +1010,27 @@ public class DirectoryProjectionService {
     private void setIfPresent(Update update, String field, String value) {
         if (value != null && !value.isBlank()) {
             update.set(field, value);
+        }
+    }
+
+    /**
+     * Writes the value, or <b>removes the field</b> when the event does not carry one.
+     *
+     * <p>The counterpart of {@link #setIfPresent} and the deliberate opposite of it. That one is for a
+     * field several event types each say something about, where an omission is silence; this is for a
+     * group of fields one event type writes together, where an omission is the answer. Only the plan
+     * choice uses it, and {@code recordEvent} argues why at the call site.
+     *
+     * <p>{@code unset} rather than {@code set(field, null)}: an unset field and an explicitly null one
+     * read identically through the mapped type, but nothing else in this collection writes an explicit
+     * null and {@code Criteria.is(null)} matches both — so removing it keeps the documents uniform and
+     * keeps a {@code planStatus} filter from ever matching on an absent value.
+     */
+    private void setOrUnset(Update update, String field, String value) {
+        if (value != null && !value.isBlank()) {
+            update.set(field, value);
+        } else {
+            update.unset(field);
         }
     }
 

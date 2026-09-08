@@ -117,13 +117,19 @@ class SiblingEventParserTest {
     }
 
     /**
-     * <b>All seven types hc-patient publishes, and what each may do.</b>
+     * <b>All eight types hc-patient publishes, and what each may do.</b>
      *
      * <p>Enumerated from {@code PatientEventType} in that repository rather than from the frames that
      * happen to be in a topic. The entry that closed this work claimed the sweep had been done and it
-     * had been done for hc-professional only: the parser named two of these seven and there was no
+     * had been done for hc-professional only: the parser named two of these and there was no
      * type filter on the creation path at all, so the other five — and every type either product adds
      * next — opened a {@code Patient}.
+     *
+     * <p>{@code PlanChosen} is the eighth, added on 2026-09-08 by their item 18. It arrived exactly
+     * the way that paragraph predicts one will: published by them, ignored by the {@code default} on
+     * this side, with nothing failing anywhere. Their own javadoc said so at the time — <em>"their
+     * item 48 is open and their parser has no PlanChosen case today, so it falls to its
+     * default"</em> — which is what a type filter buys and what an untyped creation path costs.
      */
     @Test
     void modelsEveryTypeHcPatientPublishes() {
@@ -138,6 +144,98 @@ class SiblingEventParserTest {
             .as("keyed on the PATIENT's address, with the angel's in data — it changes a subject already known")
             .isEqualTo(Disposition.UPDATE_ONLY);
         assertThat(dispositionOf("DeletionRequestChanged")).isEqualTo(Disposition.UPDATE_ONLY);
+        assertThat(dispositionOf("PlanChosen"))
+            .as("a plan choice is a fact about a patient hc-patient has already announced, never a subject of its own")
+            .isEqualTo(Disposition.UPDATE_ONLY);
+    }
+
+    /**
+     * <b>The {@code PlanChosen} contract, written as literals on purpose.</b>
+     *
+     * <p>This is the half of backlog item 48 that nothing else can enforce. hc-patient's
+     * {@code PatientEventType.PLAN_CHOSEN} states it — <em>"a rename here is not a compile error
+     * there, it is an event their {@code switch} silently ignores"</em> — and their
+     * {@code MembershipPlanEventTest} pins the same five strings from the other side, in their own
+     * words because the two repositories cannot be compiled against each other. If one of these has
+     * to be edited, the other repository has to be edited in the same breath.
+     *
+     * <p>The frame below is their envelope with their payload: type {@code "PlanChosen"}, four keys,
+     * keyed on the lowercased email like every other event on that stream with the {@code patientId}
+     * beside it. <b>{@code planCode} is their {@code Membership.plan} and {@code planName} is their
+     * {@code Membership.name}</b> — their document has no {@code code} field at all — which is why
+     * the values here are a tier code and a display name rather than two ids.
+     */
+    @Test
+    void readsThePlanChoiceHcPatientPublishes() {
+        SiblingDomainEvent event = parser.parsePatientEvent(bytes(planChosen(PATIENT_EMAIL, "PAWPAW", "PENDING")), null).orElseThrow();
+
+        assertThat(event.type()).isEqualTo("PlanChosen");
+        assertThat(event.subjectKey()).as("the lowercased email, exactly as every other event on this stream").isEqualTo(PATIENT_EMAIL);
+        assertThat(event.externalId()).as("patientId rides beside the key in the subject").isEqualTo("p-1234");
+
+        assertThat(event.planChoice()).isNotNull();
+        assertThat(event.planChoice().membershipId()).isEqualTo("mem-991");
+        assertThat(event.planChoice().code()).isEqualTo("PAWPAW");
+        assertThat(event.planChoice().name()).isEqualTo("PAWPAW Plan");
+        assertThat(event.planChoice().status())
+            .as("PENDING for anybody but an administrator on their side — a request, not a subscription in force")
+            .isEqualTo("PENDING");
+    }
+
+    /**
+     * A tier this catalogue has never heard of is carried through unchanged, and no plan is invented.
+     *
+     * <p>Backlog item 51 predicted this failure before either half existed: a code that resolves to
+     * nothing, on a healthy consumer group with no lag, and a screen that is simply wrong. The parser
+     * is deliberately not where it is caught — dropping the frame here would make it silent in the one
+     * class that could have said something — so the value survives to
+     * {@code DirectoryProjectionService.announcePlanChoice}, which is where a subject can be named
+     * beside it.
+     */
+    @Test
+    void carriesATierThisCatalogueDoesNotHoldRatherThanDroppingIt() {
+        SiblingDomainEvent event = parser.parsePatientEvent(bytes(planChosen(PATIENT_EMAIL, "SOURSOP", "PENDING")), null).orElseThrow();
+
+        assertThat(event.planChoice().code()).isEqualTo("SOURSOP");
+        assertThat(event.disposition()).isEqualTo(Disposition.UPDATE_ONLY);
+    }
+
+    /**
+     * Every other type carries no plan choice at all, and the field is null rather than empty.
+     *
+     * <p>An empty {@code PlanChoice} on every frame would be indistinguishable from a choice whose
+     * four fields all went missing, and {@code DirectoryProjectionService} branches on the null to
+     * decide whether to write the plan fields or announce anything.
+     */
+    @Test
+    void carriesNoPlanChoiceOnAnyOtherEvent() {
+        assertThat(
+            parser.parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", false)), null).orElseThrow().planChoice()
+        )
+            .isNull();
+        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().planChoice())
+            .as("a clinician has no membership tier and nothing on either of their topics carries one")
+            .isNull();
+        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true))).orElseThrow().planChoice()).isNull();
+    }
+
+    /**
+     * A {@code PlanChosen} missing its payload keys is still an event, and every field reads null.
+     *
+     * <p>Not a case either of hc-patient's clients can reach — {@code choosePlan} always writes a plan
+     * — but their administrative CRUD path accepts a membership with no plan on it, and this parser's
+     * whole contract is that it never throws for a frame it cannot make sense of. Null rather than the
+     * empty string, so the console's "not reported" and its "chose nothing" cannot be confused.
+     */
+    @Test
+    void readsAPlanChoiceWithNothingInItRatherThanRefusingTheFrame() {
+        SiblingDomainEvent event = parser.parsePatientEvent(bytes(typed("PlanChosen", PATIENT_EMAIL)), null).orElseThrow();
+
+        assertThat(event.planChoice()).isNotNull();
+        assertThat(event.planChoice().code()).isNull();
+        assertThat(event.planChoice().name()).isNull();
+        assertThat(event.planChoice().status()).isNull();
+        assertThat(event.planChoice().membershipId()).isNull();
     }
 
     /**
@@ -692,6 +790,31 @@ class SiblingEventParserTest {
             "\",\"login\":\"amensah\",\"patientId\":\"p-1234\"}," +
             "\"data\":{\"requestId\":\"req-1\",\"change\":\"" +
             change +
+            "\"}}"
+        );
+    }
+
+    /**
+     * hc-patient's {@code MembershipResource.announceChosenPlan}, verbatim from that call site.
+     *
+     * <p>Their {@code PatientEventPublisher} builds the envelope; what this method reproduces is the
+     * {@code data} map that method puts in it, key for key. The status is published as
+     * {@code MembershipStatus.name()} rather than the enum, in their own comment's words so that
+     * "the wire shape should not move if the enum's serialization ever does".
+     */
+    private static String planChosen(String email, String planCode, String status) {
+        return (
+            "{\"eventId\":\"evt-plan\",\"type\":\"PlanChosen\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-08T18:21:00Z\",\"source\":\"hcPatientService\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":null,\"patientId\":\"p-1234\"}," +
+            "\"data\":{\"membershipId\":\"mem-991\",\"planCode\":\"" +
+            planCode +
+            "\",\"planName\":\"" +
+            planCode +
+            " Plan\",\"status\":\"" +
+            status +
             "\"}}"
         );
     }
