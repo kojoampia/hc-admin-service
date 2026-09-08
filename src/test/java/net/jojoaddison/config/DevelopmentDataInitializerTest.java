@@ -1,6 +1,7 @@
 package net.jojoaddison.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +20,7 @@ import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.BillingType;
@@ -428,6 +430,50 @@ class DevelopmentDataInitializerTest {
 
         assertThat(priced).doesNotContain("CAREGIVER/EVENING", "CAREGIVER/FLEXIBLE");
         assertThat(priced).hasSize(ProfessionalRole.values().length * ShiftType.values().length - 2);
+    }
+
+    /**
+     * The seeded catalogue is the one Abofonsa publishes, tier for tier and price for price.
+     *
+     * <p>Backlog item 51. Until 2026-09-08 this fixture held {@code Bridge Essential} /
+     * {@code Bridge Plus} / {@code Bridge Family} at GHS 320 / 680 / 1,240 while
+     * {@code web.abofonsa.com} and hc-patient both showed {@code PEAR} / {@code PAWPAW} /
+     * {@code MELON} at 3,000 / 5,000 / 8,000 — so every stack anybody could drive taught a reader a
+     * price list that exists nowhere but here, by a factor of roughly ten.
+     *
+     * <p><b>Named and priced rather than counted, and the price is the assertion that matters.</b>
+     * {@code hasSize(3)} above already covers the count and would go on passing against any three
+     * plans at any three prices, which is precisely the state this fixture was in for months. What
+     * this cannot catch is Abofonsa changing a published price: {@code monthlyPrice} is this
+     * service's own figure by design — see {@code ServicePlanCatalogueSyncService} — so these numbers
+     * are a copy, and a copy is what item 51 is still open about. Check them against the live
+     * catalogue rather than trusting them, and if they disagree the fixture is what is wrong.
+     *
+     * <p>{@code displayOrder} is asserted as ascending-with-price because that is what makes the
+     * order meaningful: the summary sorts on it now rather than on a deleted enum's ordinal, and
+     * three plans in an arbitrary order would satisfy any weaker check.
+     */
+    @Test
+    void shouldSeedTheCatalogueAbofonsaPublishes() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getServicePlans())
+            .extracting(
+                ServicePlan::getCode,
+                ServicePlan::getName,
+                ServicePlan::getDisplayOrder,
+                plan -> plan.getMonthlyPrice().intValueExact(),
+                ServicePlan::getCurrency
+            )
+            .containsExactlyInAnyOrder(
+                tuple("PEAR", "PEAR Plan", 1, 3000, "GHS"),
+                tuple("PAWPAW", "PAWPAW Plan", 2, 5000, "GHS"),
+                tuple("MELON", "MELON Plan", 3, 8000, "GHS")
+            );
+        // PAWPAW is the featured tier on the public site and is the only one here. Asserted because
+        // `featured` is seeded from the publisher once, at creation, and is this console's field
+        // thereafter — so a fixture that featured the wrong tier would be a plausible screen.
+        assertThat(test.getServicePlans().stream().filter(ServicePlan::getFeatured).map(ServicePlan::getCode)).containsExactly("PAWPAW");
     }
 
     /**

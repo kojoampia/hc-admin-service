@@ -10,7 +10,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.repository.ServicePlanRepository;
+import net.jojoaddison.service.ServicePlanCatalogueSyncService;
 import net.jojoaddison.service.ServicePlanSummaryService;
+import net.jojoaddison.service.dto.PlanCatalogueSyncDTO;
 import net.jojoaddison.service.dto.ServicePlanSummaryDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
@@ -44,9 +46,16 @@ public class ServicePlanResource {
 
     private final ServicePlanSummaryService servicePlanSummaryService;
 
-    public ServicePlanResource(ServicePlanRepository servicePlanRepository, ServicePlanSummaryService servicePlanSummaryService) {
+    private final ServicePlanCatalogueSyncService servicePlanCatalogueSyncService;
+
+    public ServicePlanResource(
+        ServicePlanRepository servicePlanRepository,
+        ServicePlanSummaryService servicePlanSummaryService,
+        ServicePlanCatalogueSyncService servicePlanCatalogueSyncService
+    ) {
         this.servicePlanRepository = servicePlanRepository;
         this.servicePlanSummaryService = servicePlanSummaryService;
+        this.servicePlanCatalogueSyncService = servicePlanCatalogueSyncService;
     }
 
     /**
@@ -135,7 +144,8 @@ public class ServicePlanResource {
             .findById(servicePlan.getId())
             .map(existingServicePlan -> {
                 updateIfPresent(existingServicePlan::setName, servicePlan.getName());
-                updateIfPresent(existingServicePlan::setTier, servicePlan.getTier());
+                updateIfPresent(existingServicePlan::setCode, servicePlan.getCode());
+                updateIfPresent(existingServicePlan::setDisplayOrder, servicePlan.getDisplayOrder());
                 updateIfPresent(existingServicePlan::setTierLabel, servicePlan.getTierLabel());
                 updateIfPresent(existingServicePlan::setMonthlyPrice, servicePlan.getMonthlyPrice());
                 updateIfPresent(existingServicePlan::setCurrency, servicePlan.getCurrency());
@@ -187,6 +197,33 @@ public class ServicePlanResource {
     public ResponseEntity<ServicePlanSummaryDTO> getServicePlanSummary() {
         LOG.debug("REST request to get the service plan mix");
         return ResponseEntity.ok(servicePlanSummaryService.summary());
+    }
+
+    /**
+     * {@code POST /service-plans/sync} : reconcile this catalogue against the one Abofonsa publishes.
+     *
+     * <p>Safe to run at any time and safe to run twice — the same idempotent upsert on {@code code}
+     * that {@link ServicePlanCatalogueSyncService}'s scheduled pass takes. It exists for the case the
+     * schedule cannot serve: an administrator has been told the published price list changed and does
+     * not want to wait for the next pass. The precedent is
+     * {@code POST /api/directory-links/reconcile}, which has no console button either.
+     *
+     * <p><b>Abofonsa being unreachable is a 200, not a 5xx.</b> The body says {@code reached: false}
+     * and every count is zero, which is the honest report: nothing was written and nothing is known.
+     * Answering an error would make this endpoint the one place in the console where a third party's
+     * outage looks like a fault in this service — and there is no screen anywhere that reads the
+     * publisher, so nothing has degraded.
+     *
+     * <p>No new authorisation rule: the blanket non-{@code GET} rule in {@code SecurityConfiguration}
+     * is {@code ROLE_ADMIN}, which is right for an action that rewrites a catalogue an operator may
+     * only read.
+     *
+     * @return the {@link ResponseEntity} with status {@code 200 (OK)} and what the run did.
+     */
+    @PostMapping("/sync")
+    public ResponseEntity<PlanCatalogueSyncDTO> syncServicePlanCatalogue() {
+        LOG.debug("REST request to sync the plan catalogue with Abofonsa");
+        return ResponseEntity.ok(servicePlanCatalogueSyncService.sync());
     }
 
     /**

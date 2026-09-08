@@ -51,7 +51,7 @@ public class ServicePlanSummaryService {
     }
 
     public ServicePlanSummaryDTO summary() {
-        List<ServicePlan> plans = mongoTemplate.findAll(ServicePlan.class).stream().sorted(byTier()).toList();
+        List<ServicePlan> plans = mongoTemplate.findAll(ServicePlan.class).stream().sorted(byDisplayOrder()).toList();
 
         List<Long> counts = plans.stream().map(plan -> subscribers(plan.getId())).toList();
         long total = counts.stream().mapToLong(Long::longValue).sum();
@@ -76,15 +76,21 @@ public class ServicePlanSummaryService {
     }
 
     /**
-     * Card order: {@code ESSENTIAL}, {@code PLUS}, {@code FAMILY}, which is both the enum's order and
-     * ascending price, and is the order the design draws the three cards in.
+     * Card order: {@code displayOrder}, which is the order Abofonsa publishes the tiers in and so the
+     * order the public site draws them in.
      *
-     * <p>A plan with no tier sorts last rather than throwing. {@code tier} is {@code @NotNull} on the
-     * domain, but this is a read path over whatever is stored, and a summary that 500s because one
-     * document predates a constraint is worse than one that puts it at the end.
+     * <p>This was the {@code PlanTier} ordinal until 2026-09-08 — {@code ESSENTIAL}, {@code PLUS},
+     * {@code FAMILY} — which was ascending price only because the enum happened to be declared that
+     * way. The published order comes from the catalogue now, so a fourth tier or a re-ordering
+     * arrives here without an enum being edited (backlog item 51).
+     *
+     * <p>A plan with no {@code displayOrder} sorts last rather than throwing, and the reason the old
+     * comment gave still holds: a plan created by an administrator before the catalogue was
+     * reconciled has none, and a summary that 500s over one such document is worse than one that puts
+     * it at the end. Ties keep the order Mongo returned, {@code sorted} being stable.
      */
-    private static Comparator<ServicePlan> byTier() {
-        return Comparator.comparing(plan -> plan.getTier() == null ? Integer.MAX_VALUE : plan.getTier().ordinal());
+    private static Comparator<ServicePlan> byDisplayOrder() {
+        return Comparator.comparing(plan -> plan.getDisplayOrder() == null ? Integer.MAX_VALUE : plan.getDisplayOrder());
     }
 
     /**

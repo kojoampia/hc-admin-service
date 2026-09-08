@@ -17,10 +17,10 @@
       "fieldValidateRulesMaxlength": "60"
     },
     {
-      "fieldName": "tier",
-      "fieldType": "PlanTier",
-      "fieldValidateRules": ["required"],
-      "fieldValues": "ESSENTIAL,PLUS,FAMILY"
+      "fieldName": "code",
+      "fieldType": "String",
+      "fieldValidateRules": ["maxlength"],
+      "fieldValidateRulesMaxlength": "40"
     },
     {
       "fieldName": "tierLabel",
@@ -29,9 +29,13 @@
       "fieldValidateRulesMaxlength": "40"
     },
     {
+      "fieldName": "displayOrder",
+      "fieldType": "Integer"
+    },
+    {
       "fieldName": "monthlyPrice",
       "fieldType": "BigDecimal",
-      "fieldValidateRules": ["required", "min"],
+      "fieldValidateRules": ["min"],
       "fieldValidateRulesMin": "0"
     },
     {

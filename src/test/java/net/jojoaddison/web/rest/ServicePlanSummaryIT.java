@@ -13,7 +13,6 @@ import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.PlanFeature;
 import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.domain.enumeration.AccountStatus;
-import net.jojoaddison.domain.enumeration.PlanTier;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.PlanFeatureRepository;
 import net.jojoaddison.repository.ServicePlanRepository;
@@ -57,9 +56,9 @@ class ServicePlanSummaryIT {
     @Autowired
     private PlanFeatureRepository planFeatureRepository;
 
-    private ServicePlan essential;
-    private ServicePlan plus;
-    private ServicePlan family;
+    private ServicePlan pear;
+    private ServicePlan pawpaw;
+    private ServicePlan melon;
 
     @BeforeEach
     void seed() {
@@ -67,20 +66,29 @@ class ServicePlanSummaryIT {
         patientRepository.deleteAll();
         servicePlanRepository.deleteAll();
 
-        essential = servicePlanRepository.save(plan("Bridge Essential", PlanTier.ESSENTIAL, "320"));
-        plus = servicePlanRepository.save(plan("Bridge Plus", PlanTier.PLUS, "680"));
-        family = servicePlanRepository.save(plan("Bridge Family", PlanTier.FAMILY, "1240"));
+        // Abofonsa's published tiers and prices, deliberately. This fixture held the retired
+        // Bridge catalogue at 320 / 680 / 1,240 until 2026-09-08, which is the price list backlog
+        // item 51 was opened about; a test that keeps it alive is one more place a reader learns the
+        // wrong numbers from.
+        //
+        // Saved out of order on purpose. displayOrder says PEAR, PAWPAW, MELON; insertion order says
+        // MELON, PEAR, PAWPAW; name order says MELON, PAWPAW, PEAR. No two agree, so the ordering
+        // assertion below cannot be satisfied by the summary having sorted on something else, or on
+        // nothing at all.
+        melon = servicePlanRepository.save(plan("MELON Plan", "MELON", 3, "8000"));
+        pear = servicePlanRepository.save(plan("PEAR Plan", "PEAR", 1, "3000"));
+        pawpaw = servicePlanRepository.save(plan("PAWPAW Plan", "PAWPAW", 2, "5000"));
 
         patientRepository.saveAll(
             List.of(
-                patient(essential, false),
-                patient(essential, false),
-                patient(plus, false),
-                patient(plus, false),
-                patient(plus, false),
-                patient(family, false),
+                patient(pear, false),
+                patient(pear, false),
+                patient(pawpaw, false),
+                patient(pawpaw, false),
+                patient(pawpaw, false),
+                patient(melon, false),
                 // Archived: out of every figure, because the directory below does not show it.
-                patient(family, true),
+                patient(melon, true),
                 // No plan: not a subscriber to anything, so out of the denominator too. Were it
                 // counted, the shares would sum to less than 100 and nothing would say why.
                 patient(null, false)
@@ -96,8 +104,8 @@ class ServicePlanSummaryIT {
     }
 
     /**
-     * Six subscribers: two Essential, three Plus, one Family — every one of them a patient this
-     * test put in the directory, which is the whole property being asserted.
+     * Six subscribers: two PEAR, three PAWPAW, one MELON — every one of them a patient this test
+     * put in the directory, which is the whole property being asserted.
      */
     @Test
     void subscribersAreCountedFromThePatientDirectory() throws Exception {
@@ -105,29 +113,31 @@ class ServicePlanSummaryIT {
             .perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalSubscribers").value(6))
-            // Ordered by tier, which is also ascending price and the order the cards are drawn in.
-            .andExpect(jsonPath("$.mix[0].planId").value(essential.getId()))
+            // Ordered by displayOrder — the order Abofonsa publishes the tiers in, and so the order
+            // the public site draws them in. It was the plan tier's ordinal until 2026-09-08; see
+            // the insertion order in seed() for why this assertion is not satisfiable by accident.
+            .andExpect(jsonPath("$.mix[0].planId").value(pear.getId()))
             .andExpect(jsonPath("$.mix[0].subscribers").value(2))
-            .andExpect(jsonPath("$.mix[1].planId").value(plus.getId()))
+            .andExpect(jsonPath("$.mix[1].planId").value(pawpaw.getId()))
             .andExpect(jsonPath("$.mix[1].subscribers").value(3))
-            .andExpect(jsonPath("$.mix[2].planId").value(family.getId()))
+            .andExpect(jsonPath("$.mix[2].planId").value(melon.getId()))
             .andExpect(jsonPath("$.mix[2].subscribers").value(1));
     }
 
     /**
      * Revenue is price times subscribers, per plan.
      *
-     * <p>320×2 = 640, 680×3 = 2040, 1240×1 = 1240. Read as doubles so 640 and 640.00 both pass —
-     * the scale depends on how the BigDecimal was stored, which is not what this asserts.
+     * <p>3000×2 = 6000, 5000×3 = 15000, 8000×1 = 8000. Read as doubles so 6000 and 6000.00 both
+     * pass — the scale depends on how the BigDecimal was stored, which is not what this asserts.
      */
     @Test
     void revenueIsPriceTimesSubscribers() throws Exception {
         mvc
             .perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.mix[0].monthlyRevenue").value(new BigDecimal("640").doubleValue()))
-            .andExpect(jsonPath("$.mix[1].monthlyRevenue").value(new BigDecimal("2040").doubleValue()))
-            .andExpect(jsonPath("$.mix[2].monthlyRevenue").value(new BigDecimal("1240").doubleValue()));
+            .andExpect(jsonPath("$.mix[0].monthlyRevenue").value(new BigDecimal("6000").doubleValue()))
+            .andExpect(jsonPath("$.mix[1].monthlyRevenue").value(new BigDecimal("15000").doubleValue()))
+            .andExpect(jsonPath("$.mix[2].monthlyRevenue").value(new BigDecimal("8000").doubleValue()));
     }
 
     /**
@@ -185,20 +195,20 @@ class ServicePlanSummaryIT {
     void featuresFilterByPlan() throws Exception {
         planFeatureRepository.saveAll(
             List.of(
-                feature("1 home visit per month", 0, essential),
-                feature("Full digital health record", 1, essential),
-                feature("Fortnightly nursing visits", 0, plus)
+                feature("1 home visit per month", 0, pear),
+                feature("Full digital health record", 1, pear),
+                feature("Fortnightly nursing visits", 0, pawpaw)
             )
         );
 
         mvc
-            .perform(get("/api/plan-features?planId.equals=" + essential.getId()))
+            .perform(get("/api/plan-features?planId.equals=" + pear.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "2"))
             .andExpect(jsonPath("$[*].label", org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("Fortnightly nursing visits"))));
 
         mvc
-            .perform(get("/api/plan-features?planId.equals=" + family.getId()))
+            .perform(get("/api/plan-features?planId.equals=" + melon.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"));
 
@@ -219,8 +229,14 @@ class ServicePlanSummaryIT {
         mvc.perform(get("/api/service-plans/summary")).andExpect(status().isOk()).andExpect(jsonPath("$.totalSubscribers").exists());
     }
 
-    private static ServicePlan plan(String name, PlanTier tier, String price) {
-        return new ServicePlan().name(name).tier(tier).monthlyPrice(new BigDecimal(price)).currency("GHS").featured(false);
+    private static ServicePlan plan(String name, String code, int displayOrder, String price) {
+        return new ServicePlan()
+            .name(name)
+            .code(code)
+            .displayOrder(displayOrder)
+            .monthlyPrice(new BigDecimal(price))
+            .currency("GHS")
+            .featured(false);
     }
 
     private static PlanFeature feature(String label, int position, ServicePlan plan) {

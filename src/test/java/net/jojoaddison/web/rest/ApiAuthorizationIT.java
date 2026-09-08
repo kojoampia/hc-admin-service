@@ -160,6 +160,23 @@ class ApiAuthorizationIT {
         mvc.perform(post("/api/platform-services/any-id/probe").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
     }
 
+    /**
+     * The plan catalogue sync, which is the same shape one field along.
+     *
+     * <p>Asserted separately for the probe's reason: it does not look like a write either. It reads a
+     * public catalogue somebody else publishes and takes no body, so "let an operator refresh it" is
+     * an easy argument to make — and it rewrites the name, code and ordering of every plan the
+     * patient directory, the CSV export and the dashboard's plan mix render. The blanket non-GET rule
+     * covers it and the answer is 403.
+     *
+     * <p>403 and not 404, so this goes red if the path is ever removed rather than quietly asserting
+     * nothing.
+     */
+    @Test
+    void operatorCannotSyncThePlanCatalogue() throws Exception {
+        mvc.perform(post("/api/service-plans/sync").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
+    }
+
     // --- ROLE_ADMIN: everything -------------------------------------------------------------------
 
     @Test

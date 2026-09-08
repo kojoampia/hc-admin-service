@@ -13,7 +13,6 @@ import java.math.BigDecimal;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.ServicePlan;
-import net.jojoaddison.domain.enumeration.PlanTier;
 import net.jojoaddison.repository.ServicePlanRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,11 +34,14 @@ class ServicePlanResourceIT {
     private static final String DEFAULT_NAME = "AAAAAAAAAA";
     private static final String UPDATED_NAME = "BBBBBBBBBB";
 
-    private static final PlanTier DEFAULT_TIER = PlanTier.ESSENTIAL;
-    private static final PlanTier UPDATED_TIER = PlanTier.PLUS;
+    private static final String DEFAULT_CODE = "AAAAAAAAAA";
+    private static final String UPDATED_CODE = "BBBBBBBBBB";
 
     private static final String DEFAULT_TIER_LABEL = "AAAAAAAAAA";
     private static final String UPDATED_TIER_LABEL = "BBBBBBBBBB";
+
+    private static final Integer DEFAULT_DISPLAY_ORDER = 1;
+    private static final Integer UPDATED_DISPLAY_ORDER = 2;
 
     private static final BigDecimal DEFAULT_MONTHLY_PRICE = new BigDecimal(0);
     private static final BigDecimal UPDATED_MONTHLY_PRICE = new BigDecimal(1);
@@ -78,8 +80,9 @@ class ServicePlanResourceIT {
     public static ServicePlan createEntity() {
         return new ServicePlan()
             .name(DEFAULT_NAME)
-            .tier(DEFAULT_TIER)
+            .code(DEFAULT_CODE)
             .tierLabel(DEFAULT_TIER_LABEL)
+            .displayOrder(DEFAULT_DISPLAY_ORDER)
             .monthlyPrice(DEFAULT_MONTHLY_PRICE)
             .currency(DEFAULT_CURRENCY)
             .summary(DEFAULT_SUMMARY)
@@ -95,8 +98,9 @@ class ServicePlanResourceIT {
     public static ServicePlan createUpdatedEntity() {
         return new ServicePlan()
             .name(UPDATED_NAME)
-            .tier(UPDATED_TIER)
+            .code(UPDATED_CODE)
             .tierLabel(UPDATED_TIER_LABEL)
+            .displayOrder(UPDATED_DISPLAY_ORDER)
             .monthlyPrice(UPDATED_MONTHLY_PRICE)
             .currency(UPDATED_CURRENCY)
             .summary(UPDATED_SUMMARY)
@@ -168,34 +172,31 @@ class ServicePlanResourceIT {
         assertSameRepositoryCount(databaseSizeBeforeTest);
     }
 
+    /**
+     * A plan with no price is accepted, and the assertion is the inversion of the one it replaces.
+     *
+     * <p>{@code checkMonthlyPriceIsRequired} lived here until 2026-09-08 and asserted a 400. The
+     * constraint went with backlog item 51: {@code ServicePlanCatalogueSyncService} creates a plan
+     * from Abofonsa's published catalogue, which carries no machine-readable price at all, so an
+     * unpriced plan is the state every learned plan is in until an administrator sets one. Null is
+     * deliberately not zero — see {@code ServicePlan.monthlyPrice} — and
+     * {@code ServicePlanSummaryService} already reports such a plan as earning nothing.
+     *
+     * <p>Kept as an explicit case rather than deleted, because "the required-field test is gone" and
+     * "the field is optional" look identical in a diff and only one of them is a decision.
+     */
     @Test
-    void checkTierIsRequired() throws Exception {
+    void acceptsAPlanWithNoPriceYet() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
-        servicePlan.setTier(null);
-
-        // Create the ServicePlan, which fails.
-
-        restServicePlanMockMvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(servicePlan)))
-            .andExpect(status().isBadRequest());
-
-        assertSameRepositoryCount(databaseSizeBeforeTest);
-    }
-
-    @Test
-    void checkMonthlyPriceIsRequired() throws Exception {
-        long databaseSizeBeforeTest = getRepositoryCount();
-        // set the field null
         servicePlan.setMonthlyPrice(null);
 
-        // Create the ServicePlan, which fails.
-
         restServicePlanMockMvc
             .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(servicePlan)))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isCreated());
 
-        assertSameRepositoryCount(databaseSizeBeforeTest);
+        assertThat(getRepositoryCount()).isEqualTo(databaseSizeBeforeTest + 1);
+        insertedServicePlan =
+            servicePlanRepository.findAll().stream().filter(plan -> plan.getMonthlyPrice() == null).findFirst().orElseThrow();
     }
 
     @Test
@@ -240,8 +241,9 @@ class ServicePlanResourceIT {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(servicePlan.getId())))
             .andExpect(jsonPath("$.[*].name").value(hasItem(DEFAULT_NAME)))
-            .andExpect(jsonPath("$.[*].tier").value(hasItem(DEFAULT_TIER.toString())))
+            .andExpect(jsonPath("$.[*].code").value(hasItem(DEFAULT_CODE)))
             .andExpect(jsonPath("$.[*].tierLabel").value(hasItem(DEFAULT_TIER_LABEL)))
+            .andExpect(jsonPath("$.[*].displayOrder").value(hasItem(DEFAULT_DISPLAY_ORDER)))
             .andExpect(jsonPath("$.[*].monthlyPrice").value(hasItem(sameNumber(DEFAULT_MONTHLY_PRICE))))
             .andExpect(jsonPath("$.[*].currency").value(hasItem(DEFAULT_CURRENCY)))
             .andExpect(jsonPath("$.[*].summary").value(hasItem(DEFAULT_SUMMARY)))
@@ -260,12 +262,44 @@ class ServicePlanResourceIT {
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(servicePlan.getId()))
             .andExpect(jsonPath("$.name").value(DEFAULT_NAME))
-            .andExpect(jsonPath("$.tier").value(DEFAULT_TIER.toString()))
+            .andExpect(jsonPath("$.code").value(DEFAULT_CODE))
             .andExpect(jsonPath("$.tierLabel").value(DEFAULT_TIER_LABEL))
+            .andExpect(jsonPath("$.displayOrder").value(DEFAULT_DISPLAY_ORDER))
             .andExpect(jsonPath("$.monthlyPrice").value(sameNumber(DEFAULT_MONTHLY_PRICE)))
             .andExpect(jsonPath("$.currency").value(DEFAULT_CURRENCY))
             .andExpect(jsonPath("$.summary").value(DEFAULT_SUMMARY))
             .andExpect(jsonPath("$.featured").value(DEFAULT_FEATURED));
+    }
+
+    /**
+     * A sync that reads nothing is a 200 saying so, not a 5xx — and it says <em>which</em> nothing.
+     *
+     * <p>The content client is disabled for every integration test (the note in
+     * {@code src/test/resources/config/application.yml} says why), so what this exercises is
+     * {@code configured: false}: nothing was dialled. <b>It is deliberately not the outage path</b>,
+     * and saying so is backlog item 24's lesson one field along — that entry is about this repo
+     * telling an administrator a far service was down whenever a local switch was off, which sends
+     * the reader to the wrong machine. The outage proper is
+     * {@code ServicePlanCatalogueSyncServiceTest}'s, over a mocked client, because producing a real
+     * one here means a socket and a timeout against a third party's production host.
+     *
+     * <p>What the two share, and what this asserts on the wire rather than in a return value, is the
+     * posture the whole design rests on: no screen reads Abofonsa, so a read that does not happen
+     * writes nothing and degrades nothing.
+     */
+    @Test
+    void syncingWithNothingToReadIsAnOkThatSaysWhy() throws Exception {
+        long databaseSizeBeforeSync = getRepositoryCount();
+
+        restServicePlanMockMvc
+            .perform(post(ENTITY_API_URL + "/sync"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.reached").value(false))
+            .andExpect(jsonPath("$.configured").value(false))
+            .andExpect(jsonPath("$.published").value(0))
+            .andExpect(jsonPath("$.created").value(0));
+
+        assertSameRepositoryCount(databaseSizeBeforeSync);
     }
 
     @Test
@@ -285,8 +319,9 @@ class ServicePlanResourceIT {
         ServicePlan updatedServicePlan = servicePlanRepository.findById(servicePlan.getId()).orElseThrow();
         updatedServicePlan
             .name(UPDATED_NAME)
-            .tier(UPDATED_TIER)
+            .code(UPDATED_CODE)
             .tierLabel(UPDATED_TIER_LABEL)
+            .displayOrder(UPDATED_DISPLAY_ORDER)
             .monthlyPrice(UPDATED_MONTHLY_PRICE)
             .currency(UPDATED_CURRENCY)
             .summary(UPDATED_SUMMARY)
@@ -398,8 +433,9 @@ class ServicePlanResourceIT {
 
         partialUpdatedServicePlan
             .name(UPDATED_NAME)
-            .tier(UPDATED_TIER)
+            .code(UPDATED_CODE)
             .tierLabel(UPDATED_TIER_LABEL)
+            .displayOrder(UPDATED_DISPLAY_ORDER)
             .monthlyPrice(UPDATED_MONTHLY_PRICE)
             .currency(UPDATED_CURRENCY)
             .summary(UPDATED_SUMMARY)
