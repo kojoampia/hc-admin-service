@@ -169,12 +169,12 @@ class PatientCsvExporterTest {
     void carriesThePlanTheSponsorAndTheStatus() throws Exception {
         Patient patient = new Patient().status(AccountStatus.SUSPENDED).caseCount(3);
         patient.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
-        patient.setPlan(new ServicePlan().name("Bridge Plus"));
+        patient.setPlan(new ServicePlan().name("PAWPAW Plan"));
         patient.setAngel(new Angel().name("Kofi Boateng").relationship("Son"));
 
         List<String> cells = cells(write(patient).get(1));
 
-        assertThat(cells.get(5)).isEqualTo("Bridge Plus");
+        assertThat(cells.get(5)).isEqualTo("PAWPAW Plan");
         assertThat(cells.get(6)).isEqualTo("Kofi Boateng");
         assertThat(cells.get(7)).isEqualTo("Son");
         assertThat(cells.get(9)).isEqualTo("SUSPENDED");

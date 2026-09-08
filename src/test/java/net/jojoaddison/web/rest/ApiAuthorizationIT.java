@@ -159,6 +159,30 @@ class ApiAuthorizationIT {
         mvc.perform(post("/api/platform-services/any-id/probe").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
     }
 
+    /**
+     * The plan catalogue sync, which is the same shape one field along.
+     *
+     * <p>Asserted separately for the probe's reason: it does not look like a write either. It reads a
+     * public catalogue somebody else publishes and takes no body, so "let an operator refresh it" is
+     * an easy argument to make — and it rewrites the name, code and ordering of every plan the
+     * patient directory, the CSV export and the dashboard's plan mix render. The blanket non-GET rule
+     * covers it and the answer is 403.
+     *
+     * <p><b>Both halves</b>, following {@link #onlyAnAdminReconcilesTheDirectory} rather than the
+     * probe: "an operator is refused" is satisfied just as well by the endpoint being unreachable for
+     * everybody, and 403-and-not-404 only rules out the path having been deleted — not a matcher
+     * that refuses the administrator too. The admin call answers 200 with
+     * {@code reached: false, configured: false}, because {@code AbofonsaContentClient} is disabled
+     * for the whole suite (see {@code src/test/resources/config/application.yml}); that is the
+     * endpoint's honest report of a deployment that dials nobody, and it is a successful one on
+     * purpose — a third party's absence is not a fault in this service.
+     */
+    @Test
+    void onlyAnAdminSyncsThePlanCatalogue() throws Exception {
+        mvc.perform(post("/api/service-plans/sync").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/service-plans/sync").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isOk());
+    }
+
     // --- ROLE_ADMIN: everything -------------------------------------------------------------------
 
     @Test

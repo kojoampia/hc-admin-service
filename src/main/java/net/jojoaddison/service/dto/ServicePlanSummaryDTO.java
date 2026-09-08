@@ -28,7 +28,9 @@ import java.util.List;
  * computed over rows the console will not show would disagree with the console.
  *
  * @param totalSubscribers non-archived patients holding any plan; the denominator of every share
- * @param mix one row per plan, ordered by tier — the order the plan board draws its cards in
+ * @param mix one row per plan, ordered by {@code displayOrder} — the order Abofonsa publishes the
+ *     tiers in, and so the order the plan board draws its cards in. It said "ordered by tier" until
+ *     2026-09-08, when the {@code PlanTier} ordinal it meant was deleted.
  */
 public record ServicePlanSummaryDTO(long totalSubscribers, List<PlanMixRow> mix) implements Serializable {
     /**
@@ -43,15 +45,24 @@ public record ServicePlanSummaryDTO(long totalSubscribers, List<PlanMixRow> mix)
      * of the market, which is a statement, not an absence.
      *
      * <p>{@code monthlyRevenue} is genuinely zero in that case, and is typed to say so: no
-     * subscribers times any price is nought earned, which is a fact rather than a gap.
+     * subscribers times any <em>known</em> price is nought earned, which is a fact rather than a gap.
+     *
+     * <p><strong>It is null when the plan has no price</strong>, which is a different absence and
+     * arrived with a nullable {@code ServicePlan.monthlyPrice} on 2026-09-08. A plan the catalogue
+     * sync learned from Abofonsa is unpriced until an administrator sets a figure, and it can have
+     * subscribers meanwhile — so a zero there would say those subscribers pay nothing, where the
+     * truth is that nobody has recorded what they pay. The console renders it as an em dash and
+     * leaves the row out of the column total rather than adding a zero in.
      *
      * @param planId the plan's id, so the client can link the row to its card without matching names
      * @param name the plan's display name
-     * @param monthlyPrice the plan's own price, carried so the table need not re-read the plan
+     * @param monthlyPrice the plan's own price, carried so the table need not re-read the plan; null
+     *     on a plan nobody has priced yet
      * @param currency the plan's currency code, carried rather than assumed
      * @param subscribers non-archived patients referencing this plan
      * @param share percentage of {@code totalSubscribers}, one decimal place; null when there are none
-     * @param monthlyRevenue {@code monthlyPrice × subscribers}; zero, never null
+     * @param monthlyRevenue {@code monthlyPrice × subscribers}; zero when the price is known and
+     *     nobody holds the plan, and null when the plan has no price — never zero for the second
      */
     public record PlanMixRow(
         String planId,

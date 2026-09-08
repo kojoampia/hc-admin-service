@@ -1,6 +1,7 @@
 package net.jojoaddison.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,9 +17,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
+import net.jojoaddison.domain.PlanFeature;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.BillingType;
@@ -428,6 +431,117 @@ class DevelopmentDataInitializerTest {
 
         assertThat(priced).doesNotContain("CAREGIVER/EVENING", "CAREGIVER/FLEXIBLE");
         assertThat(priced).hasSize(ProfessionalRole.values().length * ShiftType.values().length - 2);
+    }
+
+    /**
+     * The seeded catalogue is the one Abofonsa publishes, tier for tier and price for price.
+     *
+     * <p>Backlog item 51. Until 2026-09-08 this fixture held {@code Bridge Essential} /
+     * {@code Bridge Plus} / {@code Bridge Family} at GHS 320 / 680 / 1,240 while
+     * {@code web.abofonsa.com} and hc-patient both showed {@code PEAR} / {@code PAWPAW} /
+     * {@code MELON} at 3,000 / 5,000 / 8,000 — so every stack anybody could drive taught a reader a
+     * price list that exists nowhere but here, by a factor of roughly ten.
+     *
+     * <p><b>Named and priced rather than counted, and the price is the assertion that matters.</b>
+     * {@code hasSize(3)} above already covers the count and would go on passing against any three
+     * plans at any three prices, which is precisely the state this fixture was in for months. What
+     * this cannot catch is Abofonsa changing a published price: {@code monthlyPrice} is this
+     * service's own figure by design — see {@code ServicePlanCatalogueSyncService} — so these numbers
+     * are a copy, and a copy is what item 51 is still open about. Check them against the live
+     * catalogue rather than trusting them, and if they disagree the fixture is what is wrong.
+     *
+     * <p>{@code displayOrder} is asserted as ascending-with-price because that is what makes the
+     * order meaningful: the summary sorts on it now rather than on a deleted enum's ordinal, and
+     * three plans in an arbitrary order would satisfy any weaker check.
+     *
+     * <p><b>{@code MELON} is deliberately left unpriced, and it is the one tier this asserts a null
+     * for.</b> Same argument as {@link #shouldLeaveTwoNamedCellsUnpricedUnderTest} one collection
+     * along, and the same objection it answers: {@code monthlyPrice} became nullable on 2026-09-08
+     * because a plan the catalogue sync learns arrives with no price, and with all three published
+     * tiers priced here that state rendered on <b>no stack anybody can drive</b> — {@code quality/}
+     * and {@code deploy/e2e/compose.yml} both run {@code dev,test}. Three template branches depend
+     * on it: the board's "Not priced" card, the record's "Not set", and the mix table's em dash
+     * against a plan that has subscribers, which is the row the {@code monthlyRevenue} null exists
+     * for. MELON has three non-archived subscribers in this fixture, so the mix shows an unpriced
+     * plan somebody is holding rather than an unpriced plan nobody has taken up — the two are not
+     * the same screen, and only the first is the state that matters.
+     *
+     * <p>It does <b>not</b> restate a wrong price. Abofonsa publishes MELON at GHS 8,000 and this
+     * fixture says nothing about what MELON costs; what it says is that this console has not
+     * recorded a figure for it, which is a true and reachable state of a service whose copy of the
+     * price is its own. Do not "complete" the catalogue here — the same instruction the wage rate
+     * grid carries.
+     */
+    @Test
+    void shouldSeedTheCatalogueAbofonsaPublishes() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getServicePlans())
+            .extracting(
+                ServicePlan::getCode,
+                ServicePlan::getName,
+                ServicePlan::getDisplayOrder,
+                plan -> plan.getMonthlyPrice() == null ? null : plan.getMonthlyPrice().intValueExact(),
+                ServicePlan::getCurrency
+            )
+            .containsExactlyInAnyOrder(
+                tuple("PEAR", "PEAR Plan", 1, 3000, "GHS"),
+                tuple("PAWPAW", "PAWPAW Plan", 2, 5000, "GHS"),
+                tuple("MELON", "MELON Plan", 3, null, "GHS")
+            );
+        // PAWPAW is the featured tier on the public site and is the only one here. Asserted because
+        // `featured` is seeded from the publisher once, at creation, and is this console's field
+        // thereafter — so a fixture that featured the wrong tier would be a plausible screen.
+        assertThat(test.getServicePlans().stream().filter(ServicePlan::getFeatured).map(ServicePlan::getCode)).containsExactly("PAWPAW");
+    }
+
+    /**
+     * A card's bullets are the ones Abofonsa publishes for that tier.
+     *
+     * <p>The other half of item 51's review, and the way this fixture went wrong is worth keeping:
+     * {@code servicePlans} was rewritten to the published names and prices and {@code planFeatures}
+     * was left alone, so PEAR Plan at GHS 3,000 advertised <em>"1 home visit per month"</em> and
+     * MELON <em>"Weekly home visits"</em> — the retired Bridge feature lists, under the new tiers'
+     * names, on every stack anybody can drive. That is exactly the class of wrong fact item 51 was
+     * opened about, one field along from the prices, and nothing failed while it was true.
+     *
+     * <p>Only the tiers' {@code included: true} features are seeded. The published payload carries
+     * the excluded ones as well, to draw a comparison table the public site has and this console
+     * does not: the plan board renders every bullet with a tick, so seeding a
+     * {@code "24/7 on-call availability", included: false} would put a tick beside something the
+     * plan does not include. The counts follow from that and are not a coincidence to preserve — 5,
+     * 6 and 7 are how many included features each tier publishes.
+     *
+     * <p>The first bullet of each tier is asserted by value because it is the one that differs most
+     * from what it replaced and the one a reader sees first; the rest by count, because a published
+     * feature list is edited by whoever writes the marketing page and pinning all eighteen here
+     * would make this test fail on a copy edit rather than on a fault.
+     */
+    @Test
+    void shouldSeedTheFeatureListsAbofonsaPublishes() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getPlanFeatures())
+            .filteredOn(feature -> "pl1".equals(feature.getPlan().getId()))
+            .extracting(PlanFeature::getLabel)
+            .hasSize(5)
+            .startsWith("5 weekly visits");
+        assertThat(test.getPlanFeatures())
+            .filteredOn(feature -> "pl2".equals(feature.getPlan().getId()))
+            .extracting(PlanFeature::getLabel)
+            .hasSize(6)
+            .startsWith("7 weekly visits");
+        assertThat(test.getPlanFeatures())
+            .filteredOn(feature -> "pl3".equals(feature.getPlan().getId()))
+            .extracting(PlanFeature::getLabel)
+            .hasSize(7)
+            .startsWith("24/7 availability");
+
+        // The retired lists, named so that restoring one fails here rather than reading as a copy
+        // edit somebody made on purpose.
+        assertThat(test.getPlanFeatures())
+            .extracting(PlanFeature::getLabel)
+            .doesNotContain("1 home visit per month", "2 home visits per month", "Weekly home visits");
     }
 
     /**

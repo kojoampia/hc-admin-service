@@ -49,8 +49,9 @@ public class ServicePlanAsserts {
         assertThat(actual)
             .as("Verify ServicePlan relevant properties")
             .satisfies(a -> assertThat(a.getName()).as("check name").isEqualTo(expected.getName()))
-            .satisfies(a -> assertThat(a.getTier()).as("check tier").isEqualTo(expected.getTier()))
+            .satisfies(a -> assertThat(a.getCode()).as("check code").isEqualTo(expected.getCode()))
             .satisfies(a -> assertThat(a.getTierLabel()).as("check tierLabel").isEqualTo(expected.getTierLabel()))
+            .satisfies(a -> assertThat(a.getDisplayOrder()).as("check displayOrder").isEqualTo(expected.getDisplayOrder()))
             .satisfies(a ->
                 assertThat(a.getMonthlyPrice())
                     .as("check monthlyPrice")

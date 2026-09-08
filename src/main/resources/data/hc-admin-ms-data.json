@@ -974,7 +974,7 @@
         },
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         },
         "clinicalLead": {
           "id": "p1",
@@ -1003,7 +1003,7 @@
         },
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         },
         "clinicalLead": {
           "id": "p5",
@@ -1032,7 +1032,7 @@
         },
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         },
         "clinicalLead": {
           "id": "p2",
@@ -1061,7 +1061,7 @@
         },
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         },
         "clinicalLead": {
           "id": "p6",
@@ -1090,7 +1090,7 @@
         },
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         },
         "clinicalLead": {
           "id": "p1",
@@ -1119,7 +1119,7 @@
         },
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         },
         "clinicalLead": {
           "id": "p3",
@@ -1148,7 +1148,7 @@
         },
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         },
         "clinicalLead": {
           "id": "p2",
@@ -1177,7 +1177,7 @@
         },
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         },
         "clinicalLead": {
           "id": "p4",
@@ -1206,7 +1206,7 @@
         },
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         },
         "clinicalLead": {
           "id": "p6",
@@ -1235,7 +1235,7 @@
         },
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         },
         "clinicalLead": {
           "id": "p1",
@@ -1264,7 +1264,7 @@
         },
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         },
         "clinicalLead": {
           "id": "p3",
@@ -1293,7 +1293,7 @@
         },
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         },
         "clinicalLead": {
           "id": "p2",
@@ -2953,7 +2953,7 @@
       },
       {
         "id": "t9",
-        "title": "Quarterly review of Bridge Family plan pricing",
+        "title": "Quarterly review of MELON plan pricing",
         "state": "DOING",
         "priority": "NORMAL",
         "dueOn": "2026-08-15",
@@ -16032,196 +16032,198 @@
     "servicePlans": [
       {
         "id": "pl1",
-        "name": "Bridge Essential",
-        "tier": "ESSENTIAL",
+        "name": "PEAR Plan",
+        "code": "PEAR",
         "tierLabel": "Entry",
-        "monthlyPrice": 320,
+        "displayOrder": 1,
+        "monthlyPrice": 3000,
         "currency": "GHS",
-        "summary": "Monthly check-in visit, record keeping and the 24/7 care line.",
-        "featured": true
-      },
-      {
-        "id": "pl2",
-        "name": "Bridge Plus",
-        "tier": "PLUS",
-        "tierLabel": "Most chosen",
-        "monthlyPrice": 680,
-        "currency": "GHS",
-        "summary": "Fortnightly nursing visits, physiotherapy and priority scheduling.",
+        "summary": "A dependable weekday routine for a relative who is broadly well but should not be alone.",
         "featured": false
       },
       {
-        "id": "pl3",
-        "name": "Bridge Family",
-        "tier": "FAMILY",
-        "tierLabel": "Full cover",
-        "monthlyPrice": 1240,
+        "id": "pl2",
+        "name": "PAWPAW Plan",
+        "code": "PAWPAW",
+        "tierLabel": "Most chosen",
+        "displayOrder": 2,
+        "monthlyPrice": 5000,
         "currency": "GHS",
-        "summary": "Weekly care, rapid response cover and a named clinical lead.",
+        "summary": "Daily clinical oversight for someone managing a long-term condition or recovering at home.",
+        "featured": true
+      },
+      {
+        "id": "pl3",
+        "name": "MELON Plan",
+        "code": "MELON",
+        "tierLabel": "Full cover",
+        "displayOrder": 3,
+        "currency": "GHS",
+        "summary": "Continuous cover for complex, palliative or high-dependency care needs.",
         "featured": false
       }
     ],
     "planFeatures": [
       {
         "id": "pf-1",
-        "label": "1 home visit per month",
+        "label": "5 weekly visits",
         "position": 0,
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         }
       },
       {
         "id": "pf-2",
-        "label": "Full digital health record",
+        "label": "Nursing support",
         "position": 1,
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         }
       },
       {
         "id": "pf-3",
-        "label": "24/7 care line access",
+        "label": "Cleaning, washing and grocery",
         "position": 2,
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         }
       },
       {
         "id": "pf-4",
-        "label": "Monthly summary to one sponsor",
+        "label": "Written report after every visit",
         "position": 3,
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         }
       },
       {
         "id": "pf-5",
-        "label": "Pharmacy delivery at cost",
+        "label": "Vital signs monitoring",
         "position": 4,
         "plan": {
           "id": "pl1",
-          "name": "Bridge Essential"
+          "name": "PEAR Plan"
         }
       },
       {
         "id": "pf-6",
-        "label": "2 home visits per month",
+        "label": "7 weekly visits",
         "position": 0,
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         }
       },
       {
         "id": "pf-7",
-        "label": "Physiotherapy sessions included",
+        "label": "Nursing and doctor support",
         "position": 1,
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         }
       },
       {
         "id": "pf-8",
-        "label": "Priority appointment scheduling",
+        "label": "Priority scheduling and named carer",
         "position": 2,
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         }
       },
       {
         "id": "pf-9",
-        "label": "Quarterly doctor review",
+        "label": "Cleaning, cooking, grocery, personal care",
         "position": 3,
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         }
       },
       {
         "id": "pf-10",
-        "label": "Summaries to up to three sponsors",
+        "label": "Written report after every visit",
         "position": 4,
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         }
       },
       {
         "id": "pf-11",
-        "label": "Lab panel twice yearly",
+        "label": "Vital signs monitoring",
         "position": 5,
         "plan": {
           "id": "pl2",
-          "name": "Bridge Plus"
+          "name": "PAWPAW Plan"
         }
       },
       {
         "id": "pf-12",
-        "label": "Weekly home visits",
+        "label": "24/7 availability",
         "position": 0,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       },
       {
         "id": "pf-13",
-        "label": "Named doctor as clinical lead",
+        "label": "Nursing and doctor support",
         "position": 1,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       },
       {
         "id": "pf-14",
-        "label": "Rapid response cover included",
+        "label": "All auxiliary services included",
         "position": 2,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       },
       {
         "id": "pf-15",
-        "label": "Unlimited sponsor accounts",
+        "label": "Written report after every visit",
         "position": 3,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       },
       {
         "id": "pf-16",
-        "label": "Full lab panel quarterly",
+        "label": "Vital signs monitoring",
         "position": 4,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       },
       {
         "id": "pf-17",
-        "label": "Equipment hire at 50%",
+        "label": "Priority scheduling and named carer",
         "position": 5,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       },
       {
         "id": "pf-18",
-        "label": "Live video visit on request",
+        "label": "Dedicated care manager",
         "position": 6,
         "plan": {
           "id": "pl3",
-          "name": "Bridge Family"
+          "name": "MELON Plan"
         }
       }
     ],

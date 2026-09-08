@@ -192,6 +192,22 @@ application:
     # is the honest one: whether a round is really accepted is a question only the running sibling
     # can answer, and it belongs to the quality stack.
     enabled: false
+  abofonsa-content:
+    # OFF for every integration test, for the same reason and in the same place.
+    #
+    # AbofonsaContentClient reads web.abofonsa.com, which is a third party's production host. A suite
+    # that reaches it is a suite whose result depends on somebody else's deploy, and — worse — a
+    # suite that would quietly pass on a machine with no network by taking the very failure path the
+    # sync is designed to treat as normal. Disabled, plans() answers Optional.empty() without opening
+    # a socket, ServicePlanCatalogueSyncService returns notReached() and writes nothing.
+    #
+    # ServicePlanCatalogueSyncServiceTest covers both halves over a mocked client, which is the only
+    # place the reached path can be exercised without a network. Whether the real catalogue can be
+    # read is a question only a running host can answer and belongs to the quality stack.
+    #
+    # It also stops the @Scheduled refresh doing anything in a booted context, so no test can be
+    # raced by a background write to service_plan.
+    enabled: false
 management:
   health:
     mail:

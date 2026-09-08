@@ -51,7 +51,7 @@ public class ServicePlanSummaryService {
     }
 
     public ServicePlanSummaryDTO summary() {
-        List<ServicePlan> plans = mongoTemplate.findAll(ServicePlan.class).stream().sorted(byTier()).toList();
+        List<ServicePlan> plans = mongoTemplate.findAll(ServicePlan.class).stream().sorted(byDisplayOrder()).toList();
 
         List<Long> counts = plans.stream().map(plan -> subscribers(plan.getId())).toList();
         long total = counts.stream().mapToLong(Long::longValue).sum();
@@ -76,15 +76,21 @@ public class ServicePlanSummaryService {
     }
 
     /**
-     * Card order: {@code ESSENTIAL}, {@code PLUS}, {@code FAMILY}, which is both the enum's order and
-     * ascending price, and is the order the design draws the three cards in.
+     * Card order: {@code displayOrder}, which is the order Abofonsa publishes the tiers in and so the
+     * order the public site draws them in.
      *
-     * <p>A plan with no tier sorts last rather than throwing. {@code tier} is {@code @NotNull} on the
-     * domain, but this is a read path over whatever is stored, and a summary that 500s because one
-     * document predates a constraint is worse than one that puts it at the end.
+     * <p>This was the {@code PlanTier} ordinal until 2026-09-08 — {@code ESSENTIAL}, {@code PLUS},
+     * {@code FAMILY} — which was ascending price only because the enum happened to be declared that
+     * way. The published order comes from the catalogue now, so a fourth tier or a re-ordering
+     * arrives here without an enum being edited (backlog item 51).
+     *
+     * <p>A plan with no {@code displayOrder} sorts last rather than throwing, and the reason the old
+     * comment gave still holds: a plan created by an administrator before the catalogue was
+     * reconciled has none, and a summary that 500s over one such document is worse than one that puts
+     * it at the end. Ties keep the order Mongo returned, {@code sorted} being stable.
      */
-    private static Comparator<ServicePlan> byTier() {
-        return Comparator.comparing(plan -> plan.getTier() == null ? Integer.MAX_VALUE : plan.getTier().ordinal());
+    private static Comparator<ServicePlan> byDisplayOrder() {
+        return Comparator.comparing(plan -> plan.getDisplayOrder() == null ? Integer.MAX_VALUE : plan.getDisplayOrder());
     }
 
     /**
@@ -150,16 +156,26 @@ public class ServicePlanSummaryService {
     }
 
     /**
-     * {@code monthlyPrice × subscribers}, and zero when the plan carries no price.
+     * {@code monthlyPrice × subscribers}, and <strong>null</strong> when the plan carries no price.
      *
-     * <p>Zero rather than null: a plan nobody holds earns nothing, which is a fact. A plan with no
-     * price recorded is a gap, but it is a gap in the plan and shows there — inventing a revenue
-     * figure from a missing price is what would need suppressing, and multiplying by zero is not
-     * that.
+     * <p>The same distinction {@link #shares} makes one column along, and for a stronger reason. It
+     * returned {@code BigDecimal.ZERO} here until 2026-09-08, on the argument that a plan nobody
+     * holds earns nothing and multiplying by zero is not an invention. That was sound while a price
+     * was required and every null meant no subscribers; it stopped being sound the moment
+     * {@code ServicePlan.monthlyPrice} became nullable, because a plan the catalogue sync created
+     * can have four subscribers and no price — and the row then read
+     * {@code Price — · Subscribers 4 · Share 33.3% · Monthly revenue 0}, which is the console
+     * asserting that four people pay nothing. {@code ServicePlan}'s own javadoc names that failure:
+     * "a revenue line computed from a zero reads as 'nobody is paying' rather than 'nobody has
+     * said'".
+     *
+     * <p>Zero is still returned where it is a fact: a <em>priced</em> plan with no subscribers earns
+     * nought, and the console prints that rather than an em dash, which is what makes a zero on this
+     * screen evidence that the endpoint replied.
      */
     private static BigDecimal revenue(BigDecimal monthlyPrice, long subscribers) {
         if (monthlyPrice == null) {
-            return BigDecimal.ZERO;
+            return null;
         }
         return monthlyPrice.multiply(BigDecimal.valueOf(subscribers));
     }
