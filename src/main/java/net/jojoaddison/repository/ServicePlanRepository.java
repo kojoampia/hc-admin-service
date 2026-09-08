@@ -1,6 +1,5 @@
 package net.jojoaddison.repository;
 
-import java.util.List;
 import java.util.Optional;
 import net.jojoaddison.domain.ServicePlan;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -20,7 +19,4 @@ public interface ServicePlanRepository extends MongoRepository<ServicePlan, Stri
      * than one match is a data fault rather than a shape this code should quietly tolerate.
      */
     Optional<ServicePlan> findOneByCode(String code);
-
-    /** Every plan this service has joined to the published catalogue. */
-    List<ServicePlan> findAllByCodeNotNull();
 }

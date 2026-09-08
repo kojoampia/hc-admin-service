@@ -128,6 +128,13 @@ public class AbofonsaContentClient {
                         text(node, "priceAmount"),
                         text(node, "priceCurrency"),
                         node.path("featured").asBoolean(false),
+                        // Defaults to 0 if the publisher ever stops sending the field, which would
+                        // rewrite every plan's card order to the same value in one pass and leave
+                        // the board in whatever order Mongo returned. Cheap to live with while the
+                        // field is published for every tier — the alternative is refusing a
+                        // catalogue over an ordering — but it is a silent flattening, so a board
+                        // that suddenly orders wrongly is worth checking against this line before
+                        // anything else.
                         node.path("displayOrder").asInt(0)
                     )
                 );

@@ -24,10 +24,14 @@ import java.util.List;
  * @param unchanged plans that already agreed.
  * @param unpublishedCodes codes this service holds that Abofonsa no longer publishes. Left alone —
  *     patients reference plans, so withdrawing one is an administrator's decision and never a
- *     consequence of a third party editing a page.
- * @param unpricedCodes plans with no {@code monthlyPrice}, which is the state every created plan is
- *     in. The dashboard reports them as earning nothing, which is true and is not the same as "this
- *     plan is free".
+ *     consequence of a third party editing a page. <b>A plan with no code at all is in this list
+ *     too, named by its {@code _id}</b>, and it is the entry that matters most on a first run: see
+ *     the migration note in {@code ServicePlanCatalogueSyncService}. So "codes" is loose — every
+ *     entry names a plan, and it is the code where there is one.
+ * @param unpricedCodes plans with no {@code monthlyPrice}, named the same way, which is the state
+ *     every created plan is in. The dashboard reports no revenue for them rather than a revenue of
+ *     zero: an unpriced plan with subscribers is "nobody has said what they pay", which is not the
+ *     same statement as "this plan is free".
  * @param refusedCodes published tiers this service would not store — a blank name, or one longer
  *     than {@code ServicePlan.name} allows. Reported rather than thrown: one malformed tier must not
  *     abort the run and leave the tiers after it in the list unreconciled.

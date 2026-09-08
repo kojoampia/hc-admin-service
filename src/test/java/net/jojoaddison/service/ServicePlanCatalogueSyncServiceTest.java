@@ -187,6 +187,39 @@ class ServicePlanCatalogueSyncServiceTest {
     }
 
     /**
+     * A plan with no code at all is reported, named by its id.
+     *
+     * <p><b>This is the state production's collection is entirely in, and the run that most needs
+     * the report is the first one.</b> {@code service_plan} is not seeded outside {@code dev,test},
+     * so what is in it is what an administrator typed — the three priced Bridge plans item 51 was
+     * opened about, none of which carries a code. The sync joins on {@code code}, so it cannot see
+     * them: it creates PEAR, PAWPAW and MELON as three new unpriced plans, the legacy three keep
+     * every {@code Patient.plan} reference, and the board becomes six cards.
+     *
+     * <p>Until this case existed the report of that very run read
+     * {@code created: 3, unpublishedCodes: []} — a clean sync — because a {@code filter(nonNull)}
+     * dropped every codeless plan from the list written to surface exactly them. Nothing else in the
+     * run mentions them: no field of the DTO, no log line, no exception.
+     *
+     * <p>The migration that avoids the six-card state is in {@code ServicePlanCatalogueSyncService}'s
+     * class comment; this asserts that a deployment which skips it is told.
+     */
+    @Test
+    void namesAPlanWithNoCodeByItsIdRatherThanDroppingIt() {
+        ServicePlan legacy = new ServicePlan().id("64f0c0de").name("Bridge Plus").monthlyPrice(new BigDecimal("680"));
+        ServicePlan pear = new ServicePlan().code("PEAR").name("PEAR Plan").displayOrder(1).monthlyPrice(new BigDecimal("3000"));
+        when(client.plans()).thenReturn(Optional.of(List.of(PEAR)));
+        when(repository.findOneByCode("PEAR")).thenReturn(Optional.of(pear));
+        when(repository.findAll()).thenReturn(List.of(legacy, pear));
+
+        PlanCatalogueSyncDTO result = service.sync();
+
+        assertThat(result.unpublishedCodes()).containsExactly("64f0c0de");
+        // And it is still there afterwards: unpublished means reported, never removed.
+        verify(repository, never()).delete(any());
+    }
+
+    /**
      * A tier this service cannot store is refused, and the tiers after it are still reconciled.
      *
      * <p>{@code ServicePlan.name} is {@code @Size(max = 60)} and a save is validated by

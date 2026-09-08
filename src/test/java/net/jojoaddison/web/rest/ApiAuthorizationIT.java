@@ -169,12 +169,19 @@ class ApiAuthorizationIT {
      * patient directory, the CSV export and the dashboard's plan mix render. The blanket non-GET rule
      * covers it and the answer is 403.
      *
-     * <p>403 and not 404, so this goes red if the path is ever removed rather than quietly asserting
-     * nothing.
+     * <p><b>Both halves</b>, following {@link #onlyAnAdminReconcilesTheDirectory} rather than the
+     * probe: "an operator is refused" is satisfied just as well by the endpoint being unreachable for
+     * everybody, and 403-and-not-404 only rules out the path having been deleted — not a matcher
+     * that refuses the administrator too. The admin call answers 200 with
+     * {@code reached: false, configured: false}, because {@code AbofonsaContentClient} is disabled
+     * for the whole suite (see {@code src/test/resources/config/application.yml}); that is the
+     * endpoint's honest report of a deployment that dials nobody, and it is a successful one on
+     * purpose — a third party's absence is not a fault in this service.
      */
     @Test
-    void operatorCannotSyncThePlanCatalogue() throws Exception {
+    void onlyAnAdminSyncsThePlanCatalogue() throws Exception {
         mvc.perform(post("/api/service-plans/sync").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/service-plans/sync").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isOk());
     }
 
     // --- ROLE_ADMIN: everything -------------------------------------------------------------------

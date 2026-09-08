@@ -141,6 +141,37 @@ class ServicePlanSummaryIT {
     }
 
     /**
+     * A plan with no price reports <strong>no revenue</strong>, not a revenue of zero.
+     *
+     * <p>The distinction this whole change turns on, at the one place a client can see it. MELON is
+     * unpriced here and one patient holds it, so a zero would be this service stating that somebody
+     * pays nothing for a plan nobody has priced — {@code ServicePlan}'s own javadoc names it: "a
+     * revenue line computed from a zero reads as 'nobody is paying' rather than 'nobody has said'".
+     * The row is otherwise whole: the subscriber count and the share are real figures, because not
+     * knowing what they pay is not the same as not knowing how many they are.
+     *
+     * <p>Asserted against {@code doesNotExist} rather than a null value, because that is what a
+     * client sees — the field is absent from the JSON, and the console renders the absence as an em
+     * dash and leaves the row out of its column total. The priced rows in the same response still
+     * carry numbers, so this cannot pass by the endpoint having stopped sending revenue at all.
+     */
+    @Test
+    void anUnpricedPlanHasNoRevenueRatherThanZeroRevenue() throws Exception {
+        servicePlanRepository.save(melon.monthlyPrice(null));
+
+        mvc
+            .perform(get("/api/service-plans/summary"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.mix[2].planId").value(melon.getId()))
+            .andExpect(jsonPath("$.mix[2].monthlyPrice").doesNotExist())
+            .andExpect(jsonPath("$.mix[2].monthlyRevenue").doesNotExist())
+            // Still counted and still apportioned: the gap is in the price and shows only there.
+            .andExpect(jsonPath("$.mix[2].subscribers").value(1))
+            .andExpect(jsonPath("$.mix[2].share").value(16.7))
+            .andExpect(jsonPath("$.mix[0].monthlyRevenue").value(new BigDecimal("6000").doubleValue()));
+    }
+
+    /**
      * The shares total exactly 100, which independent rounding does not guarantee.
      *
      * <p>2/6, 3/6, 1/6 is 33.3, 50.0, 16.7 — and 33.333… and 16.666… both round away from a clean
@@ -193,19 +224,18 @@ class ServicePlanSummaryIT {
      */
     @Test
     void featuresFilterByPlan() throws Exception {
+        // Abofonsa's published bullets for these tiers, for the reason the prices above are the
+        // published ones: the retired Bridge feature lists survived the rename of the plans they
+        // hang off, so PEAR at GHS 3,000 advertised "1 home visit per month" on every stack.
         planFeatureRepository.saveAll(
-            List.of(
-                feature("1 home visit per month", 0, pear),
-                feature("Full digital health record", 1, pear),
-                feature("Fortnightly nursing visits", 0, pawpaw)
-            )
+            List.of(feature("5 weekly visits", 0, pear), feature("Nursing support", 1, pear), feature("7 weekly visits", 0, pawpaw))
         );
 
         mvc
             .perform(get("/api/plan-features?planId.equals=" + pear.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "2"))
-            .andExpect(jsonPath("$[*].label", org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("Fortnightly nursing visits"))));
+            .andExpect(jsonPath("$[*].label", org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("7 weekly visits"))));
 
         mvc
             .perform(get("/api/plan-features?planId.equals=" + melon.getId()))

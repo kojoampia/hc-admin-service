@@ -16058,7 +16058,6 @@
         "code": "MELON",
         "tierLabel": "Full cover",
         "displayOrder": 3,
-        "monthlyPrice": 8000,
         "currency": "GHS",
         "summary": "Continuous cover for complex, palliative or high-dependency care needs.",
         "featured": false
@@ -16067,7 +16066,7 @@
     "planFeatures": [
       {
         "id": "pf-1",
-        "label": "1 home visit per month",
+        "label": "5 weekly visits",
         "position": 0,
         "plan": {
           "id": "pl1",
@@ -16076,7 +16075,7 @@
       },
       {
         "id": "pf-2",
-        "label": "Full digital health record",
+        "label": "Nursing support",
         "position": 1,
         "plan": {
           "id": "pl1",
@@ -16085,7 +16084,7 @@
       },
       {
         "id": "pf-3",
-        "label": "24/7 care line access",
+        "label": "Cleaning, washing and grocery",
         "position": 2,
         "plan": {
           "id": "pl1",
@@ -16094,7 +16093,7 @@
       },
       {
         "id": "pf-4",
-        "label": "Monthly summary to one sponsor",
+        "label": "Written report after every visit",
         "position": 3,
         "plan": {
           "id": "pl1",
@@ -16103,7 +16102,7 @@
       },
       {
         "id": "pf-5",
-        "label": "Pharmacy delivery at cost",
+        "label": "Vital signs monitoring",
         "position": 4,
         "plan": {
           "id": "pl1",
@@ -16112,7 +16111,7 @@
       },
       {
         "id": "pf-6",
-        "label": "2 home visits per month",
+        "label": "7 weekly visits",
         "position": 0,
         "plan": {
           "id": "pl2",
@@ -16121,7 +16120,7 @@
       },
       {
         "id": "pf-7",
-        "label": "Physiotherapy sessions included",
+        "label": "Nursing and doctor support",
         "position": 1,
         "plan": {
           "id": "pl2",
@@ -16130,7 +16129,7 @@
       },
       {
         "id": "pf-8",
-        "label": "Priority appointment scheduling",
+        "label": "Priority scheduling and named carer",
         "position": 2,
         "plan": {
           "id": "pl2",
@@ -16139,7 +16138,7 @@
       },
       {
         "id": "pf-9",
-        "label": "Quarterly doctor review",
+        "label": "Cleaning, cooking, grocery, personal care",
         "position": 3,
         "plan": {
           "id": "pl2",
@@ -16148,7 +16147,7 @@
       },
       {
         "id": "pf-10",
-        "label": "Summaries to up to three sponsors",
+        "label": "Written report after every visit",
         "position": 4,
         "plan": {
           "id": "pl2",
@@ -16157,7 +16156,7 @@
       },
       {
         "id": "pf-11",
-        "label": "Lab panel twice yearly",
+        "label": "Vital signs monitoring",
         "position": 5,
         "plan": {
           "id": "pl2",
@@ -16166,7 +16165,7 @@
       },
       {
         "id": "pf-12",
-        "label": "Weekly home visits",
+        "label": "24/7 availability",
         "position": 0,
         "plan": {
           "id": "pl3",
@@ -16175,7 +16174,7 @@
       },
       {
         "id": "pf-13",
-        "label": "Named doctor as clinical lead",
+        "label": "Nursing and doctor support",
         "position": 1,
         "plan": {
           "id": "pl3",
@@ -16184,7 +16183,7 @@
       },
       {
         "id": "pf-14",
-        "label": "Rapid response cover included",
+        "label": "All auxiliary services included",
         "position": 2,
         "plan": {
           "id": "pl3",
@@ -16193,7 +16192,7 @@
       },
       {
         "id": "pf-15",
-        "label": "Unlimited sponsor accounts",
+        "label": "Written report after every visit",
         "position": 3,
         "plan": {
           "id": "pl3",
@@ -16202,7 +16201,7 @@
       },
       {
         "id": "pf-16",
-        "label": "Full lab panel quarterly",
+        "label": "Vital signs monitoring",
         "position": 4,
         "plan": {
           "id": "pl3",
@@ -16211,7 +16210,7 @@
       },
       {
         "id": "pf-17",
-        "label": "Equipment hire at 50%",
+        "label": "Priority scheduling and named carer",
         "position": 5,
         "plan": {
           "id": "pl3",
@@ -16220,7 +16219,7 @@
       },
       {
         "id": "pf-18",
-        "label": "Live video visit on request",
+        "label": "Dedicated care manager",
         "position": 6,
         "plan": {
           "id": "pl3",

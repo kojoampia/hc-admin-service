@@ -71,6 +71,7 @@ public class ServicePlanResource {
         if (servicePlan.getId() != null) {
             throw new BadRequestAlertException("A new servicePlan cannot already have an ID", ENTITY_NAME, "idexists");
         }
+        rejectDuplicateCode(servicePlan);
         servicePlan = servicePlanRepository.save(servicePlan);
         return ResponseEntity
             .created(new URI("/api/service-plans/" + servicePlan.getId()))
@@ -104,12 +105,47 @@ public class ServicePlanResource {
         if (!servicePlanRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
+        rejectDuplicateCode(servicePlan);
 
         servicePlan = servicePlanRepository.save(servicePlan);
         return ResponseEntity
             .ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, servicePlan.getId()))
             .body(servicePlan);
+    }
+
+    /**
+     * Refuses a {@code code} another plan already claims, with a 400 naming the field.
+     *
+     * <p>{@code config/ServicePlanIndexes} makes {@code code} uniquely indexed, so this is already
+     * impossible — but by {@code DuplicateKeyException} out of the driver, which reaches the console
+     * as a <b>500</b> with a Mongo error string in it. That is the wrong answer to a form somebody
+     * filled in: it reads as a broken service rather than as a value already in use, and the code is
+     * the one field of this form an administrator has a real reason to type by hand (a plan created
+     * before the catalogue was reconciled has none, and stamping it is the migration step
+     * {@code ServicePlanCatalogueSyncService} describes).
+     *
+     * <p>Check-then-act, and deliberately not made atomic here: the index is the guarantee and this
+     * is the error message. Two administrators racing on the same code still get a 500 out of the
+     * driver, which is the correct outcome for a race and not the case this exists for.
+     *
+     * <p>A blank code is not a duplicate of anything — the index is sparse for the same reason, so
+     * any number of plans may carry no code at all.
+     */
+    private void rejectDuplicateCode(ServicePlan servicePlan) {
+        if (servicePlan.getCode() == null || servicePlan.getCode().isBlank()) {
+            return;
+        }
+        servicePlanRepository
+            .findOneByCode(servicePlan.getCode())
+            .filter(existing -> !Objects.equals(existing.getId(), servicePlan.getId()))
+            .ifPresent(existing -> {
+                throw new BadRequestAlertException(
+                    "Another service plan already carries the code " + servicePlan.getCode(),
+                    ENTITY_NAME,
+                    "codeexists"
+                );
+            });
     }
 
     /**
@@ -139,6 +175,7 @@ public class ServicePlanResource {
         if (!servicePlanRepository.existsById(id)) {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
+        rejectDuplicateCode(servicePlan);
 
         Optional<ServicePlan> result = servicePlanRepository
             .findById(servicePlan.getId())

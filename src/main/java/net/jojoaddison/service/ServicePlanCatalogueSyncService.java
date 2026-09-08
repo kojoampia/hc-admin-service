@@ -2,7 +2,6 @@ package net.jojoaddison.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.repository.ServicePlanRepository;
@@ -65,6 +64,32 @@ import org.springframework.stereotype.Service;
  * field beside the id, not the id itself — the {@code _id} of a plan is whatever it has always been,
  * so no {@code @DBRef} anywhere moves when a plan is renamed from {@code Bridge Plus} to
  * {@code PAWPAW Plan}.
+ *
+ * <h2>There is a manual migration step, and the first sync is wrong without it</h2>
+ *
+ * <p><b>Before this reaches a deployment whose {@code service_plan} rows have no {@code code}, stamp
+ * them.</b> Production's collection is not seeded — {@code DevelopmentDataInitializer} is
+ * {@code @Profile({dev, test})} — so it holds whatever an administrator created, which is the three
+ * priced Bridge plans item 51 was opened about, and none of them carries a code. The join key is
+ * {@code code}, so on a first run every one of those rows is invisible to
+ * {@link #apply(net.jojoaddison.service.AbofonsaContentClient.PublishedPlan, ServicePlan)}: the sync
+ * creates {@code PEAR}, {@code PAWPAW} and {@code MELON} as three <em>new, unpriced</em> plans, the
+ * three legacy rows keep every {@code Patient.plan} {@code @DBRef} pointing at them, and the plan
+ * board becomes six cards — three priced with no subscribers and three subscribed with no price.
+ * Nothing fails, and the sync is behaving exactly as designed: it may not delete, and it has no way
+ * to know that {@code Bridge Plus} was meant to be {@code PAWPAW}.
+ *
+ * <p>The step is one update per plan against the admin database, mapping each existing row onto the
+ * code it corresponds to — {@code Bridge Essential -> PEAR}, {@code Bridge Plus -> PAWPAW},
+ * {@code Bridge Family -> MELON} — after which the first sync renames and re-orders them in place
+ * and creates nothing. Doing it the other way round is not recoverable by running the sync again:
+ * once the three new rows exist, stamping the old ones collides with the unique index that
+ * {@code config/ServicePlanIndexes} puts on {@code code}.
+ *
+ * <p><b>A run that finds unstamped rows says so.</b> They appear in
+ * {@link PlanCatalogueSyncDTO#unpublishedCodes()} named by their {@code _id}, because a plan with no
+ * code has no other name — the list dropped them entirely until this was found in review, so the
+ * report of the very run that needed the migration read {@code created: 3, unpublishedCodes: []}.
  */
 @Service
 public class ServicePlanCatalogueSyncService {
@@ -164,21 +189,25 @@ public class ServicePlanCatalogueSyncService {
         // Reported against every plan this service holds, not only the ones just touched — a plan
         // whose code was never published at all is exactly as unresolvable by item 48's inbound plan
         // event as one that has been withdrawn.
+        //
+        // A codeless plan is named by its id, exactly as `unpriced` below does, and it is the case
+        // this list most needs to carry: production's service_plan is not seeded, so the plans in it
+        // are the ones an administrator typed, none of which has a code until somebody stamps one.
+        // A `filter(Objects::nonNull)` here dropped every one of them, so the first sync against
+        // production would have reported `created: 3, unpublishedCodes: []` — a clean run — while
+        // leaving three legacy rows in the collection that no field of the report and no log line
+        // mentioned. See the migration note in the class comment.
         List<ServicePlan> all = servicePlanRepository.findAll();
         List<String> unpublished = all
             .stream()
-            .map(ServicePlan::getCode)
-            .filter(Objects::nonNull)
-            .filter(code -> !publishedCodes.contains(code))
+            .filter(plan -> !publishedCodes.contains(plan.getCode()))
+            .map(ServicePlanCatalogueSyncService::nameOf)
             .sorted()
             .toList();
         List<String> unpriced = all
             .stream()
             .filter(plan -> plan.getMonthlyPrice() == null)
-            // Falls back to the id for a plan with no code — one an administrator created before
-            // the catalogue was reconciled. Naming it by something is what makes it findable; the
-            // alternative is a count that says a plan is unpriced and not which.
-            .map(plan -> plan.getCode() == null ? plan.getId() : plan.getCode())
+            .map(ServicePlanCatalogueSyncService::nameOf)
             .sorted()
             .toList();
 
@@ -232,6 +261,18 @@ public class ServicePlanCatalogueSyncService {
             changed = true;
         }
         return changed;
+    }
+
+    /**
+     * How a plan is named in {@link PlanCatalogueSyncDTO}'s lists — its code, or its id when it has
+     * none.
+     *
+     * <p>Shared by {@code unpublishedCodes} and {@code unpricedCodes} so the two cannot diverge: a
+     * plan with no code is exactly the plan both lists most need to carry, and dropping it from
+     * either turns "this run left something behind" into a report that says nothing happened.
+     */
+    private static String nameOf(ServicePlan plan) {
+        return plan.getCode() == null ? plan.getId() : plan.getCode();
     }
 
     private static String truncate(String value) {

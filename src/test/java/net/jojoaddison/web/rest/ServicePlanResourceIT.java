@@ -157,6 +157,53 @@ class ServicePlanResourceIT {
         assertSameRepositoryCount(databaseSizeBeforeCreate);
     }
 
+    /**
+     * A code another plan already carries is a 400 naming the field, not a 500.
+     *
+     * <p>{@code config/ServicePlanIndexes} indexes {@code code} uniquely, so the second plan was
+     * always refused — by the driver, as a {@code DuplicateKeyException}, which reaches the console
+     * as a 500 carrying a Mongo error string. On a form whose {@code code} field an administrator
+     * has a real reason to fill in by hand — stamping a plan created before the catalogue was
+     * reconciled is the migration step {@code ServicePlanCatalogueSyncService} describes — that
+     * reads as a broken service rather than as a value already in use.
+     *
+     * <p>The index is still the guarantee and is not replaced by this. What is asserted here is the
+     * message.
+     */
+    @Test
+    void refusesACodeAnotherPlanAlreadyCarries() throws Exception {
+        insertedServicePlan = servicePlanRepository.save(servicePlan);
+        long databaseSizeBeforeCreate = getRepositoryCount();
+
+        ServicePlan duplicate = createUpdatedEntity().code(DEFAULT_CODE);
+
+        restServicePlanMockMvc
+            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(duplicate)))
+            .andExpect(status().isBadRequest());
+
+        assertSameRepositoryCount(databaseSizeBeforeCreate);
+    }
+
+    /**
+     * And a plan may keep its own code across an update.
+     *
+     * <p>The half a naive uniqueness check gets wrong: {@code PUT} sends the whole document, so the
+     * code it carries matches the row being written, and refusing that would make every plan with a
+     * code uneditable.
+     */
+    @Test
+    void letsAPlanKeepItsOwnCodeOnUpdate() throws Exception {
+        insertedServicePlan = servicePlanRepository.save(servicePlan);
+
+        ServicePlan renamed = servicePlanRepository.findById(insertedServicePlan.getId()).orElseThrow().name(UPDATED_NAME);
+
+        restServicePlanMockMvc
+            .perform(put(ENTITY_API_URL_ID, renamed.getId()).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(renamed)))
+            .andExpect(status().isOk());
+
+        assertThat(servicePlanRepository.findById(insertedServicePlan.getId()).orElseThrow().getName()).isEqualTo(UPDATED_NAME);
+    }
+
     @Test
     void checkNameIsRequired() throws Exception {
         long databaseSizeBeforeTest = getRepositoryCount();
