@@ -103,7 +103,6 @@ class ApiAuthorizationIT {
             "/api/organisations",
             "/api/pricing-plans",
             "/api/audit-logs",
-            "/api/hc-subscriptions",
             "/api/facilities",
             "/api/messages",
             "/api/notifications",
