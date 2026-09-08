@@ -274,6 +274,73 @@ class DirectoryLinkResourceIT {
         mvc.perform(get("/api/directory-links").param("source", "").param("unlinked", "true")).andExpect(status().isBadRequest());
     }
 
+    /**
+     * <b>{@code planStatus} answers the question the console's plan-choice panel is.</b>
+     *
+     * <p>Backlog item 48: a pending plan choice is an item awaiting action, and an administrator has
+     * to see that there is anything to act on without paging the directory. The choice lives on
+     * {@code directory_link} — beside {@code Patient} rather than on it, because backlog item 22 is
+     * still open — so {@code GET /api/patients} cannot be filtered or sorted by it and this is where
+     * the question is asked.
+     *
+     * <p><b>The exclusion is the half worth asserting.</b> A filter proven only against a row it
+     * admits is proven against nothing: hc-patient's status vocabulary has five values and only one
+     * of them means "awaiting a decision", so a row reported {@code ACTIVE} and a row with no plan
+     * choice at all both have to fall outside the answer, and the second is the larger set by far.
+     */
+    @Test
+    void filtersToTheLinksWhosePlanChoiceWasReportedInAGivenStatus() throws Exception {
+        directoryLinkRepository.save(chosePlan("pending@" + EMAIL, "a-pending-patient", "PAWPAW", "PENDING"));
+        directoryLinkRepository.save(chosePlan("active@" + EMAIL, "an-active-patient", "PEAR", "ACTIVE"));
+        // The ordinary row: a patient with a record and no membership on hc-patient at all.
+        directoryLinkRepository.save(link(EMAIL, "a-patient-who-chose-nothing"));
+
+        mvc
+            .perform(get("/api/directory-links").param("planStatus", "PENDING"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].planCode").value("PAWPAW"))
+            .andExpect(jsonPath("$[0].planName").value("PAWPAW Plan"))
+            .andExpect(jsonPath("$[0].planMembershipId").value("mem-991"))
+            .andExpect(jsonPath("$[0].localId").value("a-pending-patient"));
+
+        mvc
+            .perform(get("/api/directory-links").param("planStatus", "ACTIVE"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "1"))
+            .andExpect(jsonPath("$[0].planCode").value("PEAR"));
+
+        // Their vocabulary, matched exactly. A value this service has never heard of is a legitimate
+        // question with an empty answer, not a 400 — the set is hc-patient's to extend.
+        mvc
+            .perform(get("/api/directory-links").param("planStatus", "SOMETHING_THEY_ADD_NEXT"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "0"));
+    }
+
+    /**
+     * <b>A blank {@code planStatus} is refused, and here the vanishing filter fails the other way
+     * about.</b>
+     *
+     * <p>{@code source} and {@code unlinked} are typed, so Spring's converter turns a blank into null
+     * before the handler sees it. This one is a {@code String} and arrives as {@code ""} — but
+     * {@code NamedFilters.equals} <em>drops</em> a blank string, so the criterion disappears just the
+     * same and the endpoint answers with every link in the collection. Under a heading reading "plan
+     * choices awaiting a decision", that is a panel listing every patient this service has ever heard
+     * of, most of them with no membership at all.
+     *
+     * <p>{@code NamedFilters}' own javadoc names the shape: "a filter that vanishes is a query that
+     * returns everything". Two parameters have now had it, which is why it is refused at the handler
+     * rather than reasoned about at each call site.
+     */
+    @Test
+    void aBlankPlanStatusIsRefused() throws Exception {
+        directoryLinkRepository.save(link(EMAIL, "a-patient-who-chose-nothing"));
+
+        mvc.perform(get("/api/directory-links").param("planStatus", "")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/directory-links").param("planStatus", " ")).andExpect(status().isBadRequest());
+    }
+
     /** Absent stays absent: the refusal is about a blank value, not about the parameter being optional. */
     @Test
     void anAbsentFilterIsStillNoFilter() throws Exception {
@@ -562,6 +629,17 @@ class DirectoryLinkResourceIT {
         link.setSubjectKind(DirectorySubjectKind.PROFESSIONAL);
         link.setFirstSeenAt(Instant.parse("2026-09-03T13:20:00Z"));
         link.setLastEventAt(Instant.parse("2026-09-05T08:05:00Z"));
+        return link;
+    }
+
+    /** A patient link carrying what hc-patient's {@code PlanChosen} put on it — backlog item 48. */
+    private DirectoryLink chosePlan(String externalKey, String localId, String planCode, String planStatus) {
+        DirectoryLink link = link(externalKey, localId);
+        link.setLastEventType("PlanChosen");
+        link.setPlanMembershipId("mem-991");
+        link.setPlanCode(planCode);
+        link.setPlanName(planCode + " Plan");
+        link.setPlanStatus(planStatus);
         return link;
     }
 

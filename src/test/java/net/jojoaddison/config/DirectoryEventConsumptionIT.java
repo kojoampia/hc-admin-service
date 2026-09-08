@@ -6,6 +6,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -14,12 +15,14 @@ import java.util.Optional;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
+import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.ProfessionalRepository;
+import net.jojoaddison.repository.ServicePlanRepository;
 import net.jojoaddison.service.DirectoryProjectionService;
 import net.jojoaddison.service.LogPseudonym;
 import net.jojoaddison.service.SiblingEventParser;
@@ -78,6 +81,10 @@ class DirectoryEventConsumptionIT {
     @Autowired
     private DirectoryLinkRepository directoryLinkRepository;
 
+    /** For the one case that needs a catalogue to resolve a tier code against — see item 48. */
+    @Autowired
+    private ServicePlanRepository servicePlanRepository;
+
     @Autowired
     private DirectoryProjectionService projection;
 
@@ -90,6 +97,7 @@ class DirectoryEventConsumptionIT {
         directoryLinkRepository.deleteAll();
         patientRepository.deleteAll();
         professionalRepository.deleteAll();
+        servicePlanRepository.deleteAll();
     }
 
     /** The reported defect, end to end within this service. */
@@ -840,6 +848,136 @@ class DirectoryEventConsumptionIT {
         return json.getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * <b>A patient chooses a tier on hc-patient and it reaches the row this service already holds.</b>
+     *
+     * <p>Backlog item 48, end to end within this service: their {@code MembershipResource} publishes
+     * {@code PlanChosen} on {@code patient-events} after writing a {@code Membership}, and the four
+     * fields it carries land on the {@code DirectoryLink} for that patient.
+     *
+     * <p><b>{@code Patient.plan} is deliberately not written</b>, and that is the assertion worth
+     * having rather than the four that precede it. That field is an administrator's — one of the
+     * seven this class's merge rule says no event may touch, because hc-patient does not know this
+     * service's plans exist — and writing it here would let a patient set their own plan on the
+     * console's directory, on the plan-mix chart and in the dashboard's monthly revenue by pressing a
+     * button on another product. The choice is a <em>request</em>: {@code PENDING} for anybody but an
+     * administrator on their side.
+     */
+    @Test
+    void aPlanChoiceLandsOnTheLinkAndNeverOnThePatientRecord() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", true));
+        Patient patient = patientRepository.findAll().get(0);
+
+        sendPatient(planChosen("2026-09-02T10:11:12Z", "PAWPAW", "PENDING"));
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getPlanMembershipId()).isEqualTo("mem-991");
+        assertThat(link.getPlanCode()).isEqualTo("PAWPAW");
+        assertThat(link.getPlanName()).isEqualTo("PAWPAW Plan");
+        assertThat(link.getPlanStatus()).isEqualTo("PENDING");
+        assertThat(link.getLocalId()).as("the row this choice is about is the one the account event opened").isEqualTo(patient.getId());
+        assertThat(link.getLastEventType()).isEqualTo("PlanChosen");
+
+        assertThat(patientRepository.count()).as("a plan choice is never a second person").isEqualTo(1);
+        assertThat(patientRepository.findById(patient.getId()).orElseThrow().getPlan())
+            .as("the plan an administrator sets is hc-admin's field and no event may write it")
+            .isNull();
+    }
+
+    /**
+     * <b>A plan choice for a patient this service has never seen writes nothing at all.</b>
+     *
+     * <p>{@code UPDATE_ONLY}, and of the strictest kind. hc-patient writes a {@code Membership} only
+     * for a patient whose {@code AccountCreated} and {@code OnboardingStarted} were published earlier
+     * on the same key — and therefore the same partition, in order — so a plan choice arriving for an
+     * unknown subject means those events were missed, not that somebody new exists. A tier code is
+     * not a person: a record opened from one would be a patient on every dashboard tile whose entire
+     * content is which plan they picked.
+     */
+    @Test
+    void aPlanChoiceForAnUnknownSubjectOpensNothing() {
+        sendPatient(planChosen("2026-09-02T10:11:12Z", "PAWPAW", "PENDING"));
+
+        assertThat(directoryLinkRepository.count()).as("no link is opened by a fact about somebody whose arrival was missed").isZero();
+        assertThat(patientRepository.count()).isZero();
+    }
+
+    /**
+     * A replayed older choice does not wind the tier back, which the shared watermark already does.
+     *
+     * <p><b>And that is why there is no second watermark for the plan.</b> Phase 2 of the professional
+     * contract has {@code profile_event_at} because it comes from a different application on a
+     * different topic with its own clock; a plan choice comes from the same producer, on the same
+     * topic, under the same key as every other patient event, so {@code last_event_at} orders it
+     * against all of them and a field of its own could never disagree with one.
+     */
+    @Test
+    void aReplayedPlanChoiceDoesNotWindTheTierBack() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", true));
+        sendPatient(planChosen("2026-09-05T09:00:00Z", "MELON", "PENDING"));
+        sendPatient(planChosen("2026-09-02T09:00:00Z", "PEAR", "PENDING"));
+
+        assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getPlanCode())
+            .as("the older frame is behind the watermark and is not applied")
+            .isEqualTo("MELON");
+    }
+
+    /**
+     * <b>A tier this catalogue does not hold is stored, shown, and said out loud.</b>
+     *
+     * <p>Backlog item 51 predicted this exact failure before either half was built: hc-patient
+     * publishes {@code PEAR} / {@code PAWPAW} / {@code MELON}, and while this service's catalogue held
+     * different codes <em>"the event will arrive, parse, and resolve to nothing — and nothing will
+     * say so … a healthy service, a consumer group with no lag, and a screen that is simply wrong."</em>
+     * Item 51 has since made {@code ServicePlan.code} the same vocabulary, so the ordinary case
+     * resolves; what remains is a tier Abofonsa has published and
+     * {@code ServicePlanCatalogueSyncService} has not brought across yet, and this is the case that
+     * has to be audible rather than silent.
+     *
+     * <p><b>Both branches are driven, and asserting only the warning would be half a test.</b> A
+     * class that logged the warning for every choice would satisfy a one-sided assertion and would be
+     * an alarm that is always on, which is exactly as useless as one that never fires.
+     *
+     * <p>Nothing creates a {@code ServicePlan} for the unknown code — asserted, because that is the
+     * fourth restatement of a price list item 51 exists to have stopped.
+     */
+    @Test
+    void announcesAPlanChoiceAndSaysWhenTheTierIsNotInThisCatalogue() {
+        servicePlanRepository.save(
+            new ServicePlan().name("PAWPAW Plan").code("PAWPAW").currency("GHS").featured(false).monthlyPrice(new BigDecimal("5000"))
+        );
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", true));
+
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            sendPatient(planChosen("2026-09-02T09:00:00Z", "PAWPAW", "PENDING"));
+            sendPatient(planChosen("2026-09-03T09:00:00Z", "SOURSOP", "PENDING"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+            .filteredOn(event -> event.getLevel() == Level.INFO)
+            .as("a tier this catalogue holds is announced and not warned about")
+            .anySatisfy(event -> assertThat(event.getFormattedMessage()).contains("chose PAWPAW"));
+
+        assertThat(appender.list)
+            .filteredOn(event -> event.getLevel() == Level.WARN)
+            .as("a tier it does not hold is the one an operator has to be told about")
+            .anySatisfy(event -> assertThat(event.getFormattedMessage()).contains("SOURSOP").contains("not a code in this catalogue"));
+
+        assertThat(servicePlanRepository.findOneByCode("SOURSOP"))
+            .as("no ServicePlan is invented from a tier code — that is the price list item 51 removed")
+            .isEmpty();
+        assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getPlanCode())
+            .as("the choice is still stored: the back-office prompt is not lost over an unsynced tier")
+            .isEqualTo("SOURSOP");
+    }
+
     /** One subject on each stream is two links, never one — the sources are separate key spaces. */
     @Test
     void thetwoStreamsDoNotShareASubjectKeySpace() {
@@ -862,7 +1000,7 @@ class DirectoryEventConsumptionIT {
      * across six products. Backlog item 43.
      *
      * <p><b>The logger is turned up to TRACE, and that is the point of the test rather than
-     * thoroughness.</b> Four of the five statements are {@code debug} and would have been argued as
+     * thoroughness.</b> Most of the statements are {@code debug} and would have been argued as
      * unreachable in production; they are one {@code POST /management/loggers/net.jojoaddison} away,
      * a screen in the console drives exactly that, and the person pressing it is by definition
      * debugging why a subject did not appear — the one moment when every subject on the topic gets
@@ -892,6 +1030,12 @@ class DirectoryEventConsumptionIT {
             // clinician's key is an accountId rather than an address, and it goes through the same
             // digest — a per-source exception here would be a rule nobody could apply.
             sendProfessional(registrationCreated());
+            // And both of item 48's plan-choice statements, which name a subject beside a tier code.
+            // The tier is NOT digested and must not be — PAWPAW names a product, not a person, and a
+            // hash of it would make the line unable to say which tier is missing — so this case is
+            // where that distinction is held: the code may be rendered, the address may not.
+            sendPatient(planChosen("2026-09-02T09:00:00Z", "PAWPAW", "PENDING"));
+            sendPatient(planChosen("2026-09-03T09:00:00Z", "SOURSOP", "PENDING"));
 
             // What a loaded host does by accident, done on purpose. The test containers relay
             // mongod's stdout through a logger in this package, and its "Slow query" line quotes the
@@ -1045,6 +1189,33 @@ class DirectoryEventConsumptionIT {
             "\"data\":{\"authorities\":\"ROLE_USER\",\"langKey\":\"en\",\"activated\":" +
             activated +
             "}}"
+        );
+    }
+
+    /**
+     * hc-patient's {@code MembershipResource.announceChosenPlan}, key for key.
+     *
+     * <p>{@code planCode} is their {@code Membership.plan} and {@code planName} is their
+     * {@code Membership.name} — their document has no {@code code} field, and both of their clients'
+     * {@code choosePlan} writes the tier's code into {@code plan}. The status travels as
+     * {@code MembershipStatus.name()} rather than as the enum, by their own decision.
+     */
+    private static String planChosen(String occurredAt, String planCode, String status) {
+        return (
+            "{\"eventId\":\"evt-plan-" +
+            planCode +
+            "\",\"type\":\"PlanChosen\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":null,\"patientId\":\"p-1234\"}," +
+            "\"data\":{\"membershipId\":\"mem-991\",\"planCode\":\"" +
+            planCode +
+            "\",\"planName\":\"" +
+            planCode +
+            " Plan\",\"status\":\"" +
+            status +
+            "\"}}"
         );
     }
 

@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
  * publishers rather than inferred from the frames that happen to be in a topic:
  *
  * <table>
- *   <caption>The twelve types on the three subscribed topics, and what each one may do here</caption>
+ *   <caption>The thirteen types on the three subscribed topics, and what each one may do here</caption>
  *   <tr><th>Topic</th><th>Type</th><th>Disposition</th></tr>
  *   <tr><td>{@code patient-events}</td><td>{@code AccountCreated}</td>
  *       <td>{@link Disposition#CREATE}, or {@link Disposition#LINK_ONLY} for a care angel</td></tr>
@@ -38,6 +38,8 @@ import org.springframework.stereotype.Component;
  *   <tr><td></td><td>{@code CareDelegationChanged}</td><td>{@link Disposition#UPDATE_ONLY}</td></tr>
  *   <tr><td></td><td>{@code DeletionRequestChanged}</td><td>{@link Disposition#UPDATE_ONLY}, and
  *       {@code change=COMPLETED} marks the link erased</td></tr>
+ *   <tr><td></td><td>{@code PlanChosen}</td><td>{@link Disposition#UPDATE_ONLY}, and carries a
+ *       {@link SiblingDomainEvent.PlanChoice}</td></tr>
  *   <tr><td>{@code hc.professional.registration}</td><td>{@code registration.created}</td>
  *       <td>{@link Disposition#LINK_ONLY} — <b>phase 1</b>, the original envelope</td></tr>
  *   <tr><td></td><td>{@code onboarding.state}</td><td>{@link Disposition#LINK_ONLY}</td></tr>
@@ -176,7 +178,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class SiblingEventParser {
 
-    // --- hc-patient's published set, all seven of it ----------------------------------------------
+    // --- hc-patient's published set, all eight of it ----------------------------------------------
+    //
+    // Seven until 2026-09-08, when PlanChosen was added at the bottom. The count is kept because the
+    // point of it is "this is the complete set, read from their PatientEventType" rather than "these
+    // are the ones somebody happened to need" — and it moves when the set does.
 
     /** Registration on hc-patient's gateway — <b>and</b> a care-angel nomination, which is the trap. */
     private static final String PATIENT_ACCOUNT_CREATED = "AccountCreated";
@@ -195,6 +201,41 @@ public class SiblingEventParser {
 
     /** {@code RAISED}, {@code CANCELLED}, {@code REJECTED} — or {@code COMPLETED}, after the erasure. */
     private static final String PATIENT_DELETION_REQUEST_CHANGED = "DeletionRequestChanged";
+
+    /**
+     * A patient chose a membership tier — backlog item 48, and hc-patient's item 18.
+     *
+     * <p><b>The string is the contract and a rename is a two-repository change.</b> Their
+     * {@code PatientEventType.PLAN_CHOSEN} says so in those terms: <em>"a rename here is not a compile
+     * error there, it is an event their {@code switch} silently ignores"</em>. It is pinned as a
+     * literal on both sides — their {@code MembershipPlanEventTest} and this repository's
+     * {@code SiblingEventParserTest} — because nothing else in the estate enforces a contract between
+     * two repositories that cannot be compiled against each other.
+     *
+     * <p>{@link Disposition#UPDATE_ONLY}: a plan choice is a fact about a patient, not a subject in
+     * its own right. hc-patient publishes it only after a {@code Membership} is written, and a
+     * membership is written only for a patient whose account and onboarding events came first on this
+     * same key and therefore this same partition — so a plan choice for a subject this service has
+     * never seen means the earlier events were missed, and inventing a patient from a tier code is the
+     * fabrication items 27(a), 33, 46 and 47 each refuse in turn.
+     */
+    private static final String PATIENT_PLAN_CHOSEN = "PlanChosen";
+
+    // --- the four keys hc-patient's PlanChosen carries in `data`, and there are exactly four ------
+    //
+    // Named as constants rather than written inline because they are the other half of the contract
+    // above: the type string decides whether the frame is read at all, and these decide whether
+    // anything is read out of it. Their MembershipPlanEventTest asserts `containsOnlyKeys` over
+    // exactly this set, "a key quietly added here is a key hc-admin has not agreed to, and one
+    // quietly dropped is one they are still reading".
+    //
+    // PLAN_CODE and PLAN_NAME are their `Membership.plan` and `Membership.name` — their document has
+    // no `code` field, and both of their clients' choosePlan writes the tier's code into `plan`.
+
+    private static final String PLAN_MEMBERSHIP_ID = "membershipId";
+    private static final String PLAN_CODE = "planCode";
+    private static final String PLAN_NAME = "planName";
+    private static final String PLAN_STATUS = "status";
 
     /** The {@code data} discriminator that says the far side has already erased the subject. */
     private static final String DELETION_COMPLETED = "COMPLETED";
@@ -334,7 +375,8 @@ public class SiblingEventParser {
                 // different question and would be wrong under a heading saying "created".
                 null,
                 null,
-                PATIENT_DELETION_REQUEST_CHANGED.equals(type) && DELETION_COMPLETED.equals(text(data, "change"))
+                PATIENT_DELETION_REQUEST_CHANGED.equals(type) && DELETION_COMPLETED.equals(text(data, "change")),
+                planChoice(type, data)
             )
         );
     }
@@ -499,7 +541,10 @@ public class SiblingEventParser {
                 // ships — and null is what the console renders as "not reported", never as an epoch.
                 timestamp(content, "createdDate"),
                 timestamp(content, "modifiedDate"),
-                false
+                false,
+                // Plan choice is hc-patient's alone: a clinician has no membership tier, and nothing
+                // on either of hc-professional's topics carries one.
+                null
             )
         );
     }
@@ -588,7 +633,9 @@ public class SiblingEventParser {
                 // substituted.
                 timestamp(data, "createdDate"),
                 timestamp(data, "modifiedDate"),
-                false
+                false,
+                // As above: no membership tier exists on this stream in any envelope.
+                null
             )
         );
     }
@@ -721,9 +768,40 @@ public class SiblingEventParser {
                 PATIENT_ONBOARDING_STEP_COMPLETED,
                 PATIENT_ONBOARDING_COMPLETED,
                 PATIENT_CARE_DELEGATION_CHANGED,
-                PATIENT_DELETION_REQUEST_CHANGED -> Disposition.UPDATE_ONLY;
+                PATIENT_DELETION_REQUEST_CHANGED,
+                // A plan choice too, and for the strongest form of the reason: the record it is
+                // about must already exist here, because hc-patient writes the Membership only for
+                // a patient whose AccountCreated and OnboardingStarted went out earlier on this
+                // same key. See PATIENT_PLAN_CHOSEN.
+                PATIENT_PLAN_CHOSEN -> Disposition.UPDATE_ONLY;
             default -> null;
         };
+    }
+
+    /**
+     * The tier a {@code PlanChosen} names, or null on every other type.
+     *
+     * <p><b>Nothing is defaulted and nothing is validated.</b> An absent {@code planCode} stays null
+     * rather than becoming the empty string, and a code this service's catalogue does not hold is
+     * carried through unchanged — resolving it is {@code DirectoryProjectionService}'s job, at the
+     * point where a mismatch can be announced with a subject beside it, and it is deliberately not
+     * done here: a parser that dropped an unresolvable tier would make the one failure item 51
+     * predicted — <em>"the event will arrive, parse, and resolve to nothing, and nothing will say
+     * so"</em> — silent in the one class that could have said it.
+     *
+     * <p>Answers null for a frame of any other type, so the field is absent on every event that is
+     * not a plan choice rather than being an empty {@code PlanChoice} nothing can tell from one.
+     */
+    private SiblingDomainEvent.PlanChoice planChoice(String type, JsonNode data) {
+        if (!PATIENT_PLAN_CHOSEN.equals(type)) {
+            return null;
+        }
+        return new SiblingDomainEvent.PlanChoice(
+            text(data, PLAN_MEMBERSHIP_ID),
+            text(data, PLAN_CODE),
+            text(data, PLAN_NAME),
+            text(data, PLAN_STATUS)
+        );
     }
 
     /** What this event says the subject is, or null when it says nothing and must not overwrite. */

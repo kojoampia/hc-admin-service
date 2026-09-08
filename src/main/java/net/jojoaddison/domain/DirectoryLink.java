@@ -384,6 +384,83 @@ public class DirectoryLink implements Serializable {
     @Field("profile_event_id")
     private String profileEventId;
 
+    // --- the membership tier a patient chose, from hc-patient's PlanChosen ------------------------
+    //
+    // Backlog item 48. Four fields, which is the whole of that event's payload, and they are written
+    // by the patient consumer alone — no clinician has a membership and nothing on either of
+    // hc-professional's topics carries one.
+    //
+    // WHY THERE IS NO FIFTH FIELD HOLDING A WATERMARK, WHICH PHASE 2 ABOVE DOES HAVE. A plan choice
+    // arrives on `patient-events`, from the same application, keyed on the same lowercased email, as
+    // every other event this document already orders by `last_event_at` — one producer, one clock,
+    // one partition. Phase 2 needed `profile_event_at` because it is a DIFFERENT application on a
+    // DIFFERENT topic, whose occurredAt sequence is independent; that argument does not reach here,
+    // and a second watermark on one stream would be a field nothing could ever disagree with.
+    //
+    // AND WHY THERE IS NO "CHOSEN ON" DATE. The event carries no membership creation date — the only
+    // timestamp on the frame is the envelope's `occurredAt`, which is when the announcement was
+    // published — and putting that under a heading reading "chosen on" is item 47's refused
+    // substitution with a different field on it. If a date is wanted on screen it has to be asked of
+    // hc-patient and published by them.
+
+    /**
+     * hc-patient's own id for the {@code Membership}.
+     *
+     * <p>A support handle rather than a join key: the exchange with them is keyed on the patient's
+     * address, which is this document's {@link #externalKey}, and item 54 settled the return payload
+     * at the plan alone for exactly that reason. It is here because it is what an administrator or an
+     * engineer quotes when asking hc-patient about a specific subscription.
+     */
+    @Field("plan_membership_id")
+    private String planMembershipId;
+
+    /**
+     * Abofonsa's tier code, as hc-patient sent it — {@code PEAR}, {@code PAWPAW}, {@code MELON}.
+     *
+     * <p><b>Stored raw and resolved at read time, never at consume time.</b> Since backlog item 51
+     * this service's {@code ServicePlan.code} is the same vocabulary, synced from the same content
+     * API, so the code does resolve — but the catalogue syncs on its own schedule and a tier Abofonsa
+     * published this morning may not be here until it next runs. Resolving on the way in would freeze
+     * that answer: the row would read "not in this catalogue" for ever, on a code that started
+     * matching an hour later. A {@code ServicePlan} is never created from this value either — that
+     * would be a fourth restatement of a price list item 51 exists to have stopped.
+     *
+     * <p>{@code DirectoryProjectionService} announces a code that resolves to nothing as it applies
+     * the event, which is the one place a subject can be named beside it.
+     */
+    @Field("plan_code")
+    private String planCode;
+
+    /**
+     * The tier's display name as hc-patient holds it — {@code "PAWPAW Plan"}.
+     *
+     * <p>Carried as well as the code so a row is readable even when {@link #planCode} resolves to
+     * nothing here. It is <b>their</b> name for the tier and not this catalogue's, and the two can
+     * differ; the console says which it is showing rather than presenting one as the other.
+     */
+    @Field("plan_name")
+    private String planName;
+
+    /**
+     * The status the membership was created with — {@code PENDING} for anybody but an administrator
+     * on hc-patient's side.
+     *
+     * <p>A free string rather than an enum, following {@link #state} and for the same reason: the
+     * vocabulary is hc-patient's, they ship five values today
+     * ({@code PENDING, ACTIVE, CANCELLED, EXPIRED, SUSPENDED}), and binding it here would turn "they
+     * added a value" into "this service refuses a message".
+     *
+     * <p><b>It is a fact about the moment of choosing and not a live status.</b> Their
+     * {@code MembershipResource} publishes on {@code POST} alone — {@code PUT} and {@code PATCH}
+     * write the status and announce nothing — so a membership approved on their side afterwards says
+     * so on no topic, and this field goes on reading {@code PENDING}. That is a gap in the contract
+     * rather than in this code; item 54's return leg is what closes it from this end. Nothing here
+     * may render it as "the plan this patient holds", which is {@code Patient.plan}, an
+     * administrator's own field.
+     */
+    @Field("plan_status")
+    private String planStatus;
+
     /**
      * When <b>this service</b> first saw the two phases meet on this account, and null until they do.
      *
@@ -613,6 +690,38 @@ public class DirectoryLink implements Serializable {
         this.profileEventId = profileEventId;
     }
 
+    public String getPlanMembershipId() {
+        return planMembershipId;
+    }
+
+    public void setPlanMembershipId(String planMembershipId) {
+        this.planMembershipId = planMembershipId;
+    }
+
+    public String getPlanCode() {
+        return planCode;
+    }
+
+    public void setPlanCode(String planCode) {
+        this.planCode = planCode;
+    }
+
+    public String getPlanName() {
+        return planName;
+    }
+
+    public void setPlanName(String planName) {
+        this.planName = planName;
+    }
+
+    public String getPlanStatus() {
+        return planStatus;
+    }
+
+    public void setPlanStatus(String planStatus) {
+        this.planStatus = planStatus;
+    }
+
     public Instant getPhasesJoinedAt() {
         return phasesJoinedAt;
     }
@@ -652,6 +761,8 @@ public class DirectoryLink implements Serializable {
             ", lastEventAt='" + getLastEventAt() + "'" +
             ", profileId='" + getProfileId() + "'" +
             ", profileEventAt='" + getProfileEventAt() + "'" +
+            ", planCode='" + getPlanCode() + "'" +
+            ", planStatus='" + getPlanStatus() + "'" +
             "}";
     }
 }
