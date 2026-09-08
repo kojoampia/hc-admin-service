@@ -390,6 +390,14 @@ public class DirectoryLink implements Serializable {
     // by the patient consumer alone — no clinician has a membership and nothing on either of
     // hc-professional's topics carries one.
     //
+    // THEY MOVE AS A GROUP AND NEVER INDIVIDUALLY. All four describe the ONE membership named by
+    // plan_membership_id, so a frame about a new membership replaces the set rather than merging into
+    // it — DirectoryProjectionService.recordEvent argues it at the write, and it was a live defect
+    // until the item 48 review. Three of them are nullable ON THE WIRE: hc-patient's Membership.plan
+    // and .name carry no @NotNull and their administrative CRUD path can create a membership with
+    // neither, so plan_code and plan_name being absent while plan_status is present is a real stored
+    // state and not a partial write. The console renders it as "no tier named" rather than as a blank.
+    //
     // WHY THERE IS NO FIFTH FIELD HOLDING A WATERMARK, WHICH PHASE 2 ABOVE DOES HAVE. A plan choice
     // arrives on `patient-events`, from the same application, keyed on the same lowercased email, as
     // every other event this document already orders by `last_event_at` — one producer, one clock,
@@ -437,6 +445,9 @@ public class DirectoryLink implements Serializable {
      * <p>Carried as well as the code so a row is readable even when {@link #planCode} resolves to
      * nothing here. It is <b>their</b> name for the tier and not this catalogue's, and the two can
      * differ; the console says which it is showing rather than presenting one as the other.
+     *
+     * <p>Null when the membership names no tier — see the group note above. It is
+     * {@code Membership.name} on their side, which is not required either.
      */
     @Field("plan_name")
     private String planName;

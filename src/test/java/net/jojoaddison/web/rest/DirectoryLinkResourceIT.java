@@ -319,6 +319,43 @@ class DirectoryLinkResourceIT {
     }
 
     /**
+     * <b>The sort the console sends actually orders the answer.</b>
+     *
+     * <p>Asserted because nothing in this repository asserted it, on this filter or on the clinician
+     * panel's {@code firstSeenAt,desc} beside it — and a sort that silently did nothing is invisible:
+     * the page returns the right rows in an arbitrary order, the count is right, and a queue whose
+     * top row is not the newest reads as a queue nobody is working. The property here is the Java
+     * name, {@code lastEventAt}, and the stored field is {@code last_event_at}, so this also pins the
+     * mapping that makes the two the same question.
+     *
+     * <p>{@code lastEventAt} and not {@code firstSeenAt}: what puts a plan choice at the top is the
+     * choice having been heard recently, not the patient having registered recently, and the fixture
+     * below inverts the two so a sort on the wrong one fails rather than coincidentally passing.
+     */
+    @Test
+    void ordersThePlanChoicesByWhenTheChoiceWasHeard() throws Exception {
+        DirectoryLink older = chosePlan("older@" + EMAIL, "patient-older", "PEAR", "PENDING");
+        older.setFirstSeenAt(Instant.parse("2026-09-01T09:00:00Z"));
+        older.setLastEventAt(Instant.parse("2026-09-02T09:00:00Z"));
+
+        DirectoryLink newest = chosePlan("newest@" + EMAIL, "patient-newest", "MELON", "PENDING");
+        // Registered LONGEST ago and heard from most recently — the long-standing patient who has
+        // just changed tier, which is the row a firstSeenAt sort buries at the bottom.
+        newest.setFirstSeenAt(Instant.parse("2026-01-04T09:00:00Z"));
+        newest.setLastEventAt(Instant.parse("2026-09-08T09:00:00Z"));
+
+        directoryLinkRepository.save(older);
+        directoryLinkRepository.save(newest);
+
+        mvc
+            .perform(get("/api/directory-links").param("planStatus", "PENDING").param("sort", "lastEventAt,desc"))
+            .andExpect(status().isOk())
+            .andExpect(header().string("X-Total-Count", "2"))
+            .andExpect(jsonPath("$[0].planCode").value("MELON"))
+            .andExpect(jsonPath("$[1].planCode").value("PEAR"));
+    }
+
+    /**
      * <b>A blank {@code planStatus} is refused, and here the vanishing filter fails the other way
      * about.</b>
      *

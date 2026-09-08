@@ -818,7 +818,21 @@ class DevelopmentDataInitializerTest {
      *   <li>{@code dl-plan-a10} — reported {@code ACTIVE} rather than {@code PENDING}, so the
      *       {@code planStatus=PENDING} filter has something to <b>exclude</b>. A filter proven only
      *       against rows it admits is a filter proven against nothing.</li>
+     *   <li>{@code dl-plan-a5} — <b>a membership naming no tier at all.</b> Added by the item 48
+     *       review with the defect it belongs to: {@code Membership.plan} and {@code .name} carry no
+     *       {@code @NotNull} on hc-patient and their administrative CRUD path can create a membership
+     *       with neither, so a status with no tier under it is a real stored state. It is what makes
+     *       the console's "No tier named" branch reachable, and without it that branch would have
+     *       been production-only — which is item 52's finding for the fifth time, inside the change
+     *       that cites item 52.</li>
      * </ul>
+     *
+     * <p><b>Every one of them carries {@code lastEventType: PlanChosen}</b>, which {@code dl-a13} did
+     * not until the same review: it was seeded with a plan choice and a {@code lastEventType} of
+     * {@code OnboardingStarted}, an ordering the consumer cannot produce. hc-patient writes a
+     * {@code Membership} only for a patient whose {@code Profile} exists, and {@code OnboardingStarted}
+     * is the event that creates it — so the plan choice cannot precede it. A fixture depicting a state
+     * no code path reaches is worse than no fixture: it is the thing a reader calibrates against.
      *
      * <p>Named rather than counted, for the reason every fixture guard in this class gives: "four
      * plan choices" goes on passing when one quietly changes tier, and the tier is the whole point of
@@ -830,16 +844,18 @@ class DevelopmentDataInitializerTest {
      * produce and the console would have to render anyway.
      */
     @Test
-    void shouldSeedFourPlanChoicesSpanningResolvableUnpricedUnknownAndNotPending() throws Exception {
+    void shouldSeedFivePlanChoicesSpanningEveryBranchThePanelDraws() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
+        // Keyed on the membership rather than on the tier, because one of the five deliberately has
+        // no tier — filtering on planCode would drop the row this test was extended to cover.
         Map<String, DirectoryLink> chosen = test
             .getDirectoryLinks()
             .stream()
-            .filter(link -> link.getPlanCode() != null)
+            .filter(link -> link.getPlanMembershipId() != null)
             .collect(Collectors.toMap(DirectoryLink::getId, link -> link));
 
-        assertThat(chosen.keySet()).containsExactlyInAnyOrder("dl-plan-a6", "dl-a13", "dl-plan-a8", "dl-plan-a10");
+        assertThat(chosen.keySet()).containsExactlyInAnyOrder("dl-plan-a6", "dl-a13", "dl-plan-a8", "dl-plan-a10", "dl-plan-a5");
 
         Set<String> catalogued = test.getServicePlans().stream().map(ServicePlan::getCode).collect(Collectors.toSet());
 
@@ -878,13 +894,26 @@ class DevelopmentDataInitializerTest {
             .as("reported ACTIVE, so the PENDING filter has something to exclude")
             .satisfies(link -> assertThat(link.getPlanStatus()).isEqualTo("ACTIVE"));
 
+        assertThat(chosen.get("dl-plan-a5"))
+            .as("a membership naming no tier — the state their admin CRUD path produces")
+            .satisfies(link -> {
+                assertThat(link.getPlanMembershipId()).isNotBlank();
+                assertThat(link.getPlanStatus()).isEqualTo("PENDING");
+                assertThat(link.getPlanCode()).as("this row exists to make the No tier named branch reachable").isNull();
+                assertThat(link.getPlanName()).isNull();
+            });
+
         assertThat(chosen.values())
             .as("a plan choice is UPDATE_ONLY, so every one of them names a patient that exists")
             .allSatisfy(link -> {
                 assertThat(link.getSource()).isEqualTo(DirectorySource.HC_PATIENT);
                 assertThat(link.getLocalId()).isNotNull();
-                assertThat(link.getPlanName()).isNotBlank();
                 assertThat(link.getPlanMembershipId()).isNotBlank();
+                // The event that last touched the row is the one that put the choice on it. A row
+                // carrying a plan choice under some other lastEventType depicts an ordering the
+                // consumer cannot produce — dl-a13 did, until the item 48 review.
+                assertThat(link.getLastEventType()).isEqualTo("PlanChosen");
+                assertThat(link.getState()).isEqualTo("PlanChosen");
             });
 
         assertThat(chosen.values())

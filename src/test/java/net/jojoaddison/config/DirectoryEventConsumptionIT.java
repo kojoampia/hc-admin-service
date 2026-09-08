@@ -903,6 +903,66 @@ class DirectoryEventConsumptionIT {
     }
 
     /**
+     * <b>A second membership that names no tier does not inherit the first one's.</b>
+     *
+     * <p>The defect this closes was live until the item 48 review and is worth stating as it was
+     * found. The four plan fields were written with {@code setIfPresent}, one at a time, under a
+     * comment claiming <em>"all four arrive together or none does"</em> and citing hc-patient's
+     * {@code containsOnlyKeys} assertion. <b>That assertion pins the key set, not the values.</b>
+     * {@code Membership.plan} and {@code Membership.name} carry no {@code @NotNull} and
+     * {@code announceChosenPlan} puts them on the event unconditionally, so an administrator creating
+     * a membership through their CRUD path with no tier named publishes both keys with nulls under
+     * them — a path their own javadoc warns about by name: <em>"the administrative CRUD path is the
+     * exception, and a consumer should not generalise from the sentence above."</em>
+     *
+     * <p>Field by field, the second frame then wrote the new {@code membershipId} and {@code status}
+     * and <b>kept the first frame's tier</b>, so the console showed a membership against a tier
+     * nobody had chosen for it — item 45's plausible-wrong-answer defect on the one field this whole
+     * panel exists to show, and completely invisible: nothing fails, the row renders, the count is
+     * right.
+     *
+     * <p>So the group moves together. Asserted on the tier being <em>gone</em> rather than on the new
+     * membership id being present, because the id was always written correctly — it is the stale tier
+     * beside it that was the lie.
+     */
+    @Test
+    void aSecondMembershipNamingNoTierDoesNotInheritTheFirstOnes() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", true));
+        sendPatient(planChosen("2026-09-02T09:00:00Z", "PAWPAW", "PENDING"));
+
+        assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getPlanCode()).isEqualTo("PAWPAW");
+
+        // Their admin CRUD path: a membership with a real id and status and no tier on it at all.
+        sendPatient(planChosenWithNoTier("2026-09-03T09:00:00Z", "mem-admin-7", "PENDING"));
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getPlanMembershipId()).isEqualTo("mem-admin-7");
+        assertThat(link.getPlanStatus()).isEqualTo("PENDING");
+        assertThat(link.getPlanCode()).as("the previous membership's tier must not survive onto this one").isNull();
+        assertThat(link.getPlanName()).as("nor its name").isNull();
+    }
+
+    /**
+     * A frame naming no membership at all describes nothing, and touches nothing.
+     *
+     * <p>The group is keyed on {@code membershipId} rather than on the tier, so a malformed frame
+     * cannot wipe a good row. Not a path either of hc-patient's clients can reach — the id is read off
+     * the saved document — which is exactly why it is asserted rather than assumed: an unreachable
+     * guard that silently stopped guarding would look identical.
+     */
+    @Test
+    void aPlanFrameNamingNoMembershipLeavesTheStoredChoiceAlone() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", true));
+        sendPatient(planChosen("2026-09-02T09:00:00Z", "PAWPAW", "PENDING"));
+
+        sendPatient(planChosenWithNoTier("2026-09-03T09:00:00Z", null, "PENDING"));
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getPlanCode()).isEqualTo("PAWPAW");
+        assertThat(link.getPlanMembershipId()).isEqualTo("mem-991");
+    }
+
+    /**
      * A replayed older choice does not wind the tier back, which the shared watermark already does.
      *
      * <p><b>And that is why there is no second watermark for the plan.</b> Phase 2 of the professional
@@ -1214,6 +1274,29 @@ class DirectoryEventConsumptionIT {
             "\",\"planName\":\"" +
             planCode +
             " Plan\",\"status\":\"" +
+            status +
+            "\"}}"
+        );
+    }
+
+    /**
+     * The same event with the tier keys present and null, which is what their administrative CRUD
+     * path publishes for a membership created with no plan on it.
+     *
+     * <p>Written out rather than parameterised off {@link #planChosen} so the nulls are visible as
+     * JSON literals: this is the shape the group write exists for, and a reader has to be able to see
+     * that the keys are there and empty rather than missing.
+     */
+    private static String planChosenWithNoTier(String occurredAt, String membershipId, String status) {
+        return (
+            "{\"eventId\":\"evt-plan-none\",\"type\":\"PlanChosen\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":null,\"patientId\":\"p-1234\"}," +
+            "\"data\":{\"membershipId\":" +
+            (membershipId == null ? "null" : "\"" + membershipId + "\"") +
+            ",\"planCode\":null,\"planName\":null,\"status\":\"" +
             status +
             "\"}}"
         );

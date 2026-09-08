@@ -129,8 +129,18 @@ public record SiblingDomainEvent(
      *             service's own {@code ServicePlan.code} is the same vocabulary, so it resolves; a
      *             code that matches nothing is a tier Abofonsa has published and this catalogue has
      *             not synced, and is announced rather than defaulted.
+     *
+     *             <p><b>Nullable on the wire, which their key-set test does not say and this javadoc
+     *             claimed otherwise until the item 48 review.</b> It is {@code Membership.plan},
+     *             which carries no {@code @NotNull}, and {@code announceChosenPlan} puts it on the
+     *             event unconditionally — so an administrator creating a membership through their
+     *             CRUD path with no tier named publishes the key with a null under it. Their
+     *             {@code containsOnlyKeys} assertion pins which keys exist, not that any of them is
+     *             populated, and their own javadoc warns that the administrative path is the
+     *             exception a consumer must not generalise past.
      * @param name the tier's display name as hc-patient holds it, carried so a row can be read even
-     *             when {@link #code} resolves to nothing here.
+     *             when {@link #code} resolves to nothing here. Nullable for the same reason
+     *             {@link #code} is — it is {@code Membership.name}, also not required.
      * @param status <b>the status the membership was created with, at the moment it was created</b> —
      *               {@code PENDING} for anybody but an administrator on their side. A free string and
      *               not an enum, following {@code DirectoryLink.state}: the vocabulary is theirs, they
