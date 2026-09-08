@@ -62,6 +62,9 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  *               side</b>: hc-patient's {@code DeletionRequestChanged} with {@code change=COMPLETED},
  *               published after the profile has already been erased. It must never open a record —
  *               see {@code DirectoryProjectionService} for what it does instead.
+ * @param planChoice the membership tier this patient chose, or null on every event that is not
+ *                   hc-patient's {@code PlanChosen} — which is every event on either stream except
+ *                   that one. See {@link PlanChoice}.
  */
 public record SiblingDomainEvent(
     DirectorySource source,
@@ -78,8 +81,86 @@ public record SiblingDomainEvent(
     DirectorySubjectKind subjectKind,
     Instant accountCreatedDate,
     Instant accountModifiedDate,
-    boolean erased
+    boolean erased,
+    PlanChoice planChoice
 ) {
+    /**
+     * What hc-patient's {@code PlanChosen} carries, and nothing else — backlog item 48.
+     *
+     * <h2>One component rather than four, and the reason is this record's size</h2>
+     *
+     * <p>{@link SiblingDomainEvent} is already fifteen components wide and every construction site
+     * has to name all of them, so four flat additions would be four {@code null}s at each of the
+     * three sites in {@code SiblingEventParser} and four more at every site added later. Grouping
+     * them costs one {@code null} instead, and it also makes "this event is not a plan choice" a
+     * single value a reader can test rather than four fields that have to agree with each other.
+     *
+     * <p>It is a nested record on this type rather than a second top-level one because it arrives on
+     * the <b>same topic, from the same producer, keyed the same way</b> as every other patient event.
+     * That is the difference from {@link ProfileStatusEvent}, which is its own type precisely because
+     * it comes from a different application on a different topic with its own watermark.
+     *
+     * <h2>The contract, read from the producer and not from the backlog entry</h2>
+     *
+     * <p>hc-patient's {@code PatientEventType.PLAN_CHOSEN} — read at their {@code 5a90145}, 2026-09-08,
+     * and <b>that is where it was read, not where their {@code main} is</b>: it had already moved to
+     * {@code ed9bcbd} by the time this was reviewed, one commit later, which changed the unkeyed-frame
+     * rule and left the keyed contract below untouched. Cite a producer by the commit you read, never
+     * as though it were current, or the next reader diffs against the wrong thing and concludes the
+     * contract drifted when it did not — states it: the type string is {@code "PlanChosen"} and the payload is
+     * {@code membershipId}, {@code planCode}, {@code planName}, {@code status}, keyed on the
+     * lowercased email like every other event on that stream. Their {@code MembershipPlanEventTest}
+     * pins all five strings as literals rather than as constants, in their own words because
+     * <em>"hc-admin's SiblingEventParser dispatches on the literal and reads the payload keys by name;
+     * neither is a compile error there if this repository renames one"</em>. {@code SiblingEventParserTest}
+     * does the same on this side, which is the whole of the enforcement between the two repositories.
+     *
+     * <p><b>{@code planCode} is their {@code Membership.plan} and {@code planName} is their
+     * {@code Membership.name}.</b> Their document has no {@code code} field at all — both of their
+     * clients' {@code choosePlan} writes the tier's code into {@code plan} and its display name into
+     * {@code name} — so the wire names are honest about the values and misleading about the fields
+     * they came from. Nothing here has to care, but a reader diffing the two schemas will.
+     *
+     * <p><b>{@code description} is deliberately not on the wire</b>, being free text a client
+     * supplies; and a membership created through either of their clients carries no
+     * {@code memberNumber} and no {@code renewalDate}, which their item 17 records as a fact rather
+     * than an omission. Their administrative CRUD path can carry both, so neither absence generalises.
+     *
+     * @param membershipId hc-patient's own id for the {@code Membership}. A support handle, not a join
+     *                     key: the exchange with them is keyed on the patient's address, and item 54
+     *                     settled its return payload at the plan alone for exactly that reason.
+     * @param code the tier code — {@code PEAR}, {@code PAWPAW}, {@code MELON}. Since item 51 this
+     *             service's own {@code ServicePlan.code} is the same vocabulary, so it resolves; a
+     *             code that matches nothing is a tier Abofonsa has published and this catalogue has
+     *             not synced, and is announced rather than defaulted.
+     *
+     *             <p><b>Nullable on the wire, which their key-set test does not say and this javadoc
+     *             claimed otherwise until the item 48 review.</b> It is {@code Membership.plan},
+     *             which carries no {@code @NotNull}, and {@code announceChosenPlan} puts it on the
+     *             event unconditionally — so an administrator creating a membership through their
+     *             CRUD path with no tier named publishes the key with a null under it. Their
+     *             {@code containsOnlyKeys} assertion pins which keys exist, not that any of them is
+     *             populated, and their own javadoc warns that the administrative path is the
+     *             exception a consumer must not generalise past.
+     * @param name the tier's display name as hc-patient holds it, carried so a row can be read even
+     *             when {@link #code} resolves to nothing here. Nullable for the same reason
+     *             {@link #code} is — it is {@code Membership.name}, also not required.
+     * @param status <b>the status the membership was created with, at the moment it was created</b> —
+     *               {@code PENDING} for anybody but an administrator on their side. A free string and
+     *               not an enum, following {@code DirectoryLink.state}: the vocabulary is theirs, they
+     *               ship five values today ({@code PENDING, ACTIVE, CANCELLED, EXPIRED, SUSPENDED}),
+     *               and binding it here would turn "they added a value" into "this service refuses a
+     *               message".
+     *
+     *               <p><b>It is not a live status and must never be rendered as one.</b> Their
+     *               {@code MembershipResource} publishes on {@code POST} alone — {@code PUT} and
+     *               {@code PATCH} write {@code status} and announce nothing — so a membership approved
+     *               on their side after the fact says so on no topic, and this field goes on reading
+     *               {@code PENDING} for ever. That is a gap in the contract rather than in this code,
+     *               and it is what item 54's return leg exists to close from this end.
+     */
+    public record PlanChoice(String membershipId, String code, String name, String status) {}
+
     /**
      * What an event of this type is permitted to do to this service's records.
      *

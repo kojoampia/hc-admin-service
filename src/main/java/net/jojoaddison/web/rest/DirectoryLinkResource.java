@@ -185,10 +185,36 @@ public class DirectoryLinkResource {
      * silently — the failure the class javadoc opens with, and one no check on either side can see.
      * Deploy the api before the console.
      *
+     * <h2>{@code planStatus}, and why a plan choice needs a filter of its own</h2>
+     *
+     * <p>Backlog item 48: hc-patient publishes {@code PlanChosen} when a patient picks a membership
+     * tier, and the four fields it carries land on the link. A pending choice is <b>an item awaiting
+     * action</b> — the whole reason that event exists is to prompt the back office — and an
+     * administrator has to be able to see that there is anything to act on <em>without</em> paging the
+     * directory. That question cannot be asked of {@code GET /api/patients}: the plan choice is on
+     * {@code directory_link}, beside {@code Patient} rather than on it (backlog item 22), so nothing
+     * in the patient collection can be filtered or sorted by it. It is asked here.
+     *
+     * <p><b>An exact, case-sensitive match on hc-patient's own vocabulary</b>, which is what they
+     * publish: {@code MembershipStatus.name()}, one of
+     * {@code PENDING, ACTIVE, CANCELLED, EXPIRED, SUSPENDED}. A {@code String} and not an enum here
+     * for the reason {@code DirectoryLink.planStatus} gives — the set is theirs to extend, and a value
+     * this service could not name is a value it should still be able to store, show and filter on
+     * rather than refuse.
+     *
+     * <p>Blank is refused like {@code source} and {@code unlinked}, and here the failure it prevents
+     * is the same one with the opposite sign. {@code NamedFilters.equals} <em>drops</em> a blank
+     * string, so {@code ?planStatus=} would add no criterion and answer with every link in the
+     * collection — links with no plan choice at all, under a heading saying these are choices awaiting
+     * a decision. Its own javadoc warns of exactly that: "a filter that vanishes is a query that
+     * returns everything".
+     *
      * @param source when present, only that stream's links.
      * @param localIdIn when present, only links naming one of these local records.
      * @param unlinked when present, only the links that have no local record ({@code true}) or only
      *                 the ones that have ({@code false}).
+     * @param planStatus when present, only the links whose stored plan choice was reported in this
+     *                   status. Absent means "do not ask", which is what every other caller wants.
      * @param pageable the pagination information.
      */
     @GetMapping("")
@@ -196,15 +222,17 @@ public class DirectoryLinkResource {
         @RequestParam(required = false) DirectorySource source,
         @RequestParam(name = "localId.in", required = false) List<String> localIdIn,
         @RequestParam(required = false) Boolean unlinked,
+        @RequestParam(required = false) String planStatus,
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
         // Not a parameter of this API: the raw request is the only thing left that can tell a blank
         // typed parameter from an absent one, because the converter has already turned both into
         // null by the time the arguments above are bound. springdoc ignores it.
         HttpServletRequest request
     ) {
-        LOG.debug("REST request to get a page of DirectoryLinks for source {}, unlinked {}", source, unlinked);
+        LOG.debug("REST request to get a page of DirectoryLinks for source {}, unlinked {}, planStatus {}", source, unlinked, planStatus);
         rejectBlank(request, "source");
         rejectBlank(request, "unlinked");
+        rejectBlank(request, "planStatus");
         if (localIdIn != null && localIdIn.size() > MAX_LOCAL_IDS) {
             throw new BadRequestAlertException("Too many local ids: at most " + MAX_LOCAL_IDS, ENTITY_NAME, "localidintoolong");
         }
@@ -252,7 +280,11 @@ public class DirectoryLinkResource {
             // `local_id: null` matches a missing field as well as a null one, which is what a link
             // with no record actually looks like — the projection never writes the field until there
             // is a record to name. Same match as DirectoryProjectionService.createAndClaim.
-            .isNull("local_id", unlinked);
+            .isNull("local_id", unlinked)
+            // Stored field name again, and hc-patient's own value: `equals` on a String drops a
+            // blank, which is why the handler refused one above rather than letting the filter
+            // vanish into a query for the whole collection.
+            .equals("plan_status", planStatus);
 
         Page<DirectoryLink> page = filters.isEmpty()
             ? directoryLinkRepository.findAll(pageable)

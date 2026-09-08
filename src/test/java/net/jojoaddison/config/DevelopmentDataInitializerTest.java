@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
@@ -783,6 +784,144 @@ class DevelopmentDataInitializerTest {
             .filteredOn(patient -> patient.getStatus() == AccountStatus.PENDING)
             .extracting(Patient::getId)
             .containsExactlyInAnyOrder("a7", "a13");
+    }
+
+    /**
+     * <b>Four plan choices, spanning every branch the console has to draw for one.</b>
+     *
+     * <p>Backlog item 48: hc-patient publishes {@code PlanChosen} when a patient picks a tier, and
+     * the four fields it carries land on the link. This is the only state on {@code directory_link}
+     * that arrives from an event and has a screen behind it, so a fixture that omitted it would leave
+     * the whole "plan choices awaiting a decision" panel unreachable on {@code quality/}, on
+     * {@code deploy/e2e/compose.yml} and under {@code ng serve} — which is <b>item 52's finding, for
+     * the fourth time</b>: items 45, 47 and 49 each shipped a rendering whose state existed only in
+     * production, and item 52 asks that the generalisation be applied rather than the lesson learned
+     * again. It is applied here.
+     *
+     * <p>The four, and what each one exists to render:
+     *
+     * <ul>
+     *   <li>{@code dl-plan-a6} — the ordinary case. A named patient who holds {@code PEAR} and has
+     *       chosen {@code PAWPAW}: the code resolves against this catalogue, the tier has a price,
+     *       and the row differs from the plan on the patient record beside it. Without a row where
+     *       the two differ, a panel showing the chosen plan is indistinguishable from one showing the
+     *       held plan.</li>
+     *   <li>{@code dl-a13} — the same choice on a patient <b>with no profile</b>, so the panel has to
+     *       name them from the link exactly as the directory does. It chooses {@code MELON}, which
+     *       item 51 deliberately seeds with <b>no {@code monthlyPrice}</b>, so the "no price set"
+     *       rendering is reachable inside this panel and not only on the catalogue screen.</li>
+     *   <li>{@code dl-plan-a8} — <b>{@code SOURSOP}, which is in no catalogue here.</b> This is the
+     *       tier Abofonsa has published and {@code ServicePlanCatalogueSyncService} has not brought
+     *       across, it is the branch {@code DirectoryProjectionService.announcePlanChoice} warns
+     *       about, and it is the failure item 51 predicted in as many words. Nothing invents a
+     *       {@code ServicePlan} for it, so without this row that path is unreachable too.</li>
+     *   <li>{@code dl-plan-a10} — reported {@code ACTIVE} rather than {@code PENDING}, so the
+     *       {@code planStatus=PENDING} filter has something to <b>exclude</b>. A filter proven only
+     *       against rows it admits is a filter proven against nothing.</li>
+     *   <li>{@code dl-plan-a5} — <b>a membership naming no tier at all.</b> Added by the item 48
+     *       review with the defect it belongs to: {@code Membership.plan} and {@code .name} carry no
+     *       {@code @NotNull} on hc-patient and their administrative CRUD path can create a membership
+     *       with neither, so a status with no tier under it is a real stored state. It is what makes
+     *       the console's "No tier named" branch reachable, and without it that branch would have
+     *       been production-only — which is item 52's finding for the fifth time, inside the change
+     *       that cites item 52.</li>
+     * </ul>
+     *
+     * <p><b>Every one of them carries {@code lastEventType: PlanChosen}</b>, which {@code dl-a13} did
+     * not until the same review: it was seeded with a plan choice and a {@code lastEventType} of
+     * {@code OnboardingStarted}, an ordering the consumer cannot produce. hc-patient writes a
+     * {@code Membership} only for a patient whose {@code Profile} exists, and {@code OnboardingStarted}
+     * is the event that creates it — so the plan choice cannot precede it. A fixture depicting a state
+     * no code path reaches is worse than no fixture: it is the thing a reader calibrates against.
+     *
+     * <p>Named rather than counted, for the reason every fixture guard in this class gives: "four
+     * plan choices" goes on passing when one quietly changes tier, and the tier is the whole point of
+     * three of the four.
+     *
+     * <p><b>Every one of them names a patient that exists.</b> A plan choice is {@code UPDATE_ONLY} —
+     * hc-patient writes a {@code Membership} only for a patient whose account events came first — so a
+     * seeded plan choice on a link with no {@code localId} would be a state the consumer cannot
+     * produce and the console would have to render anyway.
+     */
+    @Test
+    void shouldSeedFivePlanChoicesSpanningEveryBranchThePanelDraws() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        // Keyed on the membership rather than on the tier, because one of the five deliberately has
+        // no tier — filtering on planCode would drop the row this test was extended to cover.
+        Map<String, DirectoryLink> chosen = test
+            .getDirectoryLinks()
+            .stream()
+            .filter(link -> link.getPlanMembershipId() != null)
+            .collect(Collectors.toMap(DirectoryLink::getId, link -> link));
+
+        assertThat(chosen.keySet()).containsExactlyInAnyOrder("dl-plan-a6", "dl-a13", "dl-plan-a8", "dl-plan-a10", "dl-plan-a5");
+
+        Set<String> catalogued = test.getServicePlans().stream().map(ServicePlan::getCode).collect(Collectors.toSet());
+
+        assertThat(chosen.get("dl-plan-a6"))
+            .as("the ordinary case: resolves, is priced, and differs from the plan the patient holds")
+            .satisfies(link -> {
+                assertThat(link.getLocalId()).isEqualTo("a6");
+                assertThat(link.getPlanCode()).isEqualTo("PAWPAW");
+                assertThat(link.getPlanStatus()).isEqualTo("PENDING");
+                assertThat(catalogued).contains("PAWPAW");
+            });
+
+        assertThat(chosen.get("dl-a13"))
+            .as("a patient with no profile, choosing the tier item 51 leaves unpriced")
+            .satisfies(link -> {
+                assertThat(link.getLocalId()).isEqualTo("a13");
+                assertThat(link.getPlanCode()).isEqualTo("MELON");
+                assertThat(link.getPlanStatus()).isEqualTo("PENDING");
+            });
+        assertThat(test.getServicePlans())
+            .filteredOn(plan -> "MELON".equals(plan.getCode()))
+            .singleElement()
+            .satisfies(plan -> assertThat(plan.getMonthlyPrice()).as("MELON is the unpriced tier this row exists to render").isNull());
+
+        assertThat(chosen.get("dl-plan-a8"))
+            .as("the tier this catalogue has never synced — the branch announcePlanChoice warns on")
+            .satisfies(link -> {
+                assertThat(link.getLocalId()).isEqualTo("a8");
+                assertThat(link.getPlanCode()).isEqualTo("SOURSOP");
+                assertThat(catalogued)
+                    .as("if this is ever synced, the unresolvable branch stops being reachable")
+                    .doesNotContain("SOURSOP");
+            });
+
+        assertThat(chosen.get("dl-plan-a10"))
+            .as("reported ACTIVE, so the PENDING filter has something to exclude")
+            .satisfies(link -> assertThat(link.getPlanStatus()).isEqualTo("ACTIVE"));
+
+        assertThat(chosen.get("dl-plan-a5"))
+            .as("a membership naming no tier — the state their admin CRUD path produces")
+            .satisfies(link -> {
+                assertThat(link.getPlanMembershipId()).isNotBlank();
+                assertThat(link.getPlanStatus()).isEqualTo("PENDING");
+                assertThat(link.getPlanCode()).as("this row exists to make the No tier named branch reachable").isNull();
+                assertThat(link.getPlanName()).isNull();
+            });
+
+        assertThat(chosen.values())
+            .as("a plan choice is UPDATE_ONLY, so every one of them names a patient that exists")
+            .allSatisfy(link -> {
+                assertThat(link.getSource()).isEqualTo(DirectorySource.HC_PATIENT);
+                assertThat(link.getLocalId()).isNotNull();
+                assertThat(link.getPlanMembershipId()).isNotBlank();
+                // The event that last touched the row is the one that put the choice on it. A row
+                // carrying a plan choice under some other lastEventType depicts an ordering the
+                // consumer cannot produce — dl-a13 did, until the item 48 review.
+                assertThat(link.getLastEventType()).isEqualTo("PlanChosen");
+                assertThat(link.getState()).isEqualTo("PlanChosen");
+            });
+
+        assertThat(chosen.values())
+            .filteredOn(link -> link.getLocalId() != null)
+            .extracting(DirectoryLink::getLocalId)
+            .allSatisfy(localId ->
+                assertThat(test.getPatients()).extracting(Patient::getId).as("the patient this choice is about").contains(localId)
+            );
     }
 
     /**
