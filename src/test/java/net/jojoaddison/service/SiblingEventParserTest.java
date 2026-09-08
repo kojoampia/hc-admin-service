@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.List;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
+import net.jojoaddison.service.dto.ProfileStatusEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
 import org.junit.jupiter.api.Test;
@@ -224,8 +225,123 @@ class SiblingEventParserTest {
         assertThat(event.subjectKey()).as("this stream is keyed on accountId throughout, never on the email").isEqualTo("acc-1");
         assertThat(event.email()).isEqualTo("k.boateng@example.com");
         assertThat(event.login()).isEqualTo("kboateng");
-        assertThat(event.activated()).isTrue();
         assertThat(event.state()).as("registration.created carries no state, and the type is not one").isNull();
+        assertThat(event.activated())
+            .as(
+                "UNKNOWN, not true. This answered true until 2026-09-07, inferred from the fact that a registration " +
+                "frame had arrived — which backlog item 47 forbids in those terms: activation is the account's own " +
+                "state, and an account deactivated afterwards would never correct the guess. `activated` is on " +
+                "AccountCreated, a different frame on this same topic — see readsThePhaseOneAccountCreated — so " +
+                "this envelope answers null and the other one answers."
+            )
+            .isNull();
+        assertThat(event.accountCreatedDate())
+            .as("phase 1's createdDate is not on the wire yet either, and it is not faked from occurredAt")
+            .isNull();
+        assertThat(event.accountModifiedDate()).isNull();
+    }
+
+    /**
+     * <b>Phase 1's {@code AccountCreated}, in hc-professional's estate-shaped envelope, on the same
+     * topic as everything above.</b>
+     *
+     * <p>The frame this consumer <em>dropped with a {@code warn}</em> until 2026-09-08, which was the
+     * defect: {@code activated} is on this event and on no other, so de-inferring it — right in itself
+     * — left the console's column reading "Not reported" permanently while the fact sat one frame
+     * away on the same partition. Their own publisher predicted it in its javadoc: <em>"a consumer
+     * still reading only {@code eventType} will log the new frames as unreadable."</em>
+     *
+     * <p><b>The two account dates are asserted null, and that is the finding rather than a gap in the
+     * fixture.</b> Item 47 specifies {@code createdDate} and {@code modifiedDate} as part of phase 1
+     * and hc-professional's gateway publishes neither, on this frame or on any other — measured on
+     * their {@code origin/main} 2026-09-08, where {@code AccountCreated}'s {@code data} is
+     * {@code authorities}, {@code langKey} and {@code activated}. The obvious substitute is the
+     * envelope's {@code occurredAt}, and refusing it is what this assertion pins: it would be the
+     * account's creation on this one type and the frame's own clock on every other, under a column
+     * heading that reads "created".
+     */
+    @Test
+    void readsThePhaseOneAccountCreated() {
+        SiblingDomainEvent event = parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true))).orElseThrow();
+
+        assertThat(event.type()).isEqualTo("AccountCreated");
+        assertThat(event.subjectKey()).as("the envelope's own subject, not a field inside data").isEqualTo("acc-1");
+        assertThat(event.login()).as("login, under the name the contract gives it — never `username`").isEqualTo("kboateng");
+        assertThat(event.email()).isEqualTo("k.boateng@example.com");
+        assertThat(event.activated()).as("read from the event, and this is the whole of item 47's rule about it").isTrue();
+        assertThat(event.state()).as("an account event is not a stage of onboarding, and nothing is invented for the field").isNull();
+        assertThat(event.accountCreatedDate())
+            .as("their gateway publishes no createdDate on any frame, and occurredAt is deliberately not substituted")
+            .isNull();
+        assertThat(event.accountModifiedDate()).isNull();
+    }
+
+    /**
+     * An account reported as deactivated is read as deactivated, not as unknown.
+     *
+     * <p>The three states have to survive the parser or nothing downstream can tell them apart:
+     * {@code true}, {@code false} and "the frame did not say". A {@code Boolean} rather than a
+     * {@code boolean} is what carries the third, and it is why {@code asBoolean(false)} is not used
+     * anywhere in this parser.
+     *
+     * <p>The third case is the one the fixture had no row for until this review: a self-service
+     * registration is {@code activated: false} and an administrator-created account may be
+     * {@code true}, so the field is genuinely read — but an {@code AccountCreated} published before
+     * hc-professional's item 47 work carries it not at all, and that has to stay distinguishable.
+     */
+    @Test
+    void readsTheThreeActivationStatesAndNeverFlattensTheThird() {
+        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", false))).orElseThrow().activated()).isFalse();
+        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", null))).orElseThrow().activated())
+            .as("nobody has said, which is not the same as saying no")
+            .isNull();
+    }
+
+    /**
+     * <b>{@code AccountActivated} says the account can sign in, and reading it is not the inference
+     * item 47 forbids.</b>
+     *
+     * <p>What was forbidden, and removed on 2026-09-07, was concluding activation from <em>a
+     * registration frame having arrived</em>. This is the opposite: the event's entire content is
+     * that the activation link was followed and the key consumed, so refusing to read it would hold
+     * "not reported" against the one frame that answers the question. hc-patient's half of this
+     * parser has always read its identically-named event the same way.
+     *
+     * <p>It also carries no {@code state}, which is what {@code DirectoryProjectionService} relies on
+     * leaving alone: this frame arrives after {@code onboarding.state} in the same keyed sequence,
+     * and an unconditional write here would have cleared the console's onboarding suffix.
+     */
+    @Test
+    void readsAnActivationOnTheProfessionalTopic() {
+        SiblingDomainEvent event = parser.parseProfessionalEvent(bytes(accountActivatedEvent("acc-1"))).orElseThrow();
+
+        assertThat(event.type()).isEqualTo("AccountActivated");
+        assertThat(event.activated()).isTrue();
+        assertThat(event.state()).isNull();
+        assertThat(event.subjectKey()).isEqualTo("acc-1");
+    }
+
+    /**
+     * <b>Both of hc-professional's envelopes are read on that one topic, and the discriminator is
+     * which key is present.</b>
+     *
+     * <p>Their {@code RegistrationEventPublisher} puts three frames on {@code hc.professional.registration}
+     * per registration under two shapes, and says the older pair is <em>"not replaced and not
+     * deprecated"</em> because hc-admin is its one live consumer. So this is not a migration with a
+     * cut-over: both have to keep working indefinitely, and the same clinician has to come out of
+     * both under one {@code accountId} or they get two links.
+     *
+     * <p>An estate-shaped type this service does not model is ignored like any other, at
+     * {@code debug} — the rule both producers state, and what keeps them free to add to their own
+     * topic.
+     */
+    @Test
+    void readsBothEnvelopesOnTheRegistrationTopicUnderOneKey() {
+        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().subjectKey()).isEqualTo("acc-1");
+        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true))).orElseThrow().subjectKey()).isEqualTo("acc-1");
+        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true).replace("AccountCreated", "AccountSuspended"))))
+            .as("a type this service does not model is ignored rather than guessed at")
+            .isEmpty();
     }
 
     /**
@@ -240,7 +356,176 @@ class SiblingEventParserTest {
         assertThat(event.state()).isEqualTo("COMPLETED");
         assertThat(event.subjectKey()).isEqualTo("acc-1");
         assertThat(event.email()).isNull();
-        assertThat(event.activated()).as("progressing through onboarding is not an account status change").isFalse();
+        assertThat(event.activated())
+            .as("progressing through onboarding says nothing about signing in — and 'says nothing' is null, not false")
+            .isNull();
+    }
+
+    // --- phase 2: the profile status, on hc.professional.entity ----------------------------------
+
+    /**
+     * <b>Phase 2 of the two-phase professional contract.</b>
+     *
+     * <p>{@code ProfileStatus{profileId, accountId, isComplete, isVerified, createdDate,
+     * modifiedDate, lastModifiedBy}} — backlog item 47. Identifiers, two booleans and three
+     * timestamps, and the assertion worth reading is the one about what is <em>not</em> here: no
+     * role, no licence number, no name, no address, so nothing on this topic is a clinical credential
+     * and nothing this parser produces could build a {@code Professional}.
+     *
+     * <p><b>The envelope is {@code ProfessionalEvent}: {@code type} and {@code data}</b>, not
+     * {@code eventType} and {@code payload}. This test read the second until 2026-09-08 and passed,
+     * because the fixture beside it was written from the same misreading — so the whole phase-2 path
+     * was unreachable against the real producer with every assertion green. The fixture is now copied
+     * off {@code DomainEventPublisher.publishProfileStatus}.
+     *
+     * <p>{@code lastModifiedBy} is <b>hc-professional's login</b>, not an accountId: their
+     * {@code SpringSecurityAuditorAware} fills it from the JWT subject. Item 47's contract says
+     * otherwise and is wrong about their code. It is carried through verbatim either way and never
+     * resolved into a name — what changes is that it may not be joined to an identifier on this side.
+     */
+    @Test
+    void readsAProfileStatus() {
+        ProfileStatusEvent event = parser.parseProfessionalProfileEvent(bytes(profileStatus("acc-1", true, true))).orElseThrow();
+
+        assertThat(event.type()).isEqualTo("ProfileStatus");
+        assertThat(event.accountId()).as("the join to phase 1, and it is the only join there is").isEqualTo("acc-1");
+        assertThat(event.profileId()).isEqualTo("prof-9");
+        assertThat(event.complete()).isTrue();
+        assertThat(event.verified()).isTrue();
+        assertThat(event.createdDate()).isEqualTo(Instant.parse("2026-08-19T11:30:00Z"));
+        assertThat(event.modifiedDate()).isEqualTo(Instant.parse("2026-09-02T14:47:00Z"));
+        assertThat(event.lastModifiedBy()).as("their login, not an accountId and not a display name").isEqualTo("yasante");
+        assertThat(event.occurredAt()).isEqualTo(Instant.parse("2026-09-02T14:47:05Z"));
+    }
+
+    /**
+     * <b>A profile status that omits the two booleans leaves them unknown, and never false.</b>
+     *
+     * <p>The rule the whole display rests on: "not reported" and "reported as incomplete" are
+     * different facts about a person, and rendering the first as the second asserts something about a
+     * clinician from the absence of a message. That is items 27(a) and 46's prohibition one column
+     * along, and it is why these are {@code Boolean} from the wire down rather than
+     * {@code asBoolean(false)} at the edge.
+     */
+    @Test
+    void aProfileStatusThatSaysNothingLeavesTheBooleansUnknown() {
+        String silent = profileStatus("acc-1", true, true).replace("\"isComplete\":true,", "").replace("\"isVerified\":true,", "");
+
+        ProfileStatusEvent event = parser.parseProfessionalProfileEvent(bytes(silent)).orElseThrow();
+
+        assertThat(event.complete()).isNull();
+        assertThat(event.verified()).isNull();
+        assertThat(event.accountId())
+            .as("the rest of the frame is still usable — one absent field is not a bad message")
+            .isEqualTo("acc-1");
+    }
+
+    /**
+     * A profile reported as incomplete is stored as incomplete, which is the other half of the pair.
+     *
+     * <p>Without this case, "unknown is not false" could be satisfied by a parser that answered null
+     * for every value — the two assertions only mean something together.
+     */
+    @Test
+    void aProfileReportedIncompleteIsFalseRatherThanUnknown() {
+        ProfileStatusEvent event = parser.parseProfessionalProfileEvent(bytes(profileStatus("acc-1", false, false))).orElseThrow();
+
+        assertThat(event.complete()).isFalse();
+        assertThat(event.verified()).isFalse();
+    }
+
+    /**
+     * <b>82% of that topic is {@code Task}, and none of it is written — and neither is a legacy
+     * {@code entity.created} for a {@code Profile}.</b>
+     *
+     * <p>The last of those is the architect's decision 3 of 2026-09-08 and is the assertion worth
+     * having. Those frames are real, they are already on the topic, and this consumer group reads
+     * from the earliest offset — so accepting them would manufacture roughly thirty phantom "identity
+     * not on file" rows on the day of deploy and roughly double the console's awaiting count, which
+     * is the moved-figure failure item 46 § 2 forbids. They are keyed on the login rather than on a
+     * {@code User.id} and carry none of {@code isComplete}, {@code isVerified} or
+     * {@code lastModifiedBy}, so every column the table exists for would read "not reported" as well.
+     *
+     * <p>The filter is in the parser rather than downstream for the offset reason: unfiltered, the
+     * first run of this subscription is thousands of frames reaching a write path that has nothing to
+     * do. Item 35 measured the proportion.
+     */
+    @Test
+    void ignoresEverythingOnThatTopicThatIsNotAProfileStatus() {
+        assertThat(parser.parseProfessionalProfileEvent(bytes(entityCreated("Task", "acc-1")))).isEmpty();
+        assertThat(parser.parseProfessionalProfileEvent(bytes(entityCreated("ProfessionalApplication", "acc-1")))).isEmpty();
+        assertThat(parser.parseProfessionalProfileEvent(bytes(entityCreated("Profile", "acc-1"))))
+            .as("the legacy frame for the right entity is still refused — decision 3, and the phantom rows are why")
+            .isEmpty();
+        assertThat(parser.parseProfessionalProfileEvent(bytes(profileStatus("acc-1", true, true))))
+            .as("and a ProfileStatus is accepted, or every assertion above would pass against a parser that reads nothing")
+            .isPresent();
+    }
+
+    /**
+     * The other two types on that topic are somebody else's business, and are ignored by type.
+     *
+     * <p>{@code message.created} is hc-professional's own websocket nudge and {@code compliance.alert}
+     * has no surface in this console. Refusing them by type rather than by entity means a frame whose
+     * payload shape is unknown never reaches the field reads at all.
+     */
+    @Test
+    void ignoresTheOtherTypesOnTheEntityTopic() {
+        assertThat(parser.parseProfessionalProfileEvent(bytes(entityTyped("message.created")))).isEmpty();
+        assertThat(parser.parseProfessionalProfileEvent(bytes(entityTyped("compliance.alert")))).isEmpty();
+    }
+
+    /**
+     * <b>An accepted profile frame with no {@code accountId} is refused, and loudly.</b>
+     *
+     * <p>This is the failure backlog item 47 singles out: the two phases join on {@code accountId},
+     * and a profile status that carries none can never be paired with an account. It is not a message
+     * for somebody else — it has passed the type filter — so it is a {@code warn} rather
+     * than the {@code debug} an unmodelled type gets. Storing it under a fabricated key, or under the
+     * {@code profileId}, would produce a row that looks right and joins to nothing for ever.
+     */
+    @Test
+    void refusesAProfileStatusWithNoAccountIdAndSaysSo() {
+        Logger logger = (Logger) LoggerFactory.getLogger(SiblingEventParser.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+
+        try {
+            assertThat(parser.parseProfessionalProfileEvent(bytes(profileStatus(null, true, true)))).isEmpty();
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        assertThat(appender.list)
+            .as("a profile that can never be joined to an account has to be reported, not dropped at debug")
+            .anySatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage()).contains("accountId");
+            });
+    }
+
+    /**
+     * A blank {@code accountId} is the same as an absent one, and a padded one is the same as a
+     * trimmed one.
+     *
+     * <p>Trimming is the only normalisation either phase applies, and both apply it identically —
+     * which is the whole of "the two phases must match exactly". Lower-casing is deliberately not
+     * done: an {@code accountId} is a UUID minted by a gateway, and folding case here would make this
+     * side tolerant of a producer that had started sending it differently, hiding the one divergence
+     * that has to be visible.
+     */
+    @Test
+    void trimsTheJoinKeyOnBothPhasesAndRefusesABlankOne() {
+        assertThat(parser.parseProfessionalProfileEvent(bytes(profileStatus("   ", true, true))))
+            .as("whitespace is not an identifier")
+            .isEmpty();
+        assertThat(parser.parseProfessionalProfileEvent(bytes(profileStatus("  acc-1  ", true, true))).orElseThrow().accountId())
+            .isEqualTo("acc-1");
+        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("  acc-1  "))).orElseThrow().subjectKey())
+            .as("and phase 1 trims to the same string, or the two would never pair")
+            .isEqualTo("acc-1");
     }
 
     /**
@@ -464,6 +749,100 @@ class SiblingEventParserTest {
             accountId +
             "\",\"login\":\"kboateng\",\"email\":\"k.boateng@example.com\"," +
             "\"langKey\":\"en\",\"origin\":\"self-service\"}}"
+        );
+    }
+
+    /**
+     * <b>Phase 2, copied field for field off hc-professional's {@code DomainEventPublisher}</b> at
+     * {@code origin/main} 2026-09-08 — not off item 47's prose, which is what produced the shape this
+     * fixture had until then and the reader that matched it.
+     *
+     * <p>{@code ProfessionalEvent}: {@code type} rather than {@code eventType}, {@code data} rather
+     * than {@code payload}, a {@code subject} beside the body whose {@code email} and {@code login}
+     * their service deliberately leaves null, and <b>no {@code entityType}</b>. The {@code subject}
+     * repeats the {@code accountId} that {@code data} carries, which the reader does not read — see
+     * {@code parseProfessionalProfileEvent} for why one field is read in one place.
+     *
+     * <p>{@code accountId} is nullable so the refusal case can drop it, which is the one field this
+     * parser must never invent.
+     */
+    private static String profileStatus(String accountId, boolean complete, boolean verified) {
+        return (
+            "{\"eventId\":\"evt-6\",\"type\":\"ProfileStatus\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-02T14:47:05Z\",\"source\":\"hc-professional-service\"," +
+            "\"subject\":{\"email\":null,\"login\":null," +
+            (accountId == null ? "\"accountId\":null}," : "\"accountId\":\"" + accountId + "\"},") +
+            "\"data\":{\"profileId\":\"prof-9\"," +
+            (accountId == null ? "" : "\"accountId\":\"" + accountId + "\",") +
+            "\"isComplete\":" +
+            complete +
+            ",\"isVerified\":" +
+            verified +
+            ",\"createdDate\":\"2026-08-19T11:30:00Z\",\"modifiedDate\":\"2026-09-02T14:47:00Z\"," +
+            "\"lastModifiedBy\":\"yasante\"}}"
+        );
+    }
+
+    /**
+     * What hc-professional's {@code publishEntityCreated} emits: three fields, their <em>other</em>
+     * envelope, and a type this consumer no longer accepts on that topic at all.
+     */
+    private static String entityCreated(String entityType, String accountId) {
+        return (
+            "{\"eventId\":\"evt-7\",\"eventType\":\"entity.created\"," +
+            "\"occurredAt\":\"2026-09-02T14:47:05Z\",\"source\":\"hc-professional-service\",\"actor\":\"admin\"," +
+            "\"payload\":{\"entityType\":\"" +
+            entityType +
+            "\",\"entityId\":\"ent-1\",\"accountId\":\"" +
+            accountId +
+            "\"}}"
+        );
+    }
+
+    /** The two types on that topic that are not entity events at all. */
+    private static String entityTyped(String eventType) {
+        return (
+            "{\"eventId\":\"evt-8\",\"eventType\":\"" +
+            eventType +
+            "\",\"occurredAt\":\"2026-09-02T14:47:05Z\",\"source\":\"hc-professional-service\"," +
+            "\"actor\":\"admin\",\"payload\":{\"accountId\":\"acc-1\"}}"
+        );
+    }
+
+    /**
+     * <b>Phase 1's {@code AccountCreated}, copied off hc-professional's
+     * {@code RegistrationEventPublisher}</b> at {@code origin/main} 2026-09-08.
+     *
+     * <p>The estate-shaped envelope, on the same topic as {@code registration.created} and beside it
+     * rather than instead of it — their publisher's javadoc says so, so a registration puts three
+     * frames on the topic under two envelopes. {@code data} is exactly {@code authorities},
+     * {@code langKey} and {@code activated}: <b>no {@code createdDate} and no {@code modifiedDate}</b>,
+     * which the fixture this replaced invented onto a {@code registration.created} that carries
+     * neither. {@code activated} is nullable here so the "nobody has said" case can drop it, which is
+     * the state every clinician is in until they consume one of these.
+     */
+    private static String accountCreatedEvent(String accountId, Boolean activated) {
+        return (
+            "{\"eventId\":\"evt-4b\",\"type\":\"AccountCreated\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hc-professional-gateway\"," +
+            "\"subject\":{\"email\":\"k.boateng@example.com\",\"login\":\"kboateng\",\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"authorities\":\"ROLE_USER\",\"langKey\":\"en\"" +
+            (activated == null ? "" : ",\"activated\":" + activated) +
+            "}}"
+        );
+    }
+
+    /** Phase 1's {@code AccountActivated}: the activation link was followed and the key consumed. */
+    private static String accountActivatedEvent(String accountId) {
+        return (
+            "{\"eventId\":\"evt-4c\",\"type\":\"AccountActivated\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T09:20:00Z\",\"source\":\"hc-professional-gateway\"," +
+            "\"subject\":{\"email\":\"k.boateng@example.com\",\"login\":\"kboateng\",\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"activatedAt\":\"2026-09-01T09:20:00Z\"}}"
         );
     }
 

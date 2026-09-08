@@ -37,7 +37,7 @@ spring:
       # Kept in step with config/application.yml on purpose: a function missing here is not bound in
       # any test either, so an integration test that sends a frame and asserts a directory row would
       # find nothing and read as a broken projection rather than as a missing subscription.
-      definition: kafkaConsumer;kafkaProducer;patientDirectoryConsumer;professionalDirectoryConsumer
+      definition: kafkaConsumer;kafkaProducer;patientDirectoryConsumer;professionalDirectoryConsumer;professionalProfileConsumer
     stream:
       kafka:
         binder:
@@ -67,7 +67,7 @@ spring:
           destination: professional-verification
           content-type: text/plain
           group: hc-admin-service
-        # These two DO declare their real destinations here, unlike binding-out-0 above, and for the
+        # These THREE DO declare their real destinations here, unlike binding-out-0 above, and for the
         # mirror-image reason: InputDestination resolves by destination when a binding has one, so
         # naming the shipped topic is what lets a test send to `patient-events` and reach the
         # consumer that would receive it in production. There is no output binding on either topic,
@@ -88,6 +88,16 @@ spring:
           destination: hc.professional.registration
           content-type: application/json
           group: hc-admin-directory-professional
+          consumer:
+            maxAttempts: 1
+        # Phase 2 of the professional contract, on the api's own topic. Declared here so a test can
+        # send a profile status to the destination production would receive it on — the two phases
+        # arrive on two topics with no ordering between them, and DirectoryEventConsumptionIT drives
+        # them in both orders precisely because neither is the exceptional one.
+        professionalProfileConsumer-in-0:
+          destination: hc.professional.entity
+          content-type: application/json
+          group: hc-admin-directory-professional-profile
           consumer:
             maxAttempts: 1
   # No `jackson.serialization: {}` here. Spring Boot 4.1 moved to Jackson 3, whose

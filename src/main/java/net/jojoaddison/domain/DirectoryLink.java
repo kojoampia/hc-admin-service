@@ -63,6 +63,54 @@ import org.springframework.data.mongodb.core.mapping.Field;
  *       events about one subject in the same millisecond would have to arrive out of order to matter
  *       — but it is not the nanosecond comparison the Java types suggest.</li>
  * </ul>
+ *
+ * <h2>A clinician is accepted in two phases, and this document is where they join</h2>
+ *
+ * <p>Backlog item 47, the architect's decision of 2026-09-07: hc-professional does not publish one
+ * event carrying everything a clinician is, because at the moment they register <b>there is nothing
+ * to publish</b> — a licence and a discipline are what credentialing collects afterwards. So the
+ * contract is two events with two shapes:
+ *
+ * <ul>
+ *   <li><b>Phase 1, on account creation</b> — {@code AccountStatus{accountId, login, email, activated,
+ *       createdDate, modifiedDate}}, from hc-professional's <em>gateway</em>, on
+ *       {@code hc.professional.registration}. Four of the six land on {@link #externalKey},
+ *       {@link #login}, {@link #email} and {@link #activated}, which already existed under exactly
+ *       those names — the contract deliberately uses the names both products already use, since three
+ *       names for one field across two products is how the {@code admin-service} /
+ *       {@code hcadminservice} mismatch cost every entity call a 404. The genuinely new pair is
+ *       {@link #accountCreatedDate} and {@link #accountModifiedDate}.</li>
+ *   <li><b>Phase 2, basic profile metadata only</b> — {@code ProfileStatus{profileId, accountId,
+ *       isComplete, isVerified, createdDate, modifiedDate, lastModifiedBy}}, from hc-professional's
+ *       <em>api</em>, on {@code hc.professional.entity}. It lands on the seven {@code profile*}
+ *       fields below, none of which existed before.</li>
+ * </ul>
+ *
+ * <p><b>The two phases join on {@code accountId}, which is this document's {@code external_key}</b>,
+ * so the join is the upsert rather than a query somebody has to get right: both consumers address
+ * {@code (HC_PROFESSIONAL, accountId)} and whichever arrives first opens the row.
+ *
+ * <p><b>Out of order is the primary path and not an edge case, because the two phases are on two
+ * topics.</b> The gateway publishes phase 1 to {@code hc.professional.registration} and the api
+ * publishes phase 2 to {@code hc.professional.entity} — each to the topic it already owns — and
+ * between two topics there is no ordering whatever. Both consumer groups read from the earliest
+ * offset, so a {@code ProfileStatus} landing before its {@code AccountStatus} happens on every
+ * backfill and can happen on any restart. It is therefore a state this document represents rather
+ * than a case the consumer tolerates: the profile fields are written, the identity fields stay
+ * absent, and the console shows an unnamed row with a profile on it, which is the truth.
+ *
+ * <p><b>Phase 2 carries its own watermark, and that is not tidiness.</b> {@link #lastEventAt} is the
+ * watermark of one producer's stream; the two phases come from two applications with two clocks and
+ * two topics, whose {@code occurredAt} sequences are independent. Comparing a phase-2 event against a
+ * phase-1 watermark would discard it whenever the gateway's clock ran ahead — silently, and
+ * indistinguishably from hc-professional not having published. So {@link #profileEventAt} is
+ * compared against phase-2 events and nothing else, and neither consumer writes the other's fields.
+ *
+ * <p><b>Nothing here becomes a {@code Professional}.</b> Neither phase carries a {@code role} or a
+ * {@code licenceNumber} — the contract deliberately does not, so that no clinical credential travels
+ * on a topic four stacks can read — so {@link #localId} stays null for a clinician however complete
+ * the profile status says they are. Backlog items 27(a), 33, 46 and 47 all say this and it is the one
+ * rule none of them relaxes.
  */
 @Document(collection = "directory_link")
 public class DirectoryLink implements Serializable {
@@ -103,9 +151,32 @@ public class DirectoryLink implements Serializable {
     @Field("external_id")
     private String externalId;
 
+    /**
+     * The subject's gateway login, and <b>the only thing the console ever names a clinician by</b>.
+     *
+     * <p>This is phase 1's {@code login}, under that name on both sides: hc-professional's
+     * registration event already emits it and backlog item 47's contract names it the same, having
+     * been revised away from an earlier draft that said {@code username}.
+     *
+     * <p>Null is a real state rather than a gap: an {@code onboarding.state} frame carries neither a
+     * login nor an address, so a subject whose only event was one of those cannot be named at all,
+     * and the console says so in words instead of printing the {@code accountId}.
+     */
     @Field("login")
     private String login;
 
+    /**
+     * The subject's email address, held for correlation and <b>deliberately not shown on the
+     * clinician panel</b>.
+     *
+     * <p>For a patient this is the same value as {@link #externalKey} and the patient directory does
+     * show it, on the argument set out at length in {@code DirectoryLinkResource}'s javadoc: an
+     * administrator's patient directory is where a patient's contact address belongs. For a clinician
+     * it is on the wire so the two phases can be correlated by a person, and backlog item 47 names
+     * {@link #login} — under that name, the contract having been revised away from an earlier draft's
+     * {@code username} — as the field the console renders. Keeping the address off that screen is the
+     * same decision item 43 took for logs, one surface along.
+     */
     @Field("email")
     private String email;
 
@@ -144,7 +215,16 @@ public class DirectoryLink implements Serializable {
     private DirectorySubjectKind subjectKind;
 
     /**
-     * Whether the stream has ever said this account can sign in.
+     * Whether the account can sign in — <b>the account's own state, never inferred from anything
+     * else</b>.
+     *
+     * <p>This is phase 1's {@code activated} (backlog item 47 — that name, not the earlier draft's
+     * {@code isActivated}), and the prohibition on deriving it
+     * is worth the words: a clinician can be activated with no profile at all, and can complete a
+     * profile on an account somebody later deactivates, so reading it off {@link #profileComplete},
+     * off the presence of a profile status, or off {@link #state} would be wrong in both directions.
+     * Null means no event has said, which is a third state the console renders as such rather than
+     * as "not activated".
      *
      * <p><b>Stored so the reconciliation does not have to re-derive it, which it used to get wrong.</b>
      * It read {@code state != "AccountCreated"} as "activated", so a link last seen in
@@ -153,8 +233,14 @@ public class DirectoryLink implements Serializable {
      * consumer, for those same events, says {@code activated == false}. Two derivations of one rule,
      * disagreeing, under a javadoc claiming they were the same path.
      *
-     * <p>Written monotonically — set true and never back to false — which is the link's copy of the
-     * {@code PENDING → ACTIVE} rule that governs the {@code Patient} it names.
+     * <p>Written monotonically for {@link DirectorySource#HC_PATIENT} — set true and never back to
+     * false — which is the link's copy of the {@code PENDING → ACTIVE} rule that governs the
+     * {@code Patient} it names. <b>Not monotone for {@link DirectorySource#HC_PROFESSIONAL}</b>,
+     * because there the value is the account's own state as phase 1 reports it and an account can be
+     * deactivated. The asymmetry is deliberate and is argued at
+     * {@code DirectoryProjectionService.recordEvent}: on the patient stream this field defends an
+     * administrator's decision against a replay, and on the professional stream it is a fact the far
+     * side owns outright.
      */
     @Field("activated")
     private Boolean activated;
@@ -187,8 +273,34 @@ public class DirectoryLink implements Serializable {
     @Field("local_id")
     private String localId;
 
+    /**
+     * When <b>this service</b> first saw any event about the subject.
+     *
+     * <p><b>Not the account's own creation date and must never be rendered as one</b>, which is why
+     * {@link #accountCreatedDate} exists beside it. This value is a property of this service's
+     * consumption: it moves if the collection is rebuilt from a backfill, it is the date of the
+     * oldest frame still inside the broker's retention window rather than the date the account was
+     * made, and for a subject learned during a replay it is simply wrong for that purpose. The same
+     * distinction applies to {@link #lastEventAt}, which is when this service last heard something
+     * and not when the account last changed.
+     */
     @Field("first_seen_at")
     private Instant firstSeenAt;
+
+    /**
+     * When the account was created on hc-professional — phase 1's {@code createdDate}.
+     *
+     * <p>New with backlog item 47 and genuinely new storage, unlike the rest of phase 1: this service
+     * had {@link #firstSeenAt} and {@link #lastEventAt}, which answer a different question. Null until
+     * hc-professional's phase-1 change ships, since {@code registration.created} does not carry it
+     * today.
+     */
+    @Field("account_created_date")
+    private Instant accountCreatedDate;
+
+    /** When the account last changed on hc-professional — phase 1's {@code modifiedDate}. */
+    @Field("account_modified_date")
+    private Instant accountModifiedDate;
 
     /**
      * The watermark: {@code occurredAt} of the newest event applied to this subject.
@@ -206,6 +318,100 @@ public class DirectoryLink implements Serializable {
 
     @Field("last_event_type")
     private String lastEventType;
+
+    // --- phase 2: the profile status, from hc-professional's api ---------------------------------
+    //
+    // Seven fields and nothing else, which is the whole of the contract in backlog item 47:
+    // identifiers, two booleans and three timestamps. No role, no licence number, no name, no
+    // address — so nothing here can build a Professional and nothing here is a clinical credential
+    // on a shared topic. Every one of them is null until phase 2 arrives, and null means "not
+    // reported" rather than false: a profile nobody has told this service about is not an incomplete
+    // profile, and the console says which.
+
+    /** hc-professional's own id for the {@code Profile}. A handle for a person, not a join key. */
+    @Field("profile_id")
+    private String profileId;
+
+    /** Phase 2's {@code isComplete}: whether the far side considers the profile filled in. */
+    @Field("profile_complete")
+    private Boolean profileComplete;
+
+    /** Phase 2's {@code isVerified}. Not this service's own verification, which lives on {@code Professional}. */
+    @Field("profile_verified")
+    private Boolean profileVerified;
+
+    /** When the profile was created on the far side — their clock, not this service's. */
+    @Field("profile_created_date")
+    private Instant profileCreatedDate;
+
+    /** When the profile last changed on the far side. */
+    @Field("profile_modified_date")
+    private Instant profileModifiedDate;
+
+    /**
+     * Who last changed the profile — <b>hc-professional's login for them</b>, and never a display
+     * name.
+     *
+     * <p><b>Item 47's contract calls this "an accountId, which IS the gateway's {@code User.id}", and
+     * that is wrong about the code on the far side.</b> The value is Spring Data auditing's
+     * {@code lastModifiedBy} on their {@code Profile}, filled by their
+     * {@code SpringSecurityAuditorAware} from {@code SecurityUtils.getCurrentUserLogin()} — the JWT
+     * subject, which is a login — or by their {@code Constants.SYSTEM} when nothing was authenticated.
+     * The architect's decision 2 of 2026-09-08 moves their {@code accountId} onto a {@code User.id}
+     * and changes nothing about auditing, so this field and {@link #externalKey} are in <b>different
+     * identifier spaces</b> and will stay that way. Verified against their {@code origin/main}
+     * 2026-09-08.
+     *
+     * <p>What that changes here is a reader's expectations rather than any code. It still needs no
+     * resolution and gets none, and the console still shows it verbatim — but it may not be joined to
+     * an {@code external_key}, to an {@code AuditLog.userId} or to a login on <em>this</em> gateway,
+     * because it names an account on another stack. It is also, incidentally, the one identifier on
+     * this row that a person can already read.
+     */
+    @Field("profile_last_modified_by")
+    private String profileLastModifiedBy;
+
+    /**
+     * The phase-2 watermark: {@code occurredAt} of the newest profile event applied to this subject.
+     *
+     * <p>Separate from {@link #lastEventAt} on purpose — see the class javadoc. Two producers, two
+     * topics, two clocks; one watermark across both would discard whichever stream ran behind.
+     */
+    @Field("profile_event_at")
+    private Instant profileEventAt;
+
+    /** The id of the newest profile event applied, for tracing. Never used for deduplication. */
+    @Field("profile_event_id")
+    private String profileEventId;
+
+    /**
+     * When <b>this service</b> first saw the two phases meet on this account, and null until they do.
+     *
+     * <h2>Why it is stored rather than computed from the two watermarks</h2>
+     *
+     * <p>{@code last_event_at != null && profile_event_at != null} looks like the same question and is
+     * not, because a seeded document can satisfy it without any event having been consumed.
+     * {@code DirectoryProjectionService.warnIfTheTwoPhasesNeverJoin} guards the one failure in this
+     * contract that looks correct on both sides — the two publishers keying their phases on different
+     * identifiers, with both consumer groups at lag zero and nothing dead-lettered — and it is
+     * suppressed as soon as any account has both phases. The {@code test} fixture seeds exactly such an
+     * account (it has to: the console's joined row is otherwise unreachable outside production, which
+     * is items 45 and 46's lesson), so on {@code quality/}, on {@code deploy/e2e/} and under
+     * {@code ng serve} the guard could never fire — the one machine short of production where somebody
+     * would want it, and precisely where a mismatched key would first be seen.
+     *
+     * <p>This field is written only by the consumer, only on the write that brings the second phase in,
+     * and never by the seed. {@code DevelopmentDataInitializerTest} asserts that no seeded link carries
+     * it, so re-silencing the guard from the fixture is a failing test rather than a quiet regression.
+     *
+     * <p><b>This service's own clock, deliberately.</b> Unlike {@link #accountCreatedDate} and
+     * {@link #profileCreatedDate}, which are the far side's facts and must never be filled from a
+     * frame's arrival, this records an observation <em>by</em> this service — the same kind of value as
+     * {@link #firstSeenAt} — so the far side has no clock to lend it and neither phase's
+     * {@code occurredAt} would mean what the name says.
+     */
+    @Field("phases_joined_at")
+    private Instant phasesJoinedAt;
 
     public String getId() {
         return id;
@@ -303,6 +509,22 @@ public class DirectoryLink implements Serializable {
         this.firstSeenAt = firstSeenAt;
     }
 
+    public Instant getAccountCreatedDate() {
+        return accountCreatedDate;
+    }
+
+    public void setAccountCreatedDate(Instant accountCreatedDate) {
+        this.accountCreatedDate = accountCreatedDate;
+    }
+
+    public Instant getAccountModifiedDate() {
+        return accountModifiedDate;
+    }
+
+    public void setAccountModifiedDate(Instant accountModifiedDate) {
+        this.accountModifiedDate = accountModifiedDate;
+    }
+
     public Instant getLastEventAt() {
         return lastEventAt;
     }
@@ -325,6 +547,78 @@ public class DirectoryLink implements Serializable {
 
     public void setLastEventType(String lastEventType) {
         this.lastEventType = lastEventType;
+    }
+
+    public String getProfileId() {
+        return profileId;
+    }
+
+    public void setProfileId(String profileId) {
+        this.profileId = profileId;
+    }
+
+    public Boolean getProfileComplete() {
+        return profileComplete;
+    }
+
+    public void setProfileComplete(Boolean profileComplete) {
+        this.profileComplete = profileComplete;
+    }
+
+    public Boolean getProfileVerified() {
+        return profileVerified;
+    }
+
+    public void setProfileVerified(Boolean profileVerified) {
+        this.profileVerified = profileVerified;
+    }
+
+    public Instant getProfileCreatedDate() {
+        return profileCreatedDate;
+    }
+
+    public void setProfileCreatedDate(Instant profileCreatedDate) {
+        this.profileCreatedDate = profileCreatedDate;
+    }
+
+    public Instant getProfileModifiedDate() {
+        return profileModifiedDate;
+    }
+
+    public void setProfileModifiedDate(Instant profileModifiedDate) {
+        this.profileModifiedDate = profileModifiedDate;
+    }
+
+    public String getProfileLastModifiedBy() {
+        return profileLastModifiedBy;
+    }
+
+    public void setProfileLastModifiedBy(String profileLastModifiedBy) {
+        this.profileLastModifiedBy = profileLastModifiedBy;
+    }
+
+    public Instant getProfileEventAt() {
+        return profileEventAt;
+    }
+
+    public void setProfileEventAt(Instant profileEventAt) {
+        this.profileEventAt = profileEventAt;
+    }
+
+    public String getProfileEventId() {
+        return profileEventId;
+    }
+
+    public void setProfileEventId(String profileEventId) {
+        this.profileEventId = profileEventId;
+    }
+
+    public Instant getPhasesJoinedAt() {
+        return phasesJoinedAt;
+    }
+
+    public void setPhasesJoinedAt(Instant phasesJoinedAt) {
+        this.phasesJoinedAt = phasesJoinedAt;
     }
 
     @Override
@@ -356,6 +650,8 @@ public class DirectoryLink implements Serializable {
             ", state='" + getState() + "'" +
             ", localId='" + getLocalId() + "'" +
             ", lastEventAt='" + getLastEventAt() + "'" +
+            ", profileId='" + getProfileId() + "'" +
+            ", profileEventAt='" + getProfileEventAt() + "'" +
             "}";
     }
 }

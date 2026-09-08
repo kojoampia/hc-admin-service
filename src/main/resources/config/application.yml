@@ -119,7 +119,12 @@ spring:
       # Deployments that override SPRING_CLOUD_FUNCTION_DEFINITION replace this value entirely rather
       # than adding to it, so a new function has to be added there too. quality/compose.yml and
       # deploy/docker-compose.yml both set it.
-      definition: kafkaConsumer;kafkaProducer;patientDirectoryConsumer;professionalDirectoryConsumer
+      #
+      # professionalProfileConsumer is the newest and is the one this trap is likeliest to catch: it
+      # is phase 2 of the professional contract, so a stack missing it from the override shows every
+      # clinician as registered with no profile — a plausible screen, on a healthy service, with
+      # nothing in the log. Backlog item 47.
+      definition: kafkaConsumer;kafkaProducer;patientDirectoryConsumer;professionalDirectoryConsumer;professionalProfileConsumer
     stream:
       kafka:
         binder:
@@ -152,6 +157,15 @@ spring:
               resetOffsets: false
               enableDlq: true
               dlqName: hc.professional.registration.hc-admin-dlq
+          # Phase 2 of the professional contract (backlog item 47). Its own dead-letter queue, which
+          # is one of the three costs that decision carries: two topics means two DLQs and two group
+          # offsets, so following one clinician through both phases is two `--describe` outputs.
+          professionalProfileConsumer-in-0:
+            consumer:
+              startOffset: earliest
+              resetOffsets: false
+              enableDlq: true
+              dlqName: hc.professional.entity.hc-admin-dlq
       bindings:
         binding-out-0:
           # The destination is the whole point of this binding and it was missing.
@@ -219,6 +233,23 @@ spring:
           destination: hc.professional.registration
           content-type: application/json
           group: hc-admin-directory-professional
+          consumer:
+            maxAttempts: 5
+            backOffInitialInterval: 2000
+            backOffMultiplier: 3
+            backOffMaxInterval: 30000
+        # THE THIRD, and phase 2 of the professional contract. hc-professional's api owns the profile
+        # and publishes to the topic it already owns, so the two phases of one clinician arrive on two
+        # topics between which there is NO ordering at all — a profile status landing before its
+        # registration is normal on every backfill, not an edge case. Both are keyed on accountId and
+        # the join is the upsert; see DirectoryProjectionService.applyProfileStatus.
+        #
+        # Its own group, and it may not share professionalDirectoryConsumer's: two consumers in one
+        # group split the partitions and each sees part of the traffic.
+        professionalProfileConsumer-in-0:
+          destination: hc.professional.entity
+          content-type: application/json
+          group: hc-admin-directory-professional-profile
           consumer:
             maxAttempts: 5
             backOffInitialInterval: 2000

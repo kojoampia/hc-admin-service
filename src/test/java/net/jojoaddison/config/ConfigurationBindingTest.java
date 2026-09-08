@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -60,6 +61,24 @@ class ConfigurationBindingTest {
      * longer exists is how an exemption list starts growing.
      */
     private static final String GENERATED_DEMO_SUPPLIER = "kafkaProducer-out-0";
+
+    /**
+     * The inbound domain subscriptions, which the two rules below apply to each of.
+     *
+     * <p>Enumerated rather than swept, unlike the destination and group rules above, and the reason
+     * is the same one that makes them named at all: these are the bindings on which this service
+     * learns anything from another product, and the list changing is a decision rather than an
+     * accident. A fourth arriving without being added here is a subscription nothing checks the
+     * retry and dead-letter settings of — which is how a Mongo restart comes to lose events again.
+     *
+     * <p>{@code professionalProfileConsumer-in-0} is phase 2 of the two-phase professional contract
+     * (backlog item 47) and was the third.
+     */
+    private static final List<String> DIRECTORY_BINDINGS = List.of(
+        "patientDirectoryConsumer-in-0",
+        "professionalDirectoryConsumer-in-0",
+        "professionalProfileConsumer-in-0"
+    );
 
     private final YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
 
@@ -211,19 +230,27 @@ class ConfigurationBindingTest {
     }
 
     /**
-     * The two sibling topics, by name, and the groups that read them.
+     * The three sibling topics, by name, and the groups that read them.
      *
      * <p>Named literally here rather than discovered, which is the opposite of the rule the sweeps
      * follow, and deliberately: a topic name is a <b>contract with another product</b>, not a local
-     * convention. {@code patient-events} is hc-patient's, {@code hc.professional.registration} is
-     * hc-professional's, and neither repository imports anything from this one — the only thing
-     * holding the two ends together is that these strings match. A typo here is a service that
-     * starts, reports healthy, creates its own empty topic and learns nothing, which is precisely
-     * the state this subscription was added to end.
+     * convention. {@code patient-events} is hc-patient's, {@code hc.professional.registration} and
+     * {@code hc.professional.entity} are hc-professional's, and neither repository imports anything
+     * from this one — the only thing holding the two ends together is that these strings match. A
+     * typo here is a service that starts, reports healthy, creates its own empty topic and learns
+     * nothing, which is precisely the state this subscription was added to end.
      *
-     * <p>The groups are asserted distinct because two consumers sharing one compete for partitions
-     * and each sees part of the traffic — the failure hc-professional's own configuration warns
-     * about at length, and it presents as a feature that works about half the time.
+     * <p><b>The third is the two-phase professional contract's phase 2</b>, and it is the one this
+     * test most needs to name. Backlog item 47 puts {@code AccountStatus} on the gateway's topic and
+     * {@code ProfileStatus} on the api's, so one clinician arrives over two subscriptions; a stack
+     * that has the first and not the second shows every clinician as registered with no profile,
+     * which is a plausible screen rather than a visible fault.
+     *
+     * <p>The groups are asserted <b>pairwise distinct</b> because two consumers sharing one compete
+     * for partitions and each sees part of the traffic — the failure hc-professional's own
+     * configuration warns about at length, and it presents as a feature that works about half the
+     * time. The two professional groups are the pair most likely to be made identical by copying the
+     * binding above.
      */
     @Test
     void theDirectorySubscriptionsNameTheSiblingTopics() throws IOException {
@@ -234,19 +261,26 @@ class ConfigurationBindingTest {
             .as("hc-patient publishes the patient journey to patient-events; nothing else reaches this service")
             .isEqualTo("patient-events");
         assertThat(properties.get(prefix + "professionalDirectoryConsumer-in-0.destination"))
-            .as("hc-professional publishes registration.created and onboarding.state to hc.professional.registration")
+            .as("hc-professional's gateway publishes registration.created and onboarding.state to hc.professional.registration")
             .isEqualTo("hc.professional.registration");
+        assertThat(properties.get(prefix + "professionalProfileConsumer-in-0.destination"))
+            .as("hc-professional's api publishes the profile status — phase 2 — to hc.professional.entity")
+            .isEqualTo("hc.professional.entity");
 
-        Object patientGroup = properties.get(prefix + "patientDirectoryConsumer-in-0.group");
-        Object professionalGroup = properties.get(prefix + "professionalDirectoryConsumer-in-0.group");
-        assertThat(patientGroup).as("the patient subscription needs a durable group of its own").isNotNull();
-        assertThat(professionalGroup).as("the professional subscription needs a durable group of its own").isNotNull();
-        assertThat(patientGroup)
+        List<Object> groups = Stream
+            .of("patientDirectoryConsumer-in-0", "professionalDirectoryConsumer-in-0", "professionalProfileConsumer-in-0")
+            .map(binding -> {
+                Object group = properties.get(prefix + binding + ".group");
+                assertThat(group).as("%s needs a durable group of its own", binding).isNotNull();
+                return group;
+            })
+            .toList();
+
+        assertThat(groups)
             .as("two subscriptions in one group split the partitions and each sees half")
-            .isNotEqualTo(professionalGroup);
-        assertThat(patientGroup)
-            .as("the directory consumers must not share the SSE consumer's group either")
-            .isNotEqualTo(properties.get(prefix + "kafkaConsumer-in-0.group"));
+            .doesNotHaveDuplicates()
+            .as("and none of them may share the SSE consumer's group either")
+            .doesNotContain(properties.get(prefix + "kafkaConsumer-in-0.group"));
     }
 
     /**
@@ -262,7 +296,7 @@ class ConfigurationBindingTest {
         Map<String, Object> properties = propertiesOf("config/application.yml");
         String prefix = "spring.cloud.stream.kafka.bindings.";
 
-        for (String binding : List.of("patientDirectoryConsumer-in-0", "professionalDirectoryConsumer-in-0")) {
+        for (String binding : DIRECTORY_BINDINGS) {
             // The literal key as written in the file: this reads raw property names off the YAML
             // loader, where relaxed binding has not happened yet and `start-offset` would not match.
             assertThat(properties.get(prefix + binding + ".consumer.startOffset"))
@@ -292,7 +326,7 @@ class ConfigurationBindingTest {
     void theDirectorySubscriptionsRetryAndThenDeadLetter() throws IOException {
         Map<String, Object> properties = propertiesOf("config/application.yml");
 
-        for (String binding : List.of("patientDirectoryConsumer-in-0", "professionalDirectoryConsumer-in-0")) {
+        for (String binding : DIRECTORY_BINDINGS) {
             Object attempts = properties.get("spring.cloud.stream.bindings." + binding + ".consumer.maxAttempts");
             assertThat(attempts)
                 .as("%s leaves maxAttempts at the binder default of 3 — about two seconds, shorter than any restart", binding)

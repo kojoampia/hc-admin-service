@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Optional;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
+import net.jojoaddison.service.dto.ProfileStatusEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
 import net.jojoaddison.service.dto.SiblingDomainEvent.Disposition;
 import org.slf4j.Logger;
@@ -26,7 +27,7 @@ import org.springframework.stereotype.Component;
  * publishers rather than inferred from the frames that happen to be in a topic:
  *
  * <table>
- *   <caption>The nine types on the two subscribed topics, and what each one may do here</caption>
+ *   <caption>The twelve types on the three subscribed topics, and what each one may do here</caption>
  *   <tr><th>Topic</th><th>Type</th><th>Disposition</th></tr>
  *   <tr><td>{@code patient-events}</td><td>{@code AccountCreated}</td>
  *       <td>{@link Disposition#CREATE}, or {@link Disposition#LINK_ONLY} for a care angel</td></tr>
@@ -38,9 +39,49 @@ import org.springframework.stereotype.Component;
  *   <tr><td></td><td>{@code DeletionRequestChanged}</td><td>{@link Disposition#UPDATE_ONLY}, and
  *       {@code change=COMPLETED} marks the link erased</td></tr>
  *   <tr><td>{@code hc.professional.registration}</td><td>{@code registration.created}</td>
- *       <td>{@link Disposition#LINK_ONLY}</td></tr>
+ *       <td>{@link Disposition#LINK_ONLY} — <b>phase 1</b>, the original envelope</td></tr>
  *   <tr><td></td><td>{@code onboarding.state}</td><td>{@link Disposition#LINK_ONLY}</td></tr>
+ *   <tr><td></td><td>{@code AccountCreated}</td>
+ *       <td>{@link Disposition#LINK_ONLY} — <b>phase 1</b>, and the only frame carrying
+ *       {@code activated}</td></tr>
+ *   <tr><td></td><td>{@code AccountActivated}</td><td>{@link Disposition#LINK_ONLY}</td></tr>
+ *   <tr><td>{@code hc.professional.entity}</td><td>{@code ProfileStatus}</td>
+ *       <td><b>phase 2</b>, and no disposition at all — see below</td></tr>
  * </table>
+ *
+ * <h2>hc-professional puts two envelopes on one topic, and the discriminator is which key is present</h2>
+ *
+ * <p>{@code hc.professional.registration} carries both of that product's shapes at once and will go on
+ * doing so — their {@code RegistrationEventPublisher} says in its own javadoc that
+ * {@code registration.created} and {@code onboarding.state} are <em>"not replaced and not
+ * deprecated"</em>, because hc-admin is their one live consumer. Their {@code ProfessionalEvent}
+ * javadoc names the rule for reading them together: <em>"a reader of either topic dispatches on which
+ * of {@code type} and {@code eventType} is present"</em>, and {@link #parseProfessionalEvent} does
+ * exactly that and nothing cleverer.
+ *
+ * <table>
+ *   <caption>The two hc-professional envelopes, side by side</caption>
+ *   <tr><th></th><th>{@code DomainEventEnvelope}</th><th>{@code ProfessionalEvent}</th></tr>
+ *   <tr><td>discriminator</td><td>{@code eventType}</td><td>{@code type}</td></tr>
+ *   <tr><td>body</td><td>{@code payload}</td><td>{@code data}</td></tr>
+ *   <tr><td>subject</td><td>inside {@code payload}</td>
+ *       <td>{@code subject:{email, login, accountId}}</td></tr>
+ *   <tr><td>who sends it</td><td>gateway and api</td><td>gateway and api</td></tr>
+ * </table>
+ *
+ * <p><b>Phase 2 is the {@code ProfessionalEvent} shape and only ever that shape.</b> It was read as
+ * {@code eventType}/{@code payload} until 2026-09-08, against a producer that has never sent one on
+ * that topic for a profile status — the whole of the phase-2 path was therefore unreachable, on a
+ * healthy consumer group at lag zero. That is recorded rather than quietly fixed because the cause is
+ * worth more than the correction: the shape was written from item 47's prose and from one grepped-to
+ * method, not from hc-professional's producer. <b>Read the whole producer.</b>
+ *
+ * <p><b>Phase 2 has no {@link Disposition} and the omission is the contract.</b> The three
+ * dispositions answer "may this event open a local record?", and for a profile status the answer is
+ * not merely no but <em>never</em>: neither phase carries a {@code role} or a {@code licenceNumber},
+ * so a {@code Professional} cannot be constructed from any number of these frames, however complete
+ * the profile says it is. {@link net.jojoaddison.service.dto.ProfileStatusEvent} is therefore its own
+ * type with no such field, rather than a fourth value nobody could apply. Backlog item 47.
  *
  * <p><b>Two of those rows were the whole of a defect.</b> Until 2026-09-05 this class named two types
  * and used them only to decide {@code activated}, and there was no type filter on the creation path
@@ -168,10 +209,55 @@ public class SiblingEventParser {
     private static final String CARE_ANGEL_AUTHORITY = "ROLE_ANGEL";
     private static final String CARE_ANGEL_REASON = "careAngelNomination";
 
-    // --- hc-professional's published set on the subscribed topic ---------------------------------
+    // --- hc-professional's original envelope on the registration topic ---------------------------
 
     private static final String PROFESSIONAL_REGISTRATION_CREATED = "registration.created";
     private static final String PROFESSIONAL_ONBOARDING_STATE = "onboarding.state";
+
+    // --- hc-professional's estate-shaped account events, on the same topic ------------------------
+
+    /**
+     * The gateway's {@code AccountCreated}, and <b>the only frame in this product that carries
+     * {@code activated}</b>.
+     *
+     * <p>It is on {@code hc.professional.registration} beside {@code registration.created} rather than
+     * instead of it — their publisher's class javadoc says so, and it means one registration puts
+     * three frames on the topic under two envelopes, all keyed identically. Reading only the older
+     * envelope, which this class did until 2026-09-08, therefore discarded the one frame that answers
+     * the question the console's {@code Activated} column asks.
+     */
+    private static final String PROFESSIONAL_ACCOUNT_CREATED = "AccountCreated";
+
+    /**
+     * The gateway's {@code AccountActivated}: the activation link was followed and the key consumed.
+     *
+     * <p>Published nowhere before their item 47 work, so <em>"the one point at which a clinician's
+     * account stops being a pending registration was invisible to the estate"</em>, in their own
+     * words. This is the frame that moves {@code activated} to true after the fact.
+     */
+    private static final String PROFESSIONAL_ACCOUNT_ACTIVATED = "AccountActivated";
+
+    // --- hc-professional's published set on the entity topic, which is phase 2 --------------------
+
+    /**
+     * <b>The only type accepted on {@code hc.professional.entity}</b>, per the architect's decision 3
+     * of 2026-09-08.
+     *
+     * <p>That topic already carries {@code entity.created} frames for {@code Profile} — the older
+     * {@code DomainEventEnvelope} shape, keyed on the login rather than on a {@code User.id} — and this
+     * consumer group reads from the earliest offset. Accepting them as profile statuses would
+     * manufacture roughly thirty phantom "identity not on file" rows on the day of deploy and roughly
+     * double the console's awaiting count, which is the moved-figure failure item 46 § 2 forbids. They
+     * are also not the contract: an {@code entity.created} carries {@code entityType},
+     * {@code entityId} and {@code accountId} and none of {@code isComplete}, {@code isVerified} or
+     * {@code lastModifiedBy}, so every column this table exists for would read "not reported".
+     *
+     * <p>So the {@code entityType == "Profile"} filter that used to stand here is gone rather than
+     * loosened. It was reached only by frames in the older envelope, and those are now refused one
+     * step earlier, by type — which is the rule this class already applies to every other unmodelled
+     * type and is what makes hc-professional free to add to their own topic without breaking this one.
+     */
+    private static final String PROFESSIONAL_PROFILE_STATUS = "ProfileStatus";
 
     private static final Logger LOG = LoggerFactory.getLogger(SiblingEventParser.class);
 
@@ -242,14 +328,28 @@ public class SiblingEventParser {
                 activated,
                 disposition,
                 subjectKindFor(disposition, careAngel),
+                // hc-patient's envelope carries no account dates and is not asked to grow any: the
+                // pair exists for the professional contract's phase 1, and the patient directory has
+                // never shown them. Null here rather than firstSeenAt/lastEventAt, which answer a
+                // different question and would be wrong under a heading saying "created".
+                null,
+                null,
                 PATIENT_DELETION_REQUEST_CHANGED.equals(type) && DELETION_COMPLETED.equals(text(data, "change"))
             )
         );
     }
 
     /**
-     * A frame from {@code hc.professional.registration}, carrying either {@code registration.created}
-     * or {@code onboarding.state}.
+     * A frame from {@code hc.professional.registration} — <b>phase 1</b>, in either of the two
+     * envelopes that topic carries.
+     *
+     * <p><b>The dispatch is on which discriminator the frame has</b>, which is the rule
+     * hc-professional's own {@code ProfessionalEvent} states: a {@code type} means the estate-shaped
+     * envelope and its {@code AccountCreated} / {@code AccountActivated}; an {@code eventType} means
+     * their original {@code DomainEventEnvelope} and its {@code registration.created} /
+     * {@code onboarding.state}. Both are live, both are keyed on the same {@code accountId}, and both
+     * write the same link — see {@link #parseProfessionalAccountEvent} for what only the newer pair
+     * can say.
      *
      * <p>The subject key is {@code payload.accountId} rather than the email: that is what both
      * producers key the topic on, and {@code onboarding.state} carries no email at all. Taking the
@@ -263,16 +363,84 @@ public class SiblingEventParser {
      * <p>The header is not read here. hc-professional sets {@code KafkaHeaders.KEY} directly, which
      * the binder consumes as the record key rather than exposing under a name of its own — the
      * payload is the reliable copy on this stream, unlike hc-patient's.
+     *
+     * <h2>This is <b>phase 1</b>, and on this side it is mostly a mapping exercise</h2>
+     *
+     * <p>Backlog item 47 specifies phase 1 as
+     * {@code AccountStatus{accountId, login, email, activated, createdDate, modifiedDate}}, from
+     * hc-professional's <b>gateway</b>, on this topic. Four of the six already arrive under exactly
+     * that name and two are new:
+     *
+     * <table>
+     *   <caption>The phase-1 contract against what {@code registration.created} publishes today</caption>
+     *   <tr><th>Contract</th><th>On the wire today</th><th>Stored as</th></tr>
+     *   <tr><td>{@code accountId}</td><td>yes</td>
+     *       <td>{@code external_key} and {@code external_id}</td></tr>
+     *   <tr><td>{@code login}</td><td>yes</td><td>{@code login}</td></tr>
+     *   <tr><td>{@code email}</td><td>yes</td><td>{@code email}</td></tr>
+     *   <tr><td>{@code activated}</td><td>on {@code AccountCreated}, not here</td>
+     *       <td>{@code activated}</td></tr>
+     *   <tr><td>{@code createdDate}</td><td><b>no — on no frame at all</b></td>
+     *       <td>{@code account_created_date}</td></tr>
+     *   <tr><td>{@code modifiedDate}</td><td><b>no — on no frame at all</b></td>
+     *       <td>{@code account_modified_date}</td></tr>
+     * </table>
+     *
+     * <p><b>The two dates are on nothing hc-professional's gateway publishes</b>, measured on their
+     * {@code origin/main} 2026-09-08: {@code AccountCreated} carries {@code authorities},
+     * {@code langKey} and {@code activated}, and {@code AccountActivated} carries {@code activatedAt}.
+     * They are read here under the contract's names so they light up the day that changes, and
+     * nothing is substituted for them in the meantime. The obvious substitute is the envelope's own
+     * {@code occurredAt}, and it is refused: for {@code AccountCreated} it is within milliseconds of
+     * the truth and for every other frame it is not, so accepting it would put a date that is
+     * sometimes the account's and sometimes the frame's under a heading that reads "created" — item
+     * 45's defect with a timestamp instead of an id. The column says "not reported", which is what it
+     * is, and what hc-professional has to add is now nameable to the field.
+     *
+     * <p><b>The names are read exactly as the contract states them, and no alias is accepted.</b> An
+     * earlier draft of item 47 said {@code username} and {@code isActivated}; the contract was revised
+     * onto the names both products already use, precisely so that there would not be two spellings of
+     * one field across two repositories. Reading both would reintroduce the ambiguity the revision
+     * removed — the {@code admin-service} / {@code hcadminservice} mismatch is what that costs, and it
+     * cost every entity call a 404.
+     *
+     * <p>The fields not on the wire read as null, and null travels all the way to the screen as "not
+     * reported". None of them is defaulted.
+     *
+     * <p><b>{@code activated} is not derived, and until 2026-09-07 it was.</b> This method answered
+     * {@code PROFESSIONAL_REGISTRATION_CREATED.equals(type)} — "a registration is an account that can
+     * sign in" — which is an inference about somebody else's account made from the fact that a frame
+     * arrived. Item 47 forbids it in those terms: activation is the account's own state, an account
+     * can be deactivated afterwards, and this service would never hear about it. So the field is read
+     * or it is null, and null is carried through as "no event has said" rather than flattened to
+     * false. A console that has never shown this at all loses nothing by saying so.
+     *
+     * <p><b>De-inferring it was right and reading nothing in its place was the defect.</b> The value
+     * has been on this topic since hc-professional's {@code cdbbbf4}, on {@code AccountCreated}, in an
+     * envelope this method dropped with a {@code warn} — so the column would have read "not reported"
+     * for ever while the fact sat one frame away. {@link #parseProfessionalAccountEvent} is where it
+     * is read now.
      */
     public Optional<SiblingDomainEvent> parseProfessionalEvent(byte[] payload) {
         JsonNode node = read(payload, "hc.professional.registration");
         if (node == null) {
             return Optional.empty();
         }
+
+        // Which envelope this is, decided the way hc-professional's own ProfessionalEvent javadoc
+        // says to decide it: on which discriminator is present, never on guessing at the body.
+        String estateType = text(node, "type");
+        if (estateType != null) {
+            return parseProfessionalAccountEvent(node, estateType);
+        }
+
         JsonNode content = node.path("payload");
 
         String type = text(node, "eventType");
-        String accountId = text(content, "accountId");
+        // Trimmed exactly as phase 2 trims it, and case-preserved exactly as phase 2 preserves it.
+        // The two phases join on this string and the join is an equality test; any normalisation
+        // applied to one side and not the other is a permanently unpaired row.
+        String accountId = trimmed(text(content, "accountId"));
         if (type == null || accountId == null) {
             LOG.warn("Ignoring an hc.professional.registration frame with no {}", type == null ? "eventType" : "accountId");
             return Optional.empty();
@@ -320,13 +488,214 @@ public class SiblingEventParser {
                 text(content, "login"),
                 accountId,
                 state,
-                // A registration is an account that exists and can sign in; hc-professional has no
-                // separate activation event on this topic. Onboarding state changes say nothing
-                // about sign-in and must not move a status.
-                PROFESSIONAL_REGISTRATION_CREATED.equals(type),
+                // Read, never inferred — see this method's javadoc. Null when the frame says nothing,
+                // which is every onboarding.state frame and every registration published before
+                // hc-professional's phase-1 change ships.
+                bool(content, "activated"),
                 Disposition.LINK_ONLY,
                 DirectorySubjectKind.PROFESSIONAL,
+                // The account's own dates, which this service had no field for until item 47. Absent
+                // from registration.created today, so null until hc-professional's phase-1 change
+                // ships — and null is what the console renders as "not reported", never as an epoch.
+                timestamp(content, "createdDate"),
+                timestamp(content, "modifiedDate"),
                 false
+            )
+        );
+    }
+
+    /**
+     * The estate-shaped half of <b>phase 1</b>: {@code AccountCreated} and {@code AccountActivated},
+     * from hc-professional's gateway, on {@code hc.professional.registration}.
+     *
+     * <p>These are the frames that carry {@code activated}, and they are the reason this method exists
+     * rather than a branch inside the one above. Everything else about the account —
+     * {@code accountId}, {@code login}, {@code email} — is already on {@code registration.created},
+     * so on its own this is a second copy of facts this service holds; what only this pair can say is
+     * whether the account can be signed into, which is a column on the console and was reading "not
+     * reported" for every clinician on every stack.
+     *
+     * <p><b>The subject is the envelope's own {@code subject}, not a field in {@code data}.</b> That is
+     * the shape difference between the two envelopes and the whole reason they are parsed apart: the
+     * older one puts the subject inside {@code payload}, this one names it beside the body. Both
+     * carry the same {@code accountId} and the topic is keyed on it, so a clinician has one link
+     * however many of the three frames arrive.
+     *
+     * <h2>Activation, and why {@code AccountActivated} setting it true is a reading rather than an
+     * inference</h2>
+     *
+     * <p>The prohibition item 47 states is on inferring an account's state from <em>a frame having
+     * arrived</em> — the discarded "a registration is an account that can sign in". This is not that.
+     * {@code AccountActivated}'s entire content is that the activation link was followed and the key
+     * consumed; taking it as {@code activated = true} is reading the event, and refusing to would mean
+     * holding "not reported" for an account whose activation is the only thing the frame is about.
+     * hc-patient's half of this parser has always read its identically-named event the same way, and
+     * the two agreeing is worth more than a rule applied by its letter.
+     *
+     * <p><b>{@code AccountCreated} is read, never assumed.</b> Its {@code data.activated} is false for
+     * a self-service registration awaiting its email link and may be true for an
+     * administrator-created account, which is precisely the distinction the column exists to draw, so
+     * an absent field stays null rather than becoming either.
+     *
+     * <p>No {@code state}: neither frame carries one, and neither is a stage of onboarding.
+     * {@code DirectoryProjectionService.recordEvent} therefore leaves a state an earlier
+     * {@code onboarding.state} wrote alone rather than clearing it — the three frames of one
+     * registration are keyed identically and arrive in order, so an {@code AccountCreated} landing
+     * after {@code onboarding.state} is the ordinary case and not an edge one.
+     */
+    private Optional<SiblingDomainEvent> parseProfessionalAccountEvent(JsonNode node, String type) {
+        if (!PROFESSIONAL_ACCOUNT_CREATED.equals(type) && !PROFESSIONAL_ACCOUNT_ACTIVATED.equals(type)) {
+            LOG.debug("Ignoring an hc.professional.registration frame of type {}, which this service does not model", type);
+            return Optional.empty();
+        }
+
+        JsonNode subject = node.path("subject");
+        JsonNode data = node.path("data");
+
+        // Trimmed and case-preserved exactly as the other envelope and as phase 2 — the three of them
+        // join on this string by equality, and a normalisation applied to one is an unpaired row.
+        String accountId = trimmed(text(subject, "accountId"));
+        if (accountId == null) {
+            LOG.warn("Ignoring an hc.professional.registration {} frame with no subject accountId", type);
+            return Optional.empty();
+        }
+
+        Instant occurredAt = occurredAt(node, type);
+        if (occurredAt == null) {
+            return Optional.empty();
+        }
+
+        Boolean activated = PROFESSIONAL_ACCOUNT_ACTIVATED.equals(type) ? Boolean.TRUE : bool(data, "activated");
+
+        return Optional.of(
+            new SiblingDomainEvent(
+                DirectorySource.HC_PROFESSIONAL,
+                text(node, "eventId"),
+                type,
+                occurredAt,
+                accountId,
+                text(subject, "email"),
+                text(subject, "login"),
+                accountId,
+                // No state on either frame, and nothing is invented for the field: the console renders
+                // it verbatim, which is what made "registration.created" appear there as a status.
+                null,
+                activated,
+                Disposition.LINK_ONLY,
+                DirectorySubjectKind.PROFESSIONAL,
+                // Under the contract's names, and absent from both frames today — see this class's
+                // phase-1 table for what their gateway actually sends and why occurredAt is not
+                // substituted.
+                timestamp(data, "createdDate"),
+                timestamp(data, "modifiedDate"),
+                false
+            )
+        );
+    }
+
+    /**
+     * A frame from {@code hc.professional.entity} — <b>phase 2</b>, the profile status.
+     *
+     * <p>The contract, from backlog item 47:
+     * {@code ProfileStatus{profileId, accountId, isComplete, isVerified, createdDate, modifiedDate,
+     * lastModifiedBy}}. Identifiers, two booleans and three timestamps, and deliberately nothing
+     * else — no role, no licence, no name, no address — so this topic stays free of anything a
+     * clinician could be identified or credentialed by, and this service still cannot build a
+     * {@code Professional} out of it. That is the answer rather than an omission to fill in later.
+     *
+     * <h2>The envelope is {@code ProfessionalEvent}, and the fields are read off it directly</h2>
+     *
+     * <p>{@code type}, and the body is {@code data} — not {@code eventType} and {@code payload},
+     * which is their <em>other</em> envelope and is what this method read until 2026-09-08. See the
+     * class javadoc: that error made the whole phase-2 path unreachable while every check stayed
+     * green, and it came of writing the reader from a specification rather than from the producer.
+     *
+     * <h2>The filter is here, and it is most of the value of this method</h2>
+     *
+     * <p>This topic is hc-professional's general entity stream: {@code entity.created} for every
+     * entity type they model, plus {@code message.created} and {@code compliance.alert}. Item 35
+     * measured it at <b>82% {@code Task}</b>, which this service has no collection for. <b>One test
+     * refuses all of it</b> — the type must be {@code ProfileStatus} — and that is the architect's
+     * decision 3 of 2026-09-08 rather than a simplification taken here.
+     *
+     * <p>The {@code entityType == "Profile"} check that stood beside it is <b>gone</b>, and its
+     * absence is the decision. It exists on no {@code ProfileStatus}; it exists only on the older
+     * {@code entity.created} frames, which are now refused a step earlier for carrying none of the
+     * fields this contract is made of. Reinstating it would only ever admit those frames back.
+     *
+     * <h2>An accepted frame with no {@code accountId} is refused loudly</h2>
+     *
+     * <p>{@code accountId} is the join to phase 1 and the key of the row this would be written to.
+     * A profile frame that has passed the filter and carries none is not a message for somebody else
+     * — it is a message for this service that can never be paired with an account, which is the exact
+     * failure item 47 says looks correct on both sides. So it is a {@code warn} naming the profile,
+     * not a {@code debug} naming the type.
+     *
+     * <p>Nothing here throws, like everything else in this class: a phase-2 frame this service cannot
+     * use answers {@link Optional#empty()} and the offset moves on.
+     */
+    public Optional<ProfileStatusEvent> parseProfessionalProfileEvent(byte[] payload) {
+        JsonNode node = read(payload, "hc.professional.entity");
+        if (node == null) {
+            return Optional.empty();
+        }
+        String type = text(node, "type");
+        if (!PROFESSIONAL_PROFILE_STATUS.equals(type)) {
+            // The 82%, plus every legacy entity.created for a Profile. At debug, because it is the
+            // normal condition on a topic this service shares with entities it does not model, and a
+            // warn per frame would fill the log during the backfill with something nobody should act
+            // on. `type` is null for a frame in their older envelope, and the line says so rather
+            // than printing "null", because "an eventType-shaped frame" is the useful fact.
+            LOG.debug(
+                "Ignoring an hc.professional.entity frame of type {}, which this service does not model",
+                type == null ? "none — an eventType-shaped envelope" : type
+            );
+            return Optional.empty();
+        }
+
+        JsonNode content = node.path("data");
+
+        // profileId, under the name the contract gives it, and no alias — the same rule phase 1
+        // follows and for the same reason. Their older envelope's `entityId` is the same identifier
+        // and is deliberately not read; those frames no longer reach this line at all.
+        String profileId = text(content, "profileId");
+
+        // From `data`, and deliberately not falling back to the envelope's `subject.accountId`, which
+        // their publisher sets to the same value. One field is read in one place, so a producer that
+        // started filling the two differently would show up as an unpaired row and a warning rather
+        // than being silently absorbed by whichever copy happened to be right. Their own comment on
+        // that subject calls it a repeat of what `data` carries, which names which is the original.
+        String accountId = trimmed(text(content, "accountId"));
+        if (accountId == null) {
+            LOG.warn(
+                "Ignoring an hc.professional.entity {} for a profile with no accountId — there is nothing to join it to, " +
+                "and a profile status that can never be paired with an account is invisible on the console rather than wrong",
+                type
+            );
+            return Optional.empty();
+        }
+
+        Instant occurredAt = occurredAt(node, type);
+        if (occurredAt == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(
+            new ProfileStatusEvent(
+                text(node, "eventId"),
+                type,
+                occurredAt,
+                accountId,
+                profileId,
+                bool(content, "isComplete"),
+                bool(content, "isVerified"),
+                timestamp(content, "createdDate"),
+                timestamp(content, "modifiedDate"),
+                // hc-professional's LOGIN, not an accountId and not this service's — see
+                // ProfileStatusEvent.lastModifiedBy, which reads their auditor rather than the
+                // contract's prose. Trimmed for the same reason accountId is, and otherwise stored
+                // exactly as sent.
+                trimmed(text(content, "lastModifiedBy"))
             )
         );
     }
@@ -455,5 +824,73 @@ public class SiblingEventParser {
     private String text(JsonNode node, String field) {
         String value = node.path(field).asText(null);
         return value == null || value.isBlank() ? null : value;
+    }
+
+    /**
+     * A boolean field, or <b>null when the payload does not carry it</b>.
+     *
+     * <p>Null rather than false is the whole point, and it is why this is not
+     * {@code node.path(field).asBoolean(false)}. An absent {@code activated} means no producer has
+     * said whether the account can sign in; an {@code activated: false} means one has said it cannot.
+     * Those need different answers on screen — "not reported" against "deactivated" — and defaulting
+     * would make the first indistinguishable from the second on every frame published before
+     * hc-professional's own change ships. The same holds for {@code isComplete} and
+     * {@code isVerified}: a profile status nobody has sent is not an incomplete profile, and backlog
+     * item 47 refuses that reading in the same terms items 27(a) and 46 refuse a fabricated name.
+     *
+     * <p>A field present but not boolean — a string {@code "true"}, which is what a hand-built
+     * {@code LinkedHashMap} payload can produce — is read as a boolean rather than refused:
+     * {@code JsonNode.asBoolean} does that conversion, and this is somebody else's schema.
+     */
+    private Boolean bool(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        if (value.isMissingNode() || value.isNull()) {
+            return null;
+        }
+        return value.asBoolean();
+    }
+
+    /**
+     * An optional timestamp inside a payload, in either of the two forms both products emit, or null.
+     *
+     * <p>Distinct from {@link #occurredAt} deliberately: that one is the <b>watermark</b>, whose
+     * absence discards the frame, and it warns as it does so. These three are content — the profile's
+     * own created and modified dates — and their absence is a field the console leaves blank, not a
+     * reason to drop the event. Sharing one method would mean either warning about a blank cell or
+     * silently discarding a frame over one.
+     */
+    private Instant timestamp(JsonNode node, String field) {
+        JsonNode value = node.path(field);
+        if (value.isNumber()) {
+            return Instant.ofEpochMilli(Math.round(value.asDouble() * 1000));
+        }
+        String text = value.asText(null);
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            return Instant.parse(text);
+        } catch (DateTimeParseException e) {
+            LOG.debug("Ignoring the {} on a profile status: '{}' is not a timestamp this service can read", field, text);
+            return null;
+        }
+    }
+
+    /**
+     * Trimmed, and null for a value that was only whitespace. <b>Never lower-cased.</b>
+     *
+     * <p>{@link #normaliseKey} lower-cases, because a patient's key is an email address and both
+     * hc-patient publishers lower-case it before sending — matching them is what makes one person one
+     * link. An {@code accountId} is a UUID minted by a gateway, and the two phases of the professional
+     * contract have to key on it <em>identically</em>; folding case here would make this side tolerant
+     * of a producer that had started sending it differently, which is precisely the divergence that
+     * must be visible rather than absorbed. Trimming is applied to both phases and to nothing else.
+     */
+    private String trimmed(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }

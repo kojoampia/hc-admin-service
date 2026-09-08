@@ -39,13 +39,25 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  * @param login the subject's gateway login, when the event carries one.
  * @param externalId the sibling's own id for the subject, when the event carries one.
  * @param state the lifecycle state to record, already resolved from whichever field held it.
- * @param activated true when this event is evidence the account can sign in. Only the two account
- *                  events ever set it, and it is the only thing that may move a local status.
+ * @param activated whether the account can sign in, <b>as this event states it</b>, or null when the
+ *                  event says nothing about it. Three states rather than two, and the third is the
+ *                  point: backlog item 47 makes {@code activated} part of phase 1's
+ *                  {@code AccountStatus} and forbids deriving it, so "no event has said" has to be
+ *                  representable or the absence would be written as {@code false} and read as a
+ *                  deactivated account. On hc-patient's stream only the two account events set it,
+ *                  and only true ever moves a local status.
  * @param disposition what this event is allowed to do to this service's records. See
  *                    {@link Disposition} — every type either creates, updates, or is a link and
  *                    nothing more, and there is no default.
  * @param subjectKind what kind of account this event says the subject is, or null when it says
  *                    nothing. Only an event that may open a record declares one.
+ * @param accountCreatedDate when the account was created on the far side, or null. Phase 1 of the
+ *                           professional contract carries it; hc-patient's stream carries no such
+ *                           field and always answers null. <b>Not {@code firstSeenAt}</b>, which is
+ *                           when this service first heard about the subject and is a fact about this
+ *                           service's consumption rather than about the account.
+ * @param accountModifiedDate when the account last changed on the far side, or null. Not
+ *                            {@code lastEventAt}, for the same reason.
  * @param erased true for the one event on either stream whose subject <b>no longer exists on the far
  *               side</b>: hc-patient's {@code DeletionRequestChanged} with {@code change=COMPLETED},
  *               published after the profile has already been erased. It must never open a record —
@@ -61,9 +73,11 @@ public record SiblingDomainEvent(
     String login,
     String externalId,
     String state,
-    boolean activated,
+    Boolean activated,
     Disposition disposition,
     DirectorySubjectKind subjectKind,
+    Instant accountCreatedDate,
+    Instant accountModifiedDate,
     boolean erased
 ) {
     /**
