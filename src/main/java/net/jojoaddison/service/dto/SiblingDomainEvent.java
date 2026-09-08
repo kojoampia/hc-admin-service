@@ -41,7 +41,7 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  * @param state the lifecycle state to record, already resolved from whichever field held it.
  * @param activated whether the account can sign in, <b>as this event states it</b>, or null when the
  *                  event says nothing about it. Three states rather than two, and the third is the
- *                  point: backlog item 47 makes {@code isActivated} part of phase 1's
+ *                  point: backlog item 47 makes {@code activated} part of phase 1's
  *                  {@code AccountStatus} and forbids deriving it, so "no event has said" has to be
  *                  representable or the absence would be written as {@code false} and read as a
  *                  deactivated account. On hc-patient's stream only the two account events set it,

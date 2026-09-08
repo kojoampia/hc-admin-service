@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.function.Function;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.enumeration.AccountStatus;
@@ -259,7 +260,7 @@ public class DirectoryProjectionService {
         boolean hadRecord = !firstSighting && previous.getLocalId() != null;
         String localId = ensureLocalRecord(event, firstSighting ? null : previous.getLocalId());
 
-        recordEvent(event, localId);
+        recordEvent(event, localId, joinsThePhases(event.source(), firstSighting ? null : previous, DirectoryLink::getProfileEventAt));
 
         // A first sighting that keeps no local record is still something happening — a care angel or
         // a clinician is now known, and the link is what stops the next event on them being read as
@@ -336,7 +337,7 @@ public class DirectoryProjectionService {
             return Outcome.STALE;
         }
 
-        recordProfileStatus(event);
+        recordProfileStatus(event, joinsThePhases(DirectorySource.HC_PROFESSIONAL, previous, DirectoryLink::getLastEventAt));
 
         // LINKED rather than CREATED, and the distinction is the one Outcome already draws: a local
         // record was not created, because for a clinician none ever is. UPDATED when the account was
@@ -406,11 +407,30 @@ public class DirectoryProjectionService {
      * the failure it exists for.
      *
      * <p>Two counts on a first sighting only, so this costs nothing on the ordinary path.
+     *
+     * <h2>What suppresses it is a join this service <em>observed</em>, and that changed on 2026-09-08</h2>
+     *
+     * <p>It used to be suppressed by any link holding both watermarks, which the {@code test} fixture
+     * seeds — deliberately, since the console's joined row is otherwise unreachable outside production.
+     * So the guard was silent by construction on {@code quality/}, on {@code deploy/e2e/} and under
+     * {@code ng serve}: on every machine short of production, which is where a key mismatch would
+     * first show up and where this warning was the whole point. The suppressor is now
+     * {@link DirectoryLink#phasesJoinedAt}, which only the two write paths above set and which no
+     * seeded document carries — pinned by {@code DevelopmentDataInitializerTest}, so re-silencing the
+     * guard from a fixture is a failing test.
+     *
+     * <p><b>It does not cry wolf on a healthy empty system</b>, and there are two of those to keep
+     * apart. A stack that has consumed nothing never reaches this method at all — it runs on a first
+     * sighting, and there are none. A stack consuming one phase and not the other reaches it and stays
+     * silent, because the warning needs at least one row of each kind waiting alone. What is left is
+     * the window this method has always had, which is unchanged: the first profile to arrive out of
+     * order, before any account has paired. It closes on the first pairing, permanently, and the line
+     * asks a question rather than asserting a fault.
      */
     private void warnIfTheTwoPhasesNeverJoin(String accountId) {
         Criteria professional = Criteria.where("source").is(DirectorySource.HC_PROFESSIONAL.name());
         long joined = mongoTemplate.count(
-            Query.query(new Criteria().andOperator(professional, Criteria.where("last_event_at").ne(null), profileSeen())),
+            Query.query(new Criteria().andOperator(professional, Criteria.where("phases_joined_at").ne(null))),
             DirectoryLink.class
         );
         if (joined > 0) {
@@ -435,6 +455,29 @@ public class DirectoryProjectionService {
                 LogPseudonym.subject(accountId)
             );
         }
+    }
+
+    /**
+     * Whether this write is the one that brings the second phase onto a link that already had the
+     * first — the moment {@link DirectoryLink#phasesJoinedAt} records.
+     *
+     * <p>Answered from the document as it stood <em>before</em> the write, which both callers already
+     * hold from their {@code findAndModify}, so no extra read is made. The
+     * {@code phasesJoinedAt == null} test is what keeps it a first-join stamp rather than a
+     * last-touched one, and it is also what lets a link written before this field existed acquire it
+     * on the next event of either phase instead of never.
+     *
+     * @param otherPhase the watermark of the phase this write is <em>not</em>, read off the previous
+     *                   document: {@code profileEventAt} when phase 1 is being written and
+     *                   {@code lastEventAt} when phase 2 is.
+     */
+    private static boolean joinsThePhases(DirectorySource source, DirectoryLink previous, Function<DirectoryLink, Instant> otherPhase) {
+        return (
+            source == DirectorySource.HC_PROFESSIONAL &&
+            previous != null &&
+            previous.getPhasesJoinedAt() == null &&
+            otherPhase.apply(previous) != null
+        );
     }
 
     /** A link that phase 2 has written to. The watermark, because it is the field phase 2 always sets. */
@@ -489,8 +532,11 @@ public class DirectoryProjectionService {
      * profile going from complete back to incomplete is a real change the console has to be able to
      * show, and an absent field is not it.
      */
-    private void recordProfileStatus(ProfileStatusEvent event) {
+    private void recordProfileStatus(ProfileStatusEvent event, boolean joinsThePhases) {
         Update update = new Update().set("profile_event_at", event.occurredAt());
+        if (joinsThePhases) {
+            update.set("phases_joined_at", Instant.now());
+        }
 
         setIfPresent(update, "profile_event_id", event.eventId());
         setIfPresent(update, "profile_id", event.profileId());
@@ -756,12 +802,22 @@ public class DirectoryProjectionService {
      * own copy when hc-patient erases theirs is a retention decision with an owner rather than a line
      * of code: backlog item 28.
      */
-    private void recordEvent(SiblingDomainEvent event, String localId) {
-        Update update = new Update()
-            .set("last_event_at", event.occurredAt())
-            .set("last_event_type", event.type())
-            .set("state", event.state());
+    private void recordEvent(SiblingDomainEvent event, String localId, boolean joinsThePhases) {
+        Update update = new Update().set("last_event_at", event.occurredAt()).set("last_event_type", event.type());
+        if (joinsThePhases) {
+            update.set("phases_joined_at", Instant.now());
+        }
 
+        // State is written when the event carries one and LEFT ALONE when it does not, which changed
+        // on 2026-09-08 with the account events. It used to be an unconditional `set`, and that was
+        // safe only while every frame that reached here had one: hc-patient's stream puts the type in
+        // this field, and of hc-professional's two original types `onboarding.state` carries a state
+        // and `registration.created` arrives before it. `AccountCreated` and `AccountActivated` carry
+        // none and arrive AFTER `onboarding.state` — the three frames of one registration are keyed
+        // identically, so they are ordered — so an unconditional set would have cleared IN_PROGRESS
+        // off the console the moment the third frame landed. An event that says nothing about
+        // onboarding is not an event saying onboarding has been undone.
+        setIfPresent(update, "state", event.state());
         setIfPresent(update, "last_event_id", event.eventId());
         setIfPresent(update, "email", event.email());
         if (event.erased()) {
@@ -785,7 +841,7 @@ public class DirectoryProjectionService {
         // is this service's own decision, which a replay must not undo.
         //
         // HC_PROFESSIONAL writes what the event says, INCLUDING false. There the field is phase 1's
-        // `isActivated` (backlog item 47): the account's own state, owned outright by the far side,
+        // `activated` (backlog item 47, under that name): the account's own state, owned outright by
         // and an account that is deactivated after its profile is complete is a state the contract
         // names explicitly. Nothing local hangs off it — no Professional exists to be promoted — so
         // there is no administrator's decision to defend, only a fact to record.

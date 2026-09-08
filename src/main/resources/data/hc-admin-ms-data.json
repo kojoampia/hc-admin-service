@@ -1414,6 +1414,20 @@
         "accountModifiedDate": "2026-09-07T06:12:00Z"
       },
       {
+        "id": "dl-prof-unreported",
+        "source": "HC_PROFESSIONAL",
+        "externalKey": "0d4e6b91-3f27-4a55-9c8d-1e7b03fa9d28",
+        "externalId": "0d4e6b91-3f27-4a55-9c8d-1e7b03fa9d28",
+        "login": "mboateng",
+        "email": "m.boateng@abofonsa.care",
+        "state": "APPLICATION_SUBMITTED",
+        "subjectKind": "PROFESSIONAL",
+        "firstSeenAt": "2026-09-05T15:31:00Z",
+        "lastEventAt": "2026-09-05T15:31:00Z",
+        "lastEventId": "evt-seed-prof-unreported",
+        "lastEventType": "onboarding.state"
+      },
+      {
         "id": "dl-prof-profile-only",
         "source": "HC_PROFESSIONAL",
         "externalKey": "5e0b9a63-1d47-4c8a-93be-71ca8d6f2b05",
@@ -1425,7 +1439,7 @@
         "profileVerified": false,
         "profileCreatedDate": "2026-09-07T05:01:30Z",
         "profileModifiedDate": "2026-09-07T05:01:30Z",
-        "profileLastModifiedBy": "5e0b9a63-1d47-4c8a-93be-71ca8d6f2b05",
+        "profileLastModifiedBy": "system",
         "profileEventAt": "2026-09-07T05:02:00Z",
         "profileEventId": "evt-seed-prof-profile-only"
       },
@@ -1450,7 +1464,7 @@
         "profileVerified": true,
         "profileCreatedDate": "2026-08-19T11:30:00Z",
         "profileModifiedDate": "2026-09-02T14:47:00Z",
-        "profileLastModifiedBy": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+        "profileLastModifiedBy": "yasante",
         "profileEventAt": "2026-09-02T14:47:05Z",
         "profileEventId": "evt-seed-prof-complete-profile"
       }

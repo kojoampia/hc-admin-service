@@ -173,8 +173,9 @@ public class DirectoryLink implements Serializable {
      * show it, on the argument set out at length in {@code DirectoryLinkResource}'s javadoc: an
      * administrator's patient directory is where a patient's contact address belongs. For a clinician
      * it is on the wire so the two phases can be correlated by a person, and backlog item 47 names
-     * {@code username} as the field the console renders. Keeping it off that screen is the same
-     * decision item 43 took for logs, one surface along.
+     * {@link #login} — under that name, the contract having been revised away from an earlier draft's
+     * {@code username} — as the field the console renders. Keeping the address off that screen is the
+     * same decision item 43 took for logs, one surface along.
      */
     @Field("email")
     private String email;
@@ -217,7 +218,8 @@ public class DirectoryLink implements Serializable {
      * Whether the account can sign in — <b>the account's own state, never inferred from anything
      * else</b>.
      *
-     * <p>This is phase 1's {@code isActivated} (backlog item 47), and the prohibition on deriving it
+     * <p>This is phase 1's {@code activated} (backlog item 47 — that name, not the earlier draft's
+     * {@code isActivated}), and the prohibition on deriving it
      * is worth the words: a clinician can be activated with no profile at all, and can complete a
      * profile on an account somebody later deactivates, so reading it off {@link #profileComplete},
      * off the presence of a profile status, or off {@link #state} would be wrong in both directions.
@@ -347,12 +349,24 @@ public class DirectoryLink implements Serializable {
     private Instant profileModifiedDate;
 
     /**
-     * Who last changed the profile, as an <b>accountId</b> and never a display name.
+     * Who last changed the profile — <b>hc-professional's login for them</b>, and never a display
+     * name.
      *
-     * <p>That accountId is the gateway's {@code User.id} — the same identifier space this service
-     * already stamps as the {@code uid} claim and audits against — so it needs no resolution here and
-     * gets none. The console shows it verbatim; inventing a name for it would be the fabrication this
-     * whole contract refuses, one field along.
+     * <p><b>Item 47's contract calls this "an accountId, which IS the gateway's {@code User.id}", and
+     * that is wrong about the code on the far side.</b> The value is Spring Data auditing's
+     * {@code lastModifiedBy} on their {@code Profile}, filled by their
+     * {@code SpringSecurityAuditorAware} from {@code SecurityUtils.getCurrentUserLogin()} — the JWT
+     * subject, which is a login — or by their {@code Constants.SYSTEM} when nothing was authenticated.
+     * The architect's decision 2 of 2026-09-08 moves their {@code accountId} onto a {@code User.id}
+     * and changes nothing about auditing, so this field and {@link #externalKey} are in <b>different
+     * identifier spaces</b> and will stay that way. Verified against their {@code origin/main}
+     * 2026-09-08.
+     *
+     * <p>What that changes here is a reader's expectations rather than any code. It still needs no
+     * resolution and gets none, and the console still shows it verbatim — but it may not be joined to
+     * an {@code external_key}, to an {@code AuditLog.userId} or to a login on <em>this</em> gateway,
+     * because it names an account on another stack. It is also, incidentally, the one identifier on
+     * this row that a person can already read.
      */
     @Field("profile_last_modified_by")
     private String profileLastModifiedBy;
@@ -369,6 +383,35 @@ public class DirectoryLink implements Serializable {
     /** The id of the newest profile event applied, for tracing. Never used for deduplication. */
     @Field("profile_event_id")
     private String profileEventId;
+
+    /**
+     * When <b>this service</b> first saw the two phases meet on this account, and null until they do.
+     *
+     * <h2>Why it is stored rather than computed from the two watermarks</h2>
+     *
+     * <p>{@code last_event_at != null && profile_event_at != null} looks like the same question and is
+     * not, because a seeded document can satisfy it without any event having been consumed.
+     * {@code DirectoryProjectionService.warnIfTheTwoPhasesNeverJoin} guards the one failure in this
+     * contract that looks correct on both sides — the two publishers keying their phases on different
+     * identifiers, with both consumer groups at lag zero and nothing dead-lettered — and it is
+     * suppressed as soon as any account has both phases. The {@code test} fixture seeds exactly such an
+     * account (it has to: the console's joined row is otherwise unreachable outside production, which
+     * is items 45 and 46's lesson), so on {@code quality/}, on {@code deploy/e2e/} and under
+     * {@code ng serve} the guard could never fire — the one machine short of production where somebody
+     * would want it, and precisely where a mismatched key would first be seen.
+     *
+     * <p>This field is written only by the consumer, only on the write that brings the second phase in,
+     * and never by the seed. {@code DevelopmentDataInitializerTest} asserts that no seeded link carries
+     * it, so re-silencing the guard from the fixture is a failing test rather than a quiet regression.
+     *
+     * <p><b>This service's own clock, deliberately.</b> Unlike {@link #accountCreatedDate} and
+     * {@link #profileCreatedDate}, which are the far side's facts and must never be filled from a
+     * frame's arrival, this records an observation <em>by</em> this service — the same kind of value as
+     * {@link #firstSeenAt} — so the far side has no clock to lend it and neither phase's
+     * {@code occurredAt} would mean what the name says.
+     */
+    @Field("phases_joined_at")
+    private Instant phasesJoinedAt;
 
     public String getId() {
         return id;
@@ -568,6 +611,14 @@ public class DirectoryLink implements Serializable {
 
     public void setProfileEventId(String profileEventId) {
         this.profileEventId = profileEventId;
+    }
+
+    public Instant getPhasesJoinedAt() {
+        return phasesJoinedAt;
+    }
+
+    public void setPhasesJoinedAt(Instant phasesJoinedAt) {
+        this.phasesJoinedAt = phasesJoinedAt;
     }
 
     @Override

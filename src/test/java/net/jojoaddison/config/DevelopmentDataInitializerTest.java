@@ -706,7 +706,7 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
-     * <b>Five clinicians this service knows about and holds no record for — the five states the
+     * <b>Six clinicians this service knows about and holds no record for — the six states the
      * two-phase contract can put one in.</b>
      *
      * <p>A professional who registers on hc-professional reaches this service, is stored as a
@@ -734,22 +734,34 @@ class DevelopmentDataInitializerTest {
      *       the parser no longer falls back to the event type. The pair with {@code dl-prof} is what
      *       makes the two activation states distinguishable on screen, which is why backlog item 47
      *       added {@code activated} to the display list.</li>
+     *   <li>{@code dl-prof-unreported} — <b>named, and with activation unreported</b>, which is the
+     *       third of those three states and was the one missing. It is also the state this change
+     *       actually produces: {@code activated} arrives only on {@code AccountCreated}, so a
+     *       clinician whose consumed frames are an {@code onboarding.state} — or a
+     *       {@code registration.created} published before hc-professional's item 47 work — has a name
+     *       and no answer to the question the column asks. Every other seeded phase-1 row carried an
+     *       explicit {@code activated}, so the one cell that pairs a real name with "Not reported"
+     *       was unreachable on every stack. <b>Three findings in this file have now been exactly
+     *       this shape</b> — items 45, 46 and now 47's own review — which is why it is stated as a
+     *       rule rather than as a row: the fixture must hold the state the change <em>produces</em>,
+     *       not only the state it is built for.</li>
      *   <li>{@code dl-prof-profile-only} — <b>phase 2 with no phase 1</b>. Not an error and not
      *       rare enough to leave untested: the two phases are on two topics with no ordering between
      *       them and both groups read from the earliest offset, so this is normal on every backfill.
      *       The row must render keyed on the accountId rather than be held back until a name
      *       arrives.</li>
      *   <li>{@code dl-prof-complete} — <b>both phases joined</b>, complete and verified, with a
-     *       {@code lastModifiedBy} that is an accountId. The only row on which the phase-2 half of
-     *       the table has anything in it, and still no {@code Professional}.</li>
+     *       {@code lastModifiedBy} that is hc-professional's login for whoever last wrote the
+     *       profile. The only row on which the phase-2 half of the table has anything in it, and
+     *       still no {@code Professional}.</li>
      * </ul>
      *
      * <p>Named rather than counted, on {@link #shouldLeaveTwoNamedCellsUnpricedUnderTest}'s
-     * reasoning: "five professional links" would go on passing if one of them quietly gained an
+     * reasoning: "six professional links" would go on passing if one of them quietly gained an
      * address or a profile status, which is precisely the state that stops exercising the screen.
      */
     @Test
-    void shouldSeedFiveClinicianLinksSpanningBothPhasesOfTheContract() throws Exception {
+    void shouldSeedSixClinicianLinksSpanningBothPhasesOfTheContract() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
         Map<String, DirectoryLink> clinicians = test
@@ -758,7 +770,7 @@ class DevelopmentDataInitializerTest {
             .filter(link -> link.getSource() == DirectorySource.HC_PROFESSIONAL)
             .collect(Collectors.toMap(DirectoryLink::getId, link -> link));
 
-        assertThat(clinicians).as("the rows the professional directory's two-phase table is built on").hasSize(5);
+        assertThat(clinicians).as("the rows the professional directory's two-phase table is built on").hasSize(6);
 
         assertThat(clinicians.get("dl-prof"))
             .as("the named half: the panel shows this address where a name would go")
@@ -800,6 +812,23 @@ class DevelopmentDataInitializerTest {
                 assertThat(link.getProfileVerified()).isNull();
             });
 
+        assertThat(clinicians.get("dl-prof-unreported"))
+            .as("named, and with nothing said about activation — the cell that pairs a real login with 'Not reported'")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getLogin())
+                    .as("so the row is named, and the unknown is about activation and nothing else")
+                    .isEqualTo("mboateng");
+                assertThat(link.getActivated())
+                    .as("no AccountCreated has been consumed for this account, so nobody has said — and null is not false")
+                    .isNull();
+                assertThat(link.getAccountCreatedDate())
+                    .as("nor has anything said when the account was made: hc-professional publishes that on no frame today")
+                    .isNull();
+                assertThat(link.getProfileEventAt()).as("and no phase 2 either").isNull();
+                assertThat(link.getLocalId()).isNull();
+            });
+
         assertThat(clinicians.get("dl-prof-profile-only"))
             .as("phase 2 with no phase 1 — a profile for an account nobody has told this service about")
             .isNotNull()
@@ -825,8 +854,8 @@ class DevelopmentDataInitializerTest {
                 assertThat(link.getProfileComplete()).isTrue();
                 assertThat(link.getProfileVerified()).isTrue();
                 assertThat(link.getProfileLastModifiedBy())
-                    .as("an accountId, which IS the gateway User.id — never a display name")
-                    .isEqualTo("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11");
+                    .as("hc-professional's LOGIN for whoever last wrote the profile — their auditor fills it from the JWT subject")
+                    .isEqualTo("yasante");
                 assertThat(link.getProfileModifiedDate())
                     .as("the profile's own date, which is what the row shows once a ProfileStatus has landed")
                     .isEqualTo(Instant.parse("2026-09-02T14:47:00Z"));
@@ -834,6 +863,34 @@ class DevelopmentDataInitializerTest {
                     .as("a complete, verified profile is still not a role and a licence number, so no record is created")
                     .isNull();
             });
+    }
+
+    /**
+     * <b>No seeded link may carry {@code phasesJoinedAt}, because that field is what keeps a guard
+     * alive on the stacks the guard is for.</b>
+     *
+     * <p>{@code DirectoryProjectionService.warnIfTheTwoPhasesNeverJoin} exists for the one failure in
+     * the two-phase contract that looks correct on both sides: hc-professional's two publishers keying
+     * their phases on different identifiers, with both consumer groups at lag zero, nothing
+     * dead-lettered, and this service filling with rows that can never be paired. It is suppressed by
+     * evidence that a join is possible — and until 2026-09-08 that evidence was "some link holds both
+     * watermarks", which {@code dl-prof-complete} satisfies by being seeded. So on {@code quality/},
+     * on {@code deploy/e2e/} and under {@code ng serve} the guard could not fire however wrong the
+     * keys were: the fixture added for this contract silenced the guard added for it, in the same
+     * change.
+     *
+     * <p>The suppressor is now {@code phases_joined_at}, which only the two consumer write paths set.
+     * That is only true while the fixture leaves it alone, and a seeded value would re-silence the
+     * guard with nothing failing — so this asserts the absence rather than trusting the comment on the
+     * field. Seed the joined <em>row</em>, never the joined <em>observation</em>.
+     */
+    @Test
+    void shouldSeedNoLinkThatSilencesTheTwoPhaseJoinGuard() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getDirectoryLinks())
+            .as("phases_joined_at records that THIS SERVICE saw two phases meet, which no fixture can have witnessed")
+            .allSatisfy(link -> assertThat(link.getPhasesJoinedAt()).isNull());
     }
 
     /**

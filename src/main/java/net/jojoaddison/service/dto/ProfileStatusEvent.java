@@ -10,8 +10,12 @@ import java.time.Instant;
  * <p>Backlog item 47, the architect's decision of 2026-09-07. A clinician is accepted here in two
  * phases because that is the order the facts exist in on the far side: an account is created before
  * there is a discipline, a licence or a profile to describe. Phase 1 is
- * {@code AccountStatus{accountId, username, email, isActivated}} from hc-professional's gateway;
- * this is phase 2, from hc-professional's api, and it is
+ * {@code AccountStatus{accountId, login, email, activated, createdDate, modifiedDate}} from
+ * hc-professional's gateway — <b>{@code login} and {@code activated}, never {@code username} and
+ * {@code isActivated}</b>, which is an earlier draft's spelling that item 47 revised away precisely so
+ * that two names for one field could not coexist across two repositories; the argument is at
+ * {@code SiblingEventParser.parseProfessionalEvent}. This is phase 2, from hc-professional's api, and
+ * it is
  *
  * <pre>
  *   ProfileStatus { profileId, accountId, isComplete, isVerified,
@@ -44,7 +48,9 @@ import java.time.Instant;
  * {@code DirectoryProjectionService} warns when no account has ever had both.
  *
  * @param eventId unique per emission, recorded for tracing and never used to deduplicate.
- * @param type the producer's own event type — {@code entity.created} or {@code entity.updated}.
+ * @param type the producer's own event type. Always {@code ProfileStatus} — the architect's decision 3
+ *             of 2026-09-08 accepts nothing else on that topic, so this field is recorded rather than
+ *             branched on.
  * @param occurredAt when the producer says it happened. The phase-2 watermark, and never inferred.
  * @param accountId the join key. An event without one cannot be applied to anything and is refused.
  * @param profileId hc-professional's id for the profile, when the payload names one.
@@ -52,9 +58,25 @@ import java.time.Instant;
  * @param verified phase 2's {@code isVerified}, or null when the payload does not say.
  * @param createdDate when the profile was created on the far side, or null.
  * @param modifiedDate when it last changed there, or null.
- * @param lastModifiedBy an <b>accountId</b>, which is the gateway's {@code User.id} — the same
- *                       identifier space this service stamps as the {@code uid} claim and audits
- *                       against, so it needs no resolution and is given none. Never a display name.
+ * @param lastModifiedBy <b>hc-professional's login for whoever last wrote the profile</b>, or their
+ *                       {@code system} when nobody was authenticated — <em>not</em> an
+ *                       {@code accountId}, and not in {@code accountId}'s identifier space.
+ *                       <b>Item 47's contract says it is "an accountId, which IS the gateway's
+ *                       User.id", and that is wrong about the code</b>: the value is Spring Data
+ *                       auditing's {@code lastModifiedBy} on their {@code Profile}, filled by their
+ *                       {@code SpringSecurityAuditorAware}, which returns
+ *                       {@code SecurityUtils.getCurrentUserLogin()} — the JWT subject. The
+ *                       architect's decision 2 moves their <em>{@code accountId}</em> to a
+ *                       {@code User.id} and touches nothing about auditing, so the two are in
+ *                       different spaces and will stay there. Read on their {@code origin/main}
+ *                       2026-09-08: {@code OnboardingService.publishProfileStatus} passes
+ *                       {@code profile.getLastModifiedBy()}.
+ *                       <p>Nothing follows for the code — it is still stored and shown verbatim, and
+ *                       is still never resolved into a name — but two things follow for a reader.
+ *                       It must not be joined to a {@code DirectoryLink.external_key}, an
+ *                       {@code AuditLog.userId} or an hc-admin login, because it names an account on
+ *                       another stack; and it is the one field on this row that is already legible,
+ *                       which is why the console shows it without apology.
  */
 public record ProfileStatusEvent(
     String eventId,
