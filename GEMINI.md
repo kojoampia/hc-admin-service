@@ -104,8 +104,24 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 
 ### Testing
 
-- **Unit & Integration Tests**: `./mvnw verify` (Docker must be running — Testcontainers provisions MongoDB, and Kafka for `@EmbeddedKafka` classes)
-- **Single class / method**: `./mvnw -q -Dtest=OrganisationResourceIT test` / `./mvnw -q -Dtest=OrganisationResourceIT#createOrganisation test`
+- **Unit & Integration Tests**: `./mvnw verify` (Docker must be running — Testcontainers provisions MongoDB). **No Kafka container starts**, and since 2026-09-09 nothing may ask for one: `@IntegrationTest` supplies the in-memory `TestChannelBinderConfiguration` instead, so bindings, destinations, groups and payload conversion are all still exercised without a broker. `BrokerOptInArchTest` fails on any class meta-annotated `@EmbeddedKafka`, and says why. See `docs/backlog.md` item 17.
+- **Single class / method**: `./mvnw -q -Dtest=OrganisationResourceIT test` / `./mvnw -q -Dtest=OrganisationResourceIT#createOrganisation test`. This works on an `*IT*` despite surefire's `**/*IT*` exclusion, because `-Dtest` overrides includes and excludes — verified 2026-09-09, after the opposite was assumed and nearly written down. `-Dit.test=... verify` runs it through failsafe instead, which is what a full `verify` does.
+
+#### When the whole suite goes red with one container
+
+**Dozens of errors across unrelated classes, every one of them `ApplicationContext failure threshold (1) exceeded` under two kilobytes of merged-configuration dump, is not a regression.** It is one Mongo container missing its start window on a loaded machine. The container is created once per test JVM in a static field, so whichever class boots the first context pays the start and absorbs the failure — which is why `AuditingIT` and `PaginationIT` keep appearing in failure lists for changes that touch neither.
+
+Since 2026-09-09 the fixture says so itself. `MongoDbTestContainer` retries the start three times, three seconds apart, discarding the container between attempts — a half-started one has a partly initialised replica set and restarting _that_ loops on `ReadConcernMajorityNotAvailableYet`. If all three fail it logs a banner naming the image, the load average, the window that was missed and this file, and then **stops trying for the rest of the run**: every later class fails in about a second instead of spending another three minutes rediscovering the same thing. Measured under synthetic load ~50 on 2026-09-09, three classes: 521 s of red before, 454 s after, of which 451 s was the first class — extrapolated across all 72, hours against minutes.
+
+**Container reuse is the other lever and it is yours rather than the repository's.** The fixture asks for `.withReuse(true)` and Testcontainers silently ignores it — the log reads `Reuse was requested but the environment does not support the reuse of containers` — until the machine opts in:
+
+```bash
+echo 'testcontainers.reuse.enable=true' >> ~/.testcontainers.properties   # per machine
+TESTCONTAINERS_REUSE_ENABLE=true ./mvnw verify                            # per run
+```
+
+With it on, one Mongo container survives across classes and across runs and this contention largely stops happening. **Leave it off in CI**: a reused container carries state between runs and is not reaped.
+
 - **Naming**: `*Test.java` for unit tests, `*IT.java` for integration tests; `SpringBootTestClassOrderer` runs the former first.
 - **Test Data**: Seed data is loaded from `src/main/resources/data/hc-admin-ms-data.json` by `DevelopmentDataInitializer`, active only under the `dev` and `test` profiles. The JSON is keyed by profile at the root (`dev` / `test`), each holding plain arrays of domain objects per collection. Field names must match the domain model exactly — Spring's `ObjectMapper` ignores unknown properties, so a typo binds to nothing instead of failing. `DevelopmentDataInitializerTest` catches that with a strict mapper.
 
