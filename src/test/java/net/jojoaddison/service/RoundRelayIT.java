@@ -116,6 +116,20 @@ class RoundRelayIT {
     private static final HttpServer STUB = startStub();
 
     private static final AtomicReference<String> AUTHORIZATION_SEEN = new AtomicReference<>();
+
+    /**
+     * Method and path, as hc-professional would see them.
+     *
+     * <p>Captured because {@code ProfessionalServiceClient.ROUNDS} is {@code "/api/duty-roster"} —
+     * <b>singular</b>, which its own comment flags as deliberate and easy to "correct" — and until
+     * this file existed <b>nothing in the estate exercised that constant</b>. Every integration test
+     * runs with the client disabled, no Cypress spec drives the planner, and the seeded {@code test}
+     * teams carry no {@code geographicSpaceIds}, so the planner never reaches a candidate and never
+     * files. A typo there would have failed in production, against the one service that could not
+     * tell anybody why.
+     */
+    private static final AtomicReference<String> REQUEST_LINE_SEEN = new AtomicReference<>();
+
     private static final AtomicInteger REQUESTS = new AtomicInteger();
 
     @Autowired
@@ -127,6 +141,7 @@ class RoundRelayIT {
     @BeforeEach
     void resetTheStub() {
         AUTHORIZATION_SEEN.set(null);
+        REQUEST_LINE_SEEN.set(null);
         REQUESTS.set(0);
     }
 
@@ -159,6 +174,9 @@ class RoundRelayIT {
 
         assertThat(REQUESTS.get()).as("hc-professional must actually be dialled").isOne();
         assertThat(AUTHORIZATION_SEEN.get()).isEqualTo(BEARER + token);
+        assertThat(REQUEST_LINE_SEEN.get())
+            .as("hc-professional's write path is POST /api/duty-roster — singular, and nothing else exercises it")
+            .isEqualTo("POST /api/duty-roster");
     }
 
     /**
@@ -189,6 +207,7 @@ class RoundRelayIT {
                 exchange -> {
                     REQUESTS.incrementAndGet();
                     AUTHORIZATION_SEEN.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                    REQUEST_LINE_SEEN.set(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath());
                     byte[] payload = ("{\"id\":\"" + FILED_ROUND_ID + "\"}").getBytes(StandardCharsets.UTF_8);
                     exchange.getResponseHeaders().add("Content-Type", "application/json");
                     exchange.sendResponseHeaders(201, payload.length);

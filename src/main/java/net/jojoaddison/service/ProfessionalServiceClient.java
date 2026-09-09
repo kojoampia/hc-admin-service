@@ -203,9 +203,37 @@ public class ProfessionalServiceClient {
             LOG.info("professionalservice filed a round; it returned id {}", roundId);
             return roundId;
         } catch (RestClientException e) {
-            // Identifiers only. The round carries customer ids and this service must not log them
-            // beside a message that will be read out of a support ticket.
-            LOG.warn("professionalservice refused or could not be reached while filing a round: {}", e.getMessage());
+            // TYPES, NEVER THE MESSAGE — and this line carried the message until item 57.
+            //
+            // The comment that used to sit here said "identifiers only: the round carries customer
+            // ids and this service must not log them beside a message that will be read out of a
+            // support ticket". That was true of what the statement INTERPOLATED and false of what
+            // getMessage() CARRIES, which is the more dangerous half and is exactly the shape item
+            // 43 was about — a comment reassuring a reader about the precise thing it was getting
+            // wrong.
+            //
+            // Two library-built strings reach that message and neither is ours. A transport failure
+            // is a ResourceAccessException quoting the request URL. A refusal goes through
+            // RestClient's default error handler, whose getErrorMessage(int, String, byte[], Charset)
+            // appends the RESPONSE BODY — so a validation refusal from hc-professional that echoes a
+            // rejected value puts that value here, and the values in a round body are customer ids,
+            // which are hcpatientservice patient ids.
+            //
+            // ITEM 57 IS WHAT MADE THIS REACHABLE. Until the token relay was fixed this client threw
+            // before opening a socket on every call, so no RestClientException here had ever held a
+            // response from hc-professional. The fix arms it, which is why it is repaired on the
+            // same commit rather than filed.
+            //
+            // The two class names lose nothing worth having: what an operator needs is which failure
+            // it was, and the cause's type says it exactly — ConnectException,
+            // HttpConnectTimeoutException, UnknownHostException — while a 4xx arrives as
+            // HttpClientErrorException, which is the distinction RoundPlanningService reads to tell
+            // "refused" from "unreachable". None of them can quote anything.
+            LOG.warn(
+                "professionalservice refused or could not be reached while filing a round: {} caused by {}",
+                e.getClass().getSimpleName(),
+                e.getCause() == null ? "nothing further" : e.getCause().getClass().getSimpleName()
+            );
             throw new RosterServiceUnavailableException("Could not file the round with professionalservice", e);
         }
     }

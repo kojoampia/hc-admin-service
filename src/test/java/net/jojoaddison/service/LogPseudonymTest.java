@@ -51,8 +51,27 @@ import org.junit.jupiter.api.Test;
  */
 class LogPseudonymTest {
 
-    /** A {@code LOG.x(...)} call, up to the closing bracket of its argument list. */
-    private static final Pattern LOG_CALL = Pattern.compile("LOG\\.(trace|debug|info|warn|error)\\s*\\((.*?)\\);", Pattern.DOTALL);
+    /**
+     * The head of a {@code LogPseudonym.subject(} call, whitespace-tolerant.
+     *
+     * <p>One declaration because it is used twice and the two must not drift: {@link #WRAPPED} strips
+     * these calls out of an argument list, and
+     * {@link #noPseudonymisingClassLogsAnExceptionMessage} decides which files it sweeps by looking
+     * for one. That second use was a plain {@code String.contains("LogPseudonym.subject(")} until
+     * item 57's second review round, which made it the third pattern in this file whose reach a
+     * formatter could silently remove — and the worst of them, because a class dropping out of the
+     * pseudonymising set takes the exception-message rule with it and nothing goes red.
+     */
+    private static final String PSEUDONYMISER_CALL = "LogPseudonym\\s*\\.\\s*subject\\s*\\(";
+
+    /**
+     * A {@code LOG.x(...)} call, up to the closing bracket of its argument list.
+     *
+     * <p>Tolerant of whitespace around the dot, for the reason {@link #SECURITY_UTILS_RELAY} records:
+     * a formatter may split a call across lines, and this pattern failing to match is <b>silent</b> —
+     * the statements simply are not scanned and every rule below passes vacuously.
+     */
+    private static final Pattern LOG_CALL = Pattern.compile("LOG\\s*\\.\\s*(trace|debug|info|warn|error)\\s*\\((.*?)\\);", Pattern.DOTALL);
 
     /**
      * A {@code LogPseudonym.subject(...)} call, including one level of nested parentheses so that the
@@ -60,13 +79,43 @@ class LogPseudonymTest {
      * deleted from an argument list before it is searched, rather than excluded by a lookbehind: the
      * lookbehind form reads correctly and is wrong, because after refusing the outer
      * {@code event.subjectKey()} the engine simply matches the {@code subjectKey} inside it.
+     *
+     * <p>Whitespace-tolerant like the rest, though this is the one place where failing to match is
+     * <b>fail-safe</b> rather than silent: an unmatched wrapper is not deleted, so the
+     * {@code subjectKey} inside it stays visible and the rule goes red. Corrected anyway — a rule that
+     * reddens on a reformat is a rule somebody switches off.
+     *
+     * <h2>The other direction is a known limit, accepted rather than fixed</h2>
+     *
+     * <p>This pattern counts parentheses and cannot read Java, so an <b>unbalanced {@code (} inside a
+     * string literal</b> inside a {@code subject(...)} call lets the nested-group alternative consume
+     * the call's real closing bracket. The strip then runs past the end of the wrapper and can delete
+     * an <em>unwrapped</em> forbidden identifier appearing later in the same statement — which passes
+     * green. All three conditions have to hold at once: the stray bracket, inside a string, inside a
+     * pseudonymised call, co-located in one statement with an unwrapped key.
+     *
+     * <p><b>The whitespace tolerance did not introduce it and could not have.</b> Only the match
+     * <em>head</em> changed; the body that decides where a match ends is byte-identical, so no match
+     * can extend further right than it did before. Measured on the pre-fix pattern against the same
+     * constructed text: the identical over-strip. It is a property of the unchanged body.
+     *
+     * <p>Not fixed, deliberately. The cure is a parser that understands string literals and balanced
+     * brackets, and a source-reading test that grew a Java parser would have stopped being the blunt,
+     * narrow instrument {@link #IN_SCOPE}'s javadoc argues it must remain. Written down instead,
+     * because a limit that is recorded is a decision and the same limit unrecorded is exactly what
+     * this file exists to prevent.
      */
-    private static final Pattern WRAPPED = Pattern.compile("LogPseudonym\\.subject\\((?:[^()]|\\([^()]*\\))*\\)");
+    private static final Pattern WRAPPED = Pattern.compile(PSEUDONYMISER_CALL + "(?:[^()]|\\([^()]*\\))*\\)");
 
     /**
      * An exception's message being read into a log argument, in either of the two forms the JDK
      * offers. Not {@code toString()}, which is a different tempting mistake and is not one anybody
      * has made here — adding it would be a rule written from imagination rather than from a defect.
+     *
+     * <p><b>Needs no whitespace tolerance and was checked rather than assumed</b> (item 57, round 2):
+     * it never spans the dot — {@code \b} anchors on the method name, so {@code e.getMessage()} and a
+     * fluent {@code e\n    .getMessage()} both match. {@link #IN_SCOPE} is immune for a different
+     * reason: its four alternatives are bare identifiers, and no formatter may split one.
      */
     private static final Pattern EXCEPTION_MESSAGE = Pattern.compile("\\bget(Message|LocalizedMessage)\\s*\\(\\s*\\)");
 
@@ -96,6 +145,116 @@ class LogPseudonymTest {
      * on {@code subjectKey}.
      */
     private static final Pattern IN_SCOPE = Pattern.compile("DirectoryLink|SiblingDomainEvent|subjectKey|LogPseudonym");
+
+    /**
+     * <b>A method call in Java source may be split across lines, and every pattern here that spans a
+     * {@code .} has to say so.</b>
+     *
+     * <p>Backlog item 57's second review round. {@code CROSS_STACK_CLIENT}'s token-relay alternative
+     * was written {@code SecurityUtils\.getCurrentRequestJwt\(} and
+     * {@code ProfessionalServiceClient} writes that call fluently —
+     *
+     * <pre>
+     * String token = SecurityUtils
+     *     .getCurrentRequestJwt()
+     * </pre>
+     *
+     * <p>— so the two halves are on different lines and the alternative never matched it. The class
+     * was in the swept set through the <em>catch</em> alternative alone, while that pattern's own
+     * javadoc promised the relay alternative as the backstop for a client catching bare
+     * {@code Exception}. The promised redundancy did not exist for the one class it had been written
+     * for, and the mutation that should have revealed it — breaking the catch alternative — was read
+     * as proof of the anchor working rather than as proof that nothing else reached the class.
+     *
+     * <p><b>It was loud rather than silent, which is worth stating exactly because the fix is the
+     * same either way.</b> Measured: weakening {@code ProfessionalServiceClient}'s catch to bare
+     * {@code Exception} against the unfixed pattern failed the build on this rule's own anchor —
+     * <em>"the cross-stack client discovery has stopped finding the classes this rule exists for"</em>
+     * — so the leak could not have crept back unnoticed, and naming the classes rather than counting
+     * them is what bought that. What was actually wrong was a <b>false statement in a javadoc about
+     * why the sweep was safe</b>: a reader who trusted it would have weakened the catch, been failed
+     * by a message about discovery rather than about their change, and had no way to connect the two.
+     * With the pattern repaired the same mutation now leaves the class swept and fails on the
+     * <em>leak</em> instead, which is the assertion that names what they did.
+     *
+     * <p><b>The reach depended on line-wrapping, which Prettier and Spotless own.</b> That is this
+     * file's own failure mode one layer along: {@code IN_SCOPE}'s javadoc is about a discriminator a
+     * comment edit could defeat, and this is one a <em>formatter</em> could defeat — neither being
+     * something the author of the change would see.
+     *
+     * <p>It does not match {@code {@link SecurityUtils#getCurrentRequestJwt()}} in a javadoc, which
+     * is what keeps a class that only <em>mentions</em> the relay out of the set: {@code #} is
+     * neither a dot nor whitespace.
+     */
+    private static final String SECURITY_UTILS_RELAY = "SecurityUtils\\s*\\.\\s*getCurrentRequestJwt\\s*\\(";
+
+    /**
+     * What makes a file a <b>cross-stack client</b>, which is the second concern this file sweeps and
+     * arrived with backlog item 57.
+     *
+     * <h2>Why the pseudonymising set could not simply be widened</h2>
+     *
+     * <p>{@code ProfessionalServiceClient} logged {@code e.getMessage()} and matched <b>0 of 4</b> of
+     * {@link #IN_SCOPE}'s alternatives — it handles no correlation key, pseudonymises nothing, and
+     * had no reason to. So {@link #noPseudonymisingClassLogsAnExceptionMessage} could never reach it,
+     * however the prose around it was worded. That rule is scoped on <em>handling a subject</em>; the
+     * danger it was written for is <em>holding an exception a library built</em>, and those are two
+     * different sets that happened to coincide while only one client existed.
+     *
+     * <p>The message is dangerous in two ways and only the first was written down. A transport
+     * failure is a {@code ResourceAccessException} quoting the <b>request URL</b>, which is what
+     * leaked a patient's address from {@code PatientServiceClient}. A refusal goes through
+     * {@code RestClient}'s default error handler, whose
+     * {@code getErrorMessage(int, String, byte[], Charset)} appends the <b>response body</b> — so any
+     * far service that echoes a rejected value puts it in this process's log, whatever the URL looks
+     * like.
+     *
+     * <h2>Two discriminators, unioned, and both are ones the compiler can see</h2>
+     *
+     * <ul>
+     *   <li><b>Catching a {@code RestClient} failure.</b> The class holds the dangerous object. It
+     *       cannot stop matching without giving up the catch, at which point it has nothing to
+     *       log.</li>
+     *   <li><b>Relaying the caller's token</b> ({@code SecurityUtils.getCurrentRequestJwt}). The
+     *       property that makes a call carry a subject at all, and therefore makes the far side's
+     *       answer capable of echoing one.</li>
+     * </ul>
+     *
+     * <p>Each alternative covers a gap the other leaves: a client catching bare {@code Exception}
+     * escapes the first, and a client reading an impersonal endpoint escapes the second. <b>The union
+     * is not therefore closed, and the residual is not hypothetical — it is today's population.</b> A
+     * class that catches bare {@code Exception} <em>and</em> relays no token matches neither
+     * alternative, and two such classes exist; see below.
+     *
+     * <p>Neither alternative can be defeated by editing a comment, which is this file's standard for
+     * itself ({@link #IN_SCOPE}). The converse is not true and is worth knowing: a comment that merely
+     * <em>mentions</em> {@code SecurityUtils.getCurrentRequestJwt(} pulls a class <b>into</b> the set.
+     * That direction is fail-closed — the worst case is a false red naming a file, which is the
+     * diagnosable one — so it is left alone rather than guarded against.
+     *
+     * <h2>What is deliberately NOT swept — a hand-audited set, not a closed one</h2>
+     *
+     * <p>{@code ObservabilityClient} and {@code AbofonsaContentClient} both log
+     * {@code e.getMessage()} and are both left alone. They catch bare {@code Exception} and relay no
+     * token, so neither discriminator reaches them — and that is the right answer rather than a lucky
+     * one: they read Mimir and a public marketing site, send no identifier in a body, take no
+     * correlation key in a URL, and their far sides have nothing of a patient's to echo. Taking their
+     * messages would delete a real diagnosis to prevent a leak that cannot happen, which is how a
+     * rule stops being applied and starts being worked around.
+     *
+     * <p><b>But that is an argument about two classes on their facts, not a property of the
+     * pattern</b>, and the distinction is the whole of what a future reader needs. <b>A third client
+     * that catches bare {@code Exception}, relays no token, and nevertheless carries a subject — an
+     * id in a request body, a key in a path — would be swept by nothing, and nothing would report
+     * it.</b> The anchor in {@link #noCrossStackClientLogsAnExceptionMessage} names two files, so it
+     * cannot notice a third that was never there. If you are writing such a client, you are joining a
+     * population audited by hand: either give it one of the two discriminators — catch the
+     * {@code RestClient} type rather than {@code Exception} — or come back and widen this pattern
+     * deliberately.
+     */
+    private static final Pattern CROSS_STACK_CLIENT = Pattern.compile(
+        "catch\\s*\\(\\s*(?:RestClient\\w*Exception|ResourceAccessException)|" + SECURITY_UTILS_RELAY
+    );
 
     /**
      * The identifiers that must never reach a log line, and why each is on the list.
@@ -179,7 +338,11 @@ class LogPseudonymTest {
      */
     @Test
     void noPseudonymisingClassLogsAnExceptionMessage() {
-        List<Path> pseudonymising = inScopeSources().stream().filter(source -> read(source).contains("LogPseudonym.subject(")).toList();
+        // Pattern, not String.contains: the literal form required the call to be written on one line
+        // and a formatter could have taken a class out of this set with nothing going red. See
+        // PSEUDONYMISER_CALL.
+        Pattern pseudonymiser = Pattern.compile(PSEUDONYMISER_CALL);
+        List<Path> pseudonymising = inScopeSources().stream().filter(source -> pseudonymiser.matcher(read(source)).find()).toList();
 
         // Non-emptiness is not enough and was not enough: DirectoryProjectionService satisfies it on
         // its own, so this rule went on "sweeping something" while the class it was written for had
@@ -199,6 +362,52 @@ class LogPseudonymTest {
                         "HTTP client that is the request URL, and this service puts a patient's address in one " +
                         "(backlog items 43 and 50). Log the exception's type, and its cause's type if the " +
                         "distinction matters. Statement: LOG.%s(%s)",
+                        source.getFileName(),
+                        call.group(1),
+                        arguments.strip()
+                    )
+                    .isFalse();
+            }
+        }
+    }
+
+    /**
+     * <b>And no client that talks to another product logs an exception's message either</b> —
+     * backlog item 57.
+     *
+     * <p>The same rule as {@link #noPseudonymisingClassLogsAnExceptionMessage} over a different
+     * derived set, for the reason {@link #CROSS_STACK_CLIENT} argues at length: that rule reaches
+     * classes that handle a subject, this one reaches classes that hold an exception a library built,
+     * and {@code ProfessionalServiceClient} was in the second set and not the first. It matched none
+     * of {@code IN_SCOPE}'s four alternatives, so nothing in this file could have caught it and
+     * nothing did — the statement shipped with a comment asserting the opposite.
+     *
+     * <p><b>{@code PatientServiceClient} is the positive control</b> and the reason this rule can be
+     * trusted the day it is written: it is in the swept set, it catches the same exception type, and
+     * it passes — because item 50's review already took its message away. A rule whose whole swept
+     * set fails on arrival is indistinguishable from a rule that matches too much.
+     */
+    @Test
+    void noCrossStackClientLogsAnExceptionMessage() {
+        List<Path> clients = crossStackClientSources();
+
+        // Named, not counted, for the reason the sibling rule records: "two clients" goes on passing
+        // when one of them is renamed out of the set, which is exactly the state that stops sweeping.
+        assertThat(clients.stream().map(path -> path.getFileName().toString()))
+            .as("the cross-stack client discovery has stopped finding the classes this rule exists for")
+            .contains("PatientServiceClient.java", "ProfessionalServiceClient.java");
+
+        for (Path source : clients) {
+            Matcher call = LOG_CALL.matcher(read(source));
+            while (call.find()) {
+                String arguments = call.group(2);
+                assertThat(EXCEPTION_MESSAGE.matcher(arguments).find())
+                    .as(
+                        "%s logs an exception's message, and it calls another product. A ResourceAccessException " +
+                        "quotes the request URL; a refusal goes through RestClient's default error handler, which " +
+                        "appends the RESPONSE BODY — so a far service echoing a rejected value logs it here " +
+                        "(backlog items 43, 50 and 57). Log the exception's type and its cause's type. " +
+                        "Statement: LOG.%s(%s)",
                         source.getFileName(),
                         call.group(1),
                         arguments.strip()
@@ -244,10 +453,19 @@ class LogPseudonymTest {
 
     /** Every main source that touches the sibling-link identity, whatever package it lives in. */
     private static List<Path> inScopeSources() {
+        return mainSourcesMatching(IN_SCOPE);
+    }
+
+    /** Every main source that calls another product over HTTP — see {@link #CROSS_STACK_CLIENT}. */
+    private static List<Path> crossStackClientSources() {
+        return mainSourcesMatching(CROSS_STACK_CLIENT);
+    }
+
+    private static List<Path> mainSourcesMatching(Pattern discriminator) {
         try (Stream<Path> tree = Files.walk(Path.of("src/main/java"))) {
             return tree
                 .filter(path -> path.getFileName().toString().endsWith(".java"))
-                .filter(path -> IN_SCOPE.matcher(read(path)).find())
+                .filter(path -> discriminator.matcher(read(path)).find())
                 .sorted()
                 .toList();
         } catch (IOException e) {
