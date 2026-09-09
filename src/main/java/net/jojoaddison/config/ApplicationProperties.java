@@ -7,6 +7,44 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>
  * Properties are configured in the {@code application.yml} file.
  * See {@link tech.jhipster.config.JHipsterProperties} for a good example.
+ *
+ * <h2>Every default under {@code application.*} is written here, once — backlog item 58</h2>
+ *
+ * <p>This class had no properties at all until the sibling clients arrived, and until 2026-09-09 it
+ * was <b>not what ran</b>: each client took its configuration from inline
+ * {@code @Value("${application.…:default}")} placeholders on its constructor, so every value was
+ * written twice — once here and once where it was read — with nothing that would notice if the two
+ * stopped agreeing. Editing a default in this file changed nothing at runtime, the build stayed
+ * green, and it had already misled one reader: a {@code quality/compose.yml} comment asserted that
+ * <em>"{@code ApplicationProperties} defaults the address"</em> — plausible, wrong, and caught only
+ * because a review traced the injection by hand.
+ *
+ * <p><b>The rule now, and it is enforced by {@code ApplicationPropertiesSingleSourceTest} rather
+ * than by this paragraph:</b> a reader injects this class and the default is the field initializer
+ * below. No class may read an {@code application.*} key through {@code @Value}. The single
+ * exception is {@code @Scheduled}, whose {@code initialDelayString} / {@code fixedDelayString} are
+ * annotation attributes and must therefore be compile-time constant expressions — a placeholder or
+ * SpEL, never an injected value. For those two keys the placeholder carries the default and the
+ * field here deliberately carries none. {@link AbofonsaContent#initialDelayMs} argues it in full,
+ * including why the lifecycle reason this paragraph gave first is wrong.
+ *
+ * <h2>{@code ignoreUnknownFields = false} — what it does and does not police</h2>
+ *
+ * <p>Any key under {@code application.*} that no field here declares fails the context at startup
+ * with "were left unbound" — <b>if it comes from a configuration file.</b> Adding
+ * {@code application.abofonsa-content.enabled} to the test config with no field here failed every
+ * integration test, 1033 errors from one missing declaration, which is how this was found.
+ *
+ * <p><b>It does not police the environment, and believing otherwise is how these declarations came
+ * to be described as load-bearing for the wrong reason.</b> Spring Boot excludes
+ * {@code SystemEnvironmentPropertySource} from the unbound check, because the environment is a
+ * namespace nobody owns. So {@code APPLICATION_PATIENTSERVICE_BASE_URL} in a compose file against a
+ * class that declared nothing would have started perfectly happily — measured 2026-09-09, and
+ * corroborated by hc-professional, whose {@code ApplicationProperties} declares no
+ * {@code patientservice} at all while their quality compose sets exactly that variable. What makes
+ * these declarations mandatory is {@code src/test/resources/config/application.yml}, which sets
+ * three {@code enabled} keys from a <em>file</em>. Both facts are pinned as tests, because this is
+ * the second time a claim about them has been reasoned rather than measured.
  */
 @ConfigurationProperties(prefix = "application", ignoreUnknownFields = false)
 public class ApplicationProperties {
@@ -14,35 +52,25 @@ public class ApplicationProperties {
     /**
      * Where the roster of record lives, and whether to write to it.
      *
-     * <p><b>This class had no properties at all, and {@code ignoreUnknownFields = false} is why it
-     * has these.</b> Any key under {@code application.*} that no field here declares fails the
-     * context at startup with "were left unbound" — so a {@code @Value("${application.…}")} read
-     * without a declaration here is not a shortcut, it is a service that will not boot. Found the
-     * honest way, by adding the key to the test config first.
-     *
-     * <p>Values are read through {@code @Value} in {@code ProfessionalServiceClient} rather than by
-     * injecting this class, matching how hc-professional's {@code PatientServiceClient} reads the
-     * mirror-image settings; the declarations below exist to make the prefix legal and to be the one
-     * place the defaults are written down.
+     * <p>Injected by {@code ProfessionalServiceClient}. Until item 58 it was not: that client read
+     * the same three keys through {@code @Value} and this block was a second, unread copy.
      */
     private final Professionalservice professionalservice = new Professionalservice();
 
     /**
      * Where Abofonsa publishes the membership catalogue, and whether to read it.
      *
-     * <p>Same shape and same reason as the block above, and the trap it documents caught this one
-     * too: adding {@code application.abofonsa-content.enabled} to the test config with no field here
-     * failed every integration test with "were left unbound", 1033 errors from one missing
-     * declaration. The comment above was right and is worth reading before adding a third.
+     * <p>Injected by {@code AbofonsaContentClient}, except for the two schedule fields, which
+     * {@code ServicePlanCatalogueSyncService} reads through {@code @Scheduled} and which therefore
+     * carry no default here — see their own comments.
      */
     private final AbofonsaContent abofonsaContent = new AbofonsaContent();
 
     /**
      * Where the patient app lives, and whether to ask it to name a patient learned from an event.
      *
-     * <p>Third block, same shape and same trap as the two above — {@code ignoreUnknownFields = false}
-     * means a compose file setting {@code APPLICATION_PATIENTSERVICE_BASE_URL} against a class that
-     * does not declare it fails the whole context at startup. Backlog item 50.
+     * <p>Injected by {@code PatientServiceClient} and by {@code DirectoryNameResolutionService},
+     * which reads {@link Patientservice#getResolveBudgetMs()} and nothing else. Backlog item 50.
      */
     private final Patientservice patientservice = new Patientservice();
 
@@ -121,15 +149,11 @@ public class ApplicationProperties {
      * {@code hc-patient-service}; this name follows the sibling block in this file, which is the one
      * a reader is comparing it against.
      *
-     * <p><b>⚠ Nothing injects this class, so the values below are not what runs.</b> Like the two
-     * blocks above it, this one exists to make the {@code application.*} prefix legal —
-     * {@code ignoreUnknownFields = false} fails the whole context at startup on a key no field
-     * declares — and the operative defaults are the inline {@code @Value} expressions in
+     * <p>This block carried a warning until 2026-09-09 that <em>nothing injects this class, so the
+     * values below are not what runs</em>. That was true and is the defect backlog item 58 closed:
      * {@link net.jojoaddison.service.PatientServiceClient} and
-     * {@link net.jojoaddison.service.DirectoryNameResolutionService}. <b>Editing a default here
-     * changes nothing at runtime.</b> Two copies of each value is a shape this file already had
-     * before item 50 and is being decided separately (bind these properties or delete the defaults);
-     * this note is here so that no reader takes the copy in front of them for the live one.
+     * {@link net.jojoaddison.service.DirectoryNameResolutionService} now take this object, and these
+     * are the values in force. <b>Editing a default here does change what runs.</b>
      *
      * <p><b>The default is the production container name, and every other environment must set it.</b>
      * hc-patient-service sits on {@code infranet} and this service is already on it, so production
@@ -213,10 +237,14 @@ public class ApplicationProperties {
      * {@code abofonsacontent} too; use the hyphenated spelling everywhere so a compose file cannot
      * end up carrying both and reading as two settings.
      *
-     * <p>Read through {@code @Value} in {@link net.jojoaddison.service.AbofonsaContentClient} and
-     * {@link net.jojoaddison.service.ServicePlanCatalogueSyncService}, matching how the block above
-     * is read; the declarations here make the prefix legal and are the one place the defaults are
-     * written down.
+     * <p><b>This block is read two ways, and it is the only one that is.</b> The four settings a
+     * client needs are injected into {@link net.jojoaddison.service.AbofonsaContentClient}, like
+     * every other block here. The two schedule fields are read by
+     * {@link net.jojoaddison.service.ServicePlanCatalogueSyncService}'s {@code @Scheduled}, whose
+     * attributes must be compile-time constants and so cannot be handed an injected value at all —
+     * those two carry no default here and {@link AbofonsaContent#initialDelayMs} says why. That
+     * split is item 58's one exception, and {@code ApplicationPropertiesSingleSourceTest} is what
+     * keeps it from spreading.
      */
     public static class AbofonsaContent {
 
@@ -238,11 +266,52 @@ public class ApplicationProperties {
         /** Both the connect and the read timeout, in seconds. */
         private int timeoutSeconds = 5;
 
-        /** How long after startup the first refresh runs. Off the startup path deliberately. */
-        private long initialDelayMs = 120_000;
+        /**
+         * How long after startup the first refresh runs. Off the startup path deliberately.
+         *
+         * <p><b>No default here, and that is item 58's rule rather than an omission.</b>
+         * {@code ServicePlanCatalogueSyncService} reads this key through
+         * {@code @Scheduled(initialDelayString = "${…:120000}")}, and <b>an annotation attribute must
+         * be a compile-time constant expression</b> (JLS 9.7.1). So the only things it can carry are
+         * a literal, an Environment placeholder or SpEL — injection has no path into it at all. The
+         * placeholder therefore carries the default and this field carries none: <b>one place per
+         * value, and the place is the annotation.</b>
+         *
+         * <p><b>The reason is the language, not the lifecycle, and the first version of this comment
+         * got that wrong.</b> It said the string is resolved "before there is an object to ask",
+         * which is false: {@code ScheduledAnnotationBeanPostProcessor} resolves these during each
+         * bean's post-initialization, and this very commit made {@code ApplicationProperties} a
+         * transitive constructor dependency of the bean carrying the annotation
+         * ({@code ServicePlanCatalogueSyncService} ← {@code AbofonsaContentClient} ←
+         * {@code ApplicationProperties}), so the object provably exists by then. A reason that a
+         * change in wiring can falsify is not the reason; the constant-expression rule cannot be.
+         *
+         * <p><b>SpEL is the alternative, and it is worse than "stringly typed" — it does not work.</b>
+         * {@code #{@applicationProperties.abofonsaContent.refreshMs}} fails bean resolution outright:
+         * a {@code @ConfigurationProperties} bean is named for its prefix and class, so this one is
+         * {@code application-net.jojoaddison.config.ApplicationProperties} — the name is visible in
+         * the expected-failure log of
+         * {@code ApplicationPropertiesSingleSourceTest.aKeyNoFieldDeclaresFailsTheContext…}. And even
+         * aliased it would evaluate to {@code 0}, because this field deliberately holds no default.
+         * Written down because it is the first thing the next reader will reach for.
+         *
+         * <p>The field itself still has to exist. Nothing sets this key today, but if anything ever
+         * sets it in a configuration <em>file</em>, {@code ignoreUnknownFields = false} fails the
+         * whole context — and deleting the field to "finish the tidy-up" is what would cause that.
+         * Bound or not, the value that takes effect is the one {@code @Scheduled} resolves, so a
+         * value arriving here is read by the scheduler too and nothing disagrees.
+         */
+        private long initialDelayMs;
 
-        /** How often to refresh afterwards. Six hours: a published price list moves a few times a year. */
-        private long refreshMs = 21_600_000;
+        /**
+         * How often to refresh afterwards. Six hours: a published price list moves a few times a
+         * year.
+         *
+         * <p>Same shape and same reason as {@link #initialDelayMs} above — the default lives in
+         * {@code ServicePlanCatalogueSyncService}'s {@code fixedDelayString}, which is the only
+         * reader.
+         */
+        private long refreshMs;
 
         public String getBaseUrl() {
             return baseUrl;

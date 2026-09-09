@@ -4,13 +4,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import net.jojoaddison.config.ApplicationProperties;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.NameResolution;
 import net.jojoaddison.service.PatientServiceClient.ResolvedName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -62,12 +62,18 @@ public class DirectoryNameResolutionService {
     private final PatientServiceClient patientServiceClient;
     private final long budgetMs;
 
-    public DirectoryNameResolutionService(
-        PatientServiceClient patientServiceClient,
-        @Value("${application.patientservice.resolve-budget-ms:4000}") long budgetMs
-    ) {
+    /**
+     * Takes the properties object rather than a placeholder — backlog item 58.
+     *
+     * <p>{@code resolve-budget-ms} was the clearest instance of that item: {@code 4000} written here
+     * in a {@code @Value} default and again in {@link ApplicationProperties.Patientservice}, with
+     * nothing that would notice if the two stopped agreeing. It reads the budget and nothing else
+     * from that block — the base URL, the timeout and the enabled flag belong to
+     * {@link PatientServiceClient}, which is the thing that dials.
+     */
+    public DirectoryNameResolutionService(PatientServiceClient patientServiceClient, ApplicationProperties properties) {
         this.patientServiceClient = patientServiceClient;
-        this.budgetMs = budgetMs;
+        this.budgetMs = properties.getPatientservice().getResolveBudgetMs();
     }
 
     /**

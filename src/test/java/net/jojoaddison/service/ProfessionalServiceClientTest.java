@@ -1,5 +1,6 @@
 package net.jojoaddison.service;
 
+import static net.jojoaddison.config.ApplicationPropertiesFixture.professionalservice;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -203,6 +204,6 @@ class ProfessionalServiceClientTest {
     }
 
     private static ProfessionalServiceClient clientAt(int port, boolean enabled) {
-        return new ProfessionalServiceClient(RestClient.builder(), "http://localhost:" + port, enabled, 1);
+        return new ProfessionalServiceClient(RestClient.builder(), professionalservice("http://localhost:" + port, enabled, 1));
     }
 }

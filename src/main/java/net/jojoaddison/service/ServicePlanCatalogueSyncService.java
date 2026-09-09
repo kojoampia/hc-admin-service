@@ -122,6 +122,20 @@ public class ServicePlanCatalogueSyncService {
      * <p>Nothing here is guarded against two instances running it at once, because nothing needs to
      * be: every write is an upsert on {@code code}, and {@code config/ServicePlanIndexes} makes that
      * key unique so two first sightings of one plan cannot both insert.
+     *
+     * <p><b>These two placeholders are the single place their defaults are written, and they are the
+     * one exception to item 58's rule.</b> Everything else under {@code application.*} is read by
+     * injecting {@code ApplicationProperties}, so that a default cannot be written twice and quietly
+     * disagree with itself. A {@code @Scheduled} string cannot be: it is an annotation attribute, so
+     * the language requires a compile-time constant expression and injection has no path into it —
+     * a placeholder or SpEL are the only options. (Not a lifecycle argument, and this comment said it
+     * was one until the review: {@code ApplicationProperties} is a transitive constructor dependency
+     * of <em>this</em> bean, so it demonstrably exists by the time these strings are resolved.)
+     * So the numbers live
+     * here and {@code ApplicationProperties.AbofonsaContent}'s two schedule fields deliberately carry
+     * no default — they exist only to keep the key legal if a configuration file ever sets it.
+     * <b>Do not add a default over there to "complete" the block</b>; that is the shape item 58
+     * closed, and {@code ApplicationPropertiesSingleSourceTest} fails if it comes back.
      */
     @Scheduled(
         initialDelayString = "${application.abofonsa-content.initial-delay-ms:120000}",

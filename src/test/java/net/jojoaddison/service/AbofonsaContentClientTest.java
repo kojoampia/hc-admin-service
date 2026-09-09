@@ -1,5 +1,6 @@
 package net.jojoaddison.service;
 
+import static net.jojoaddison.config.ApplicationPropertiesFixture.abofonsaContent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sun.net.httpserver.HttpServer;
@@ -198,7 +199,7 @@ class AbofonsaContentClientTest {
     }
 
     private AbofonsaContentClient client(boolean enabled) {
-        return new AbofonsaContentClient(RestClient.builder(), baseUrl(), enabled, "en", 5);
+        return new AbofonsaContentClient(RestClient.builder(), abofonsaContent(baseUrl(), enabled, "en", 5));
     }
 
     private String baseUrl() {
