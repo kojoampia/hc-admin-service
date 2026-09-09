@@ -70,8 +70,32 @@ class LogPseudonymTest {
      */
     private static final Pattern EXCEPTION_MESSAGE = Pattern.compile("\\bget(Message|LocalizedMessage)\\s*\\(\\s*\\)");
 
-    /** What makes a file part of this concern: it handles the link, the event, or the key itself. */
-    private static final Pattern IN_SCOPE = Pattern.compile("DirectoryLink|SiblingDomainEvent|subjectKey");
+    /**
+     * What makes a file part of this concern: it handles the link, the event or the key itself — or
+     * it calls the pseudonymiser, which is the alternative added on 2026-09-09 and the only one of
+     * the four that a comment cannot fake.
+     *
+     * <h2>Why {@code LogPseudonym} is on the list, and it is not for symmetry</h2>
+     *
+     * <p><b>{@code PatientServiceClient} was in scope through prose alone.</b> Nothing in its code
+     * matched any of the first three alternatives; it matched {@code DirectoryLink} twice, in two
+     * javadoc paragraphs. Measured rather than reasoned: restoring the {@code e.getMessage()} leak
+     * and then changing <em>only</em> those two comments — {@code {@code DirectoryLink}} to "the
+     * directory link" — left this whole file <b>7/7 green with a patient's address going to the log
+     * on every unreachable sibling</b>. A rename, a tidy-up, or somebody softening a javadoc would
+     * have silently unswept the class this sweep was extended for.
+     *
+     * <p>That is the estate's own recurring failure — <b>a check whose reach depends on prose is not
+     * a check</b> — and the fix has to be a discriminator the compiler can see. A class that calls
+     * {@code LogPseudonym} is handling a correlation key by construction: it cannot stop matching
+     * without the call itself going away, at which point it has nothing left to leak. Prose is now
+     * belt to that braces rather than the only strap.
+     *
+     * <p>The widening is safe in the other direction too: it adds {@code LogPseudonym} itself to the
+     * swept set, which holds no logger, and nothing else at all — every other caller already matched
+     * on {@code subjectKey}.
+     */
+    private static final Pattern IN_SCOPE = Pattern.compile("DirectoryLink|SiblingDomainEvent|subjectKey|LogPseudonym");
 
     /**
      * The identifiers that must never reach a log line, and why each is on the list.
@@ -145,7 +169,10 @@ class LogPseudonymTest {
      * class dangerous is that it <em>handles</em> the key, and a class that has to pseudonymise is
      * exactly one that does.
      *
-     * <p>It costs those three classes the message text. That is affordable and it is the point: the
+     * <p>It costs the two pseudonymising classes — {@code PatientServiceClient} and
+     * {@code DirectoryProjectionService} — the message text. ({@code SiblingEventParser} and
+     * {@code DirectoryLinkResource} are swept by the rule above and call {@code subject(} nowhere, so
+     * this one does not reach them.) That is affordable and it is the point: the
      * type of the cause says which failure it was, which is what an operator needs, and it cannot
      * quote anything. Nothing in the repository was made to fail by this rule other than the line it
      * was written for.
@@ -154,7 +181,13 @@ class LogPseudonymTest {
     void noPseudonymisingClassLogsAnExceptionMessage() {
         List<Path> pseudonymising = inScopeSources().stream().filter(source -> read(source).contains("LogPseudonym.subject(")).toList();
 
-        assertThat(pseudonymising).as("no class pseudonymises a subject any more, so this rule is sweeping nothing").isNotEmpty();
+        // Non-emptiness is not enough and was not enough: DirectoryProjectionService satisfies it on
+        // its own, so this rule went on "sweeping something" while the class it was written for had
+        // dropped out of the set. Named, therefore, the same way DevelopmentDataInitializerTest names
+        // fixture rows rather than counting them.
+        assertThat(pseudonymising.stream().map(path -> path.getFileName().toString()))
+            .as("the class this rule was extended for is no longer being swept — see IN_SCOPE's javadoc")
+            .contains("PatientServiceClient.java", "DirectoryProjectionService.java");
 
         for (Path source : pseudonymising) {
             Matcher call = LOG_CALL.matcher(read(source));
@@ -180,8 +213,14 @@ class LogPseudonymTest {
      *
      * <p>The file discovery can fail as quietly as the statement pattern can — a rename, a move to
      * another source root, or a smaller {@code IN_SCOPE} would leave a green build sweeping nothing.
-     * So both are pinned: the three files that carry the concern today must be found by name, and the
+     * So both are pinned: the files that carry the concern today must be found by name, and the
      * statements inside the discovered set must still be matched.
+     *
+     * <p><b>{@code PatientServiceClient} is on the list because it was the one that got away.</b> It
+     * joined the swept set with the exception-message rule and was not pinned here, so the only thing
+     * standing between the sweep and that class was two javadoc mentions of {@code DirectoryLink} —
+     * see {@code IN_SCOPE}. Adding a class to a discovered set without adding it here leaves exactly
+     * the gap this method exists to close.
      */
     @Test
     void theSweepStillFindsTheStatementsItIsSweeping() {
@@ -189,7 +228,12 @@ class LogPseudonymTest {
 
         assertThat(sources.stream().map(path -> path.getFileName().toString()))
             .as("the file discovery has stopped finding the classes this rule exists for")
-            .contains("DirectoryProjectionService.java", "SiblingEventParser.java", "DirectoryLinkResource.java");
+            .contains(
+                "DirectoryProjectionService.java",
+                "SiblingEventParser.java",
+                "DirectoryLinkResource.java",
+                "PatientServiceClient.java"
+            );
 
         long statements = sources.stream().map(LogPseudonymTest::read).mapToLong(text -> LOG_CALL.matcher(text).results().count()).sum();
 

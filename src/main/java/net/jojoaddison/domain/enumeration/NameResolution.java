@@ -59,12 +59,27 @@ public enum NameResolution {
      * {@code PatientServiceClient}, which logs which it was.
      *
      * <p><b>Which is why the sentence on the row names nobody</b> — "a name could not be looked up
-     * for this account", not "the patient app could not be reached". Three of the four causes are on
-     * <em>this</em> side: a base url pointing at a container that does not exist here, a deployment
-     * configured off, a request with no token to relay. A row blaming the sibling stack for this
-     * service's own configuration is item 24's wrong-machine pointer in miniature — a screen sending
-     * an operator to go and look at a system that is working — and it is the state a stack would be
-     * in most often, because the default base url is the production container's name.
+     * for this account", not "the patient app could not be reached". <b>There are five producers of
+     * this value and four of them are on <em>this</em> side</b>:
+     *
+     * <ol>
+     *   <li>a base url naming a container that does not exist in this environment — here;</li>
+     *   <li>{@code application.patientservice.enabled=false} — here;</li>
+     *   <li>a request carrying no token to relay — here;</li>
+     *   <li>the per-request budget spent before this row was reached, so it was never dialled —
+     *       here, and the one an enumeration keeps forgetting because it is set by
+     *       {@code DirectoryNameResolutionService} rather than by the client;</li>
+     *   <li>hc-patient refusing, timing out or answering unreadably — <em>there</em>.</li>
+     * </ol>
+     *
+     * <p>A row blaming the sibling stack for any of the first four is item 24's wrong-machine
+     * pointer in miniature — a screen sending an operator to look at a system that is working — and
+     * it is the state a stack would be in most often, because the default base url is the production
+     * container's name and every other environment has to override it.
+     *
+     * <p><b>This list and the console's are meant to agree</b> ({@code patient.spec.ts}, the case
+     * that pins the wording). They said "four" and omitted the budget until 2026-09-09, which is the
+     * seed-census failure in miniature: a count in two files, moved in one.
      */
     UNAVAILABLE,
 }

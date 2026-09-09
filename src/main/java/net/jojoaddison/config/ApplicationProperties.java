@@ -121,6 +121,16 @@ public class ApplicationProperties {
      * {@code hc-patient-service}; this name follows the sibling block in this file, which is the one
      * a reader is comparing it against.
      *
+     * <p><b>⚠ Nothing injects this class, so the values below are not what runs.</b> Like the two
+     * blocks above it, this one exists to make the {@code application.*} prefix legal —
+     * {@code ignoreUnknownFields = false} fails the whole context at startup on a key no field
+     * declares — and the operative defaults are the inline {@code @Value} expressions in
+     * {@link net.jojoaddison.service.PatientServiceClient} and
+     * {@link net.jojoaddison.service.DirectoryNameResolutionService}. <b>Editing a default here
+     * changes nothing at runtime.</b> Two copies of each value is a shape this file already had
+     * before item 50 and is being decided separately (bind these properties or delete the defaults);
+     * this note is here so that no reader takes the copy in front of them for the live one.
+     *
      * <p><b>The default is the production container name, and every other environment must set it.</b>
      * hc-patient-service sits on {@code infranet} and this service is already on it, so production
      * needs no line at all — but the quality stack's sibling is called
