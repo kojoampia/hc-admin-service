@@ -165,6 +165,104 @@ class PatientCsvExporterTest {
         assertThat(cells(lines.get(1)).get(8)).isEqualTo("MDC-9912");
     }
 
+    /**
+     * A lead with nothing to name it by exports an empty cell, never its id.
+     *
+     * <p>{@code licenceNumber} is {@code @NotNull} without {@code @NotBlank} — no field in this
+     * service carries {@code @NotBlank} at all — so {@code ""} passes the validator on the way in and
+     * is a state the database really holds. The old answer to that was the lead's id, which is a
+     * 24-character ObjectId in production. In a file somebody keeps and forwards that reads as data
+     * rather than as an absence, which is the whole of backlog item 45's rule.
+     *
+     * <p>Empty rather than a dash, for the reason argued at {@code clinicalLead}: thirteen of the
+     * fourteen columns already say "not recorded" by being empty, and this column itself already does
+     * for a patient with no lead at all.
+     */
+    @Test
+    void aLeadWithABlankLicenceExportsAnEmptyCellRatherThanItsId() throws Exception {
+        Professional lead = new Professional().licenceNumber("");
+        lead.setId("68b4f2a19c3d5e7f81a02c44");
+
+        Patient patient = new Patient().status(AccountStatus.ACTIVE);
+        patient.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+        patient.setClinicalLead(lead);
+
+        List<String> lines = write(patient);
+
+        assertThat(cells(lines.get(1)).get(8)).isEmpty();
+        // Read across the whole row, not only the cell: an id leaking into any column of a file that
+        // leaves the building is the defect, and the cell assertion alone would not see it move.
+        assertThat(lines.get(1)).doesNotContain("68b4f2a19c3d5e7f81a02c44");
+    }
+
+    /**
+     * A null licence and a blank one are the same absence, and both stay out of the file.
+     *
+     * <p>Asserted separately because the storage treats them differently — {@code @NotNull} refuses
+     * one and admits the other — while the reader of the file cannot tell them apart and should not
+     * have to. A guard written for only one of the two is the shape this defect already had.
+     */
+    @Test
+    void aLeadWithNoLicenceAtAllExportsAnEmptyCellRatherThanItsId() throws Exception {
+        Professional lead = new Professional();
+        lead.setId("68b4f2a19c3d5e7f81a02c44");
+
+        Patient patient = new Patient().status(AccountStatus.ACTIVE);
+        patient.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+        patient.setClinicalLead(lead);
+
+        List<String> lines = write(patient);
+
+        assertThat(cells(lines.get(1)).get(8)).isEmpty();
+        assertThat(lines.get(1)).doesNotContain("68b4f2a19c3d5e7f81a02c44");
+    }
+
+    /**
+     * A licence of nothing but spaces is an absence too, and does not export as spaces.
+     *
+     * <p>This is the case that makes the {@code isBlank()} half of the guard load-bearing. With the
+     * fallback gone, {@code ""} and a null licence both render empty whether or not blankness is
+     * checked, so neither of the two cases above can tell the halves apart — dropping
+     * {@code isBlank()} keeps them both green. A whitespace licence is exactly as storable as an
+     * empty one ({@code @Size(max = 40)} counts spaces, {@code @NotNull} admits them) and without the
+     * check it exports a cell containing spaces: not empty, not a licence, and invisible to whoever
+     * opens the file.
+     */
+    @Test
+    void aLeadWhoseLicenceIsOnlyWhitespaceExportsAnEmptyCell() throws Exception {
+        Patient patient = new Patient().status(AccountStatus.ACTIVE);
+        patient.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+        patient.setClinicalLead(new Professional().licenceNumber("   "));
+
+        List<String> lines = write(patient);
+
+        assertThat(cells(lines.get(1)).get(8)).isEmpty();
+    }
+
+    /**
+     * One absence marker in the column, not two.
+     *
+     * <p>"No clinical lead" and "a clinical lead with nothing to name it by" are different facts
+     * about the record and the same fact about the cell: it does not tell the reader who the lead is.
+     * A CSV carries no legend that could explain a second marker, so the two render identically —
+     * and this is the assertion that fails if somebody later reaches for a dash on one of them.
+     */
+    @Test
+    void anUnnameableLeadReadsTheSameAsNoLeadAtAll() throws Exception {
+        Patient withNoLead = new Patient().status(AccountStatus.ACTIVE);
+        withNoLead.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+
+        Professional lead = new Professional().licenceNumber("");
+        lead.setId("68b4f2a19c3d5e7f81a02c44");
+        Patient withAnUnnameableLead = new Patient().status(AccountStatus.ACTIVE);
+        withAnUnnameableLead.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+        withAnUnnameableLead.setClinicalLead(lead);
+
+        List<String> lines = write(withNoLead, withAnUnnameableLead);
+
+        assertThat(cells(lines.get(2)).get(8)).isEqualTo(cells(lines.get(1)).get(8));
+    }
+
     @Test
     void carriesThePlanTheSponsorAndTheStatus() throws Exception {
         Patient patient = new Patient().status(AccountStatus.SUSPENDED).caseCount(3);
