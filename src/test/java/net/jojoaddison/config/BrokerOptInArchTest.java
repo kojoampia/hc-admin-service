@@ -37,7 +37,9 @@ import org.junit.jupiter.api.Test;
  * and deliberately does not: exercising the container end to end means paying for it on every run,
  * which is the cost this item removed. That gap is real and is named here rather than left implied —
  * the end-to-end path was verified by hand once, on 2026-09-09, by restoring {@code @EmbeddedKafka} to
- * one class and watching the container start for that class and no other.
+ * one class and watching the container start for that class and no other. <b>That proved the container
+ * starts, not that anything used it</b> — on an {@code @IntegrationTest} class nothing does, and the
+ * difference is the subject of {@code IntegrationTest}'s javadoc.
  */
 @AnalyzeClasses(packagesOf = IntegrationTest.class)
 class BrokerOptInArchTest {
@@ -54,7 +56,10 @@ class BrokerOptInArchTest {
             "@EmbeddedKafka starts a Kafka container for the whole test JVM and no test in this repository "
             + "asserts anything about a real broker — the three that drive a binding use the in-memory "
             + "TestChannelBinderConfiguration. If you genuinely need one, say why here and accept that every "
-            + "integration test in the run pays for it (backlog item 17)"
+            + "integration test in the run pays for it (backlog item 17). And note that adding this annotation "
+            + "to an @IntegrationTest class is NOT enough to reach a real broker: that composite imports the "
+            + "in-memory binder, which goes on servicing every binding while the container sits unused. Read "
+            + "IntegrationTest's javadoc before assuming a passing test proved anything about Kafka"
         );
 
     @Test

@@ -39,6 +39,42 @@ import org.springframework.test.annotation.DirtiesContext;
  * <p>{@code @EmbeddedKafka} itself still works and still starts a container for a class that asks for
  * it; {@code BrokerOptInArchTest} asserts both that the mechanism is intact and that nothing currently
  * uses it, so reintroducing the cost is a decision somebody has to take deliberately.
+ *
+ * <h2>Adding {@code @EmbeddedKafka} back is not enough to test against a real broker</h2>
+ *
+ * <p>Both halves of the sentence above are true and together they mislead, so this paragraph exists to
+ * stop the obvious next step being the wrong one. On a class carrying this annotation,
+ * {@code @EmbeddedKafka} starts a container that <b>Spring Cloud Stream then does not use</b>: the
+ * in-memory binder imported here still services every binding, and
+ * {@code spring.cloud.stream.kafka.binder.brokers} — which the customizer dutifully points at the new
+ * container — is inert. The trap is that everything looks right. A container appears in
+ * {@code docker ps}, the log says "Warming up the kafka broker", the test passes, and it has proved
+ * nothing whatever about Kafka delivery.
+ *
+ * <p>Measured on 2026-09-09, three contexts, by reading the binder beans out of each:
+ *
+ * <pre>
+ *   @IntegrationTest                                    no container   springIntegrationChannelBinder
+ *   @IntegrationTest @EmbeddedKafka                     container      springIntegrationChannelBinder
+ *   @IntegrationTest @EmbeddedKafka + exclude below     container      no test binder present
+ * </pre>
+ *
+ * <p>So a test that genuinely wants the Kafka binder has to <b>subtract this binder as well as add the
+ * container</b>:
+ *
+ * <pre>
+ *   &#64;IntegrationTest
+ *   &#64;EmbeddedKafka
+ *   &#64;ImportAutoConfiguration(exclude = TestChannelBinderConfiguration.class)
+ * </pre>
+ *
+ * <p>That exclusion does reach an import made by a meta-annotation — {@code
+ * ImportAutoConfigurationImportSelector} unions the {@code exclude} attribute across the same
+ * recursive annotation walk it uses to collect the imports — and it was verified rather than read off
+ * the bytecode: with it, the test binder is absent from the context and {@code InputDestination} is not
+ * injectable, leaving the Kafka binder as the only one on the classpath. It is also the point at which
+ * to ask whether the test belongs here at all: Kafka's own delivery is not this service's to test, and
+ * that judgement is what the three binding classes already made.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
