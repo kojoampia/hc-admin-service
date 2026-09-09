@@ -84,6 +84,22 @@ public class DirectoryNameResolutionService {
         if (links == null || links.isEmpty()) {
             return;
         }
+        if (!patientServiceClient.isEnabled()) {
+            // Marked, not skipped: these rows ARE candidates, and a candidate with no outcome would
+            // tell the console it was never one. What is skipped is the client, so a deployment with
+            // no sibling stack spends nothing per row and the budget below is never entered.
+            //
+            // This branch is why isEnabled() exists. Without it the same answer arrived one layer
+            // down — the client refuses when disabled — but every row counted as a lookup that had
+            // been made, so the budget warning could report dozens of "lookups" on a deployment that
+            // opened no socket at all. A figure like that sends a reader to the network.
+            for (DirectoryLink link : links) {
+                if (addressToAskAbout(link) != null) {
+                    apply(link, ResolvedName.unavailable());
+                }
+            }
+            return;
+        }
         Map<String, ResolvedName> resolvedThisRequest = new HashMap<>();
         long deadline = System.nanoTime() + budgetMs * 1_000_000L;
         int asked = 0;

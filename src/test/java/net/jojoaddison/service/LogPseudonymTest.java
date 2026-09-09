@@ -63,6 +63,13 @@ class LogPseudonymTest {
      */
     private static final Pattern WRAPPED = Pattern.compile("LogPseudonym\\.subject\\((?:[^()]|\\([^()]*\\))*\\)");
 
+    /**
+     * An exception's message being read into a log argument, in either of the two forms the JDK
+     * offers. Not {@code toString()}, which is a different tempting mistake and is not one anybody
+     * has made here — adding it would be a rule written from imagination rather than from a defect.
+     */
+    private static final Pattern EXCEPTION_MESSAGE = Pattern.compile("\\bget(Message|LocalizedMessage)\\s*\\(\\s*\\)");
+
     /** What makes a file part of this concern: it handles the link, the event, or the key itself. */
     private static final Pattern IN_SCOPE = Pattern.compile("DirectoryLink|SiblingDomainEvent|subjectKey");
 
@@ -108,6 +115,62 @@ class LogPseudonymTest {
                         )
                         .isFalse();
                 }
+            }
+        }
+    }
+
+    /**
+     * <b>And no such class logs an exception's message, because a message quotes what it was given.</b>
+     *
+     * <p>This rule exists because the sweep above could not see a real leak. {@code
+     * PatientServiceClient} logged {@code e.getMessage()} beside a pseudonymised subject, and Spring
+     * wraps an I/O failure in a {@code ResourceAccessException} whose message quotes the <b>request
+     * URL</b> — which for that client has the patient's address as a path segment:
+     *
+     * <pre>
+     * ... for subject subj-df2b50538c26: I/O error on GET request for
+     * "http://.../api/profiles/email/kojo%40jac.net": null
+     * </pre>
+     *
+     * <p>Every identifier in {@link #FORBIDDEN} is absent from that statement. The address arrives
+     * inside a string the JDK built, so an identifier list can never catch it — and it fires exactly
+     * when the sibling stack is down, which is when somebody is reading the logs.
+     *
+     * <h2>Scoped to the class rather than to the statement, deliberately</h2>
+     *
+     * <p>The tempting rule is "no {@code getMessage()} in the same statement as a {@code subject(}
+     * call", which is the shape of the defect that was found. It is too narrow: the leak is that a
+     * library was handed a correlation key and put it in a string, so the next statement to leak may
+     * mention no subject at all — a debug line one branch away, or a second catch block. What makes a
+     * class dangerous is that it <em>handles</em> the key, and a class that has to pseudonymise is
+     * exactly one that does.
+     *
+     * <p>It costs those three classes the message text. That is affordable and it is the point: the
+     * type of the cause says which failure it was, which is what an operator needs, and it cannot
+     * quote anything. Nothing in the repository was made to fail by this rule other than the line it
+     * was written for.
+     */
+    @Test
+    void noPseudonymisingClassLogsAnExceptionMessage() {
+        List<Path> pseudonymising = inScopeSources().stream().filter(source -> read(source).contains("LogPseudonym.subject(")).toList();
+
+        assertThat(pseudonymising).as("no class pseudonymises a subject any more, so this rule is sweeping nothing").isNotEmpty();
+
+        for (Path source : pseudonymising) {
+            Matcher call = LOG_CALL.matcher(read(source));
+            while (call.find()) {
+                String arguments = call.group(2);
+                assertThat(EXCEPTION_MESSAGE.matcher(arguments).find())
+                    .as(
+                        "%s logs an exception's message. A message quotes what the library was given — for an " +
+                        "HTTP client that is the request URL, and this service puts a patient's address in one " +
+                        "(backlog items 43 and 50). Log the exception's type, and its cause's type if the " +
+                        "distinction matters. Statement: LOG.%s(%s)",
+                        source.getFileName(),
+                        call.group(1),
+                        arguments.strip()
+                    )
+                    .isFalse();
             }
         }
     }

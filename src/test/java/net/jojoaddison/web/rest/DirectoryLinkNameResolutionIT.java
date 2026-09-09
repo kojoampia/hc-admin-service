@@ -70,6 +70,25 @@ class DirectoryLinkNameResolutionIT {
     }
 
     /**
+     * The lookup is configured, unless a case says otherwise.
+     *
+     * <p><b>A mock answers {@code false} to a boolean</b>, and {@code false} is exactly the value
+     * that makes {@code DirectoryNameResolutionService} mark every candidate unavailable and return
+     * before it calls anything. Without this line three cases below assert against the
+     * not-configured short circuit and fail on a missing {@code resolvedName} — which is how this was
+     * found: the full gate went red on the commit that added the short circuit, on a class that had
+     * been green in the run before it.
+     *
+     * <p>Worth stating rather than fixing quietly, because it is the same trap in both directions. A
+     * default of {@code false} makes a test fail loudly here; it would make one <em>pass</em> for the
+     * wrong reason anywhere the assertion is "nothing was asked".
+     */
+    @BeforeEach
+    void theLookupIsConfigured() {
+        when(patientServiceClient.isEnabled()).thenReturn(true);
+    }
+
+    /**
      * The name is on the row, and <b>not one clinical field is</b>.
      *
      * <p>Item 50's consequence (a): their endpoint returns the whole {@code Profile} — 27 fields,

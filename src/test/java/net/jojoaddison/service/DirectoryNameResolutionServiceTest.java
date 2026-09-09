@@ -15,6 +15,7 @@ import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.domain.enumeration.NameResolution;
 import net.jojoaddison.service.PatientServiceClient.ResolvedName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -28,6 +29,20 @@ import org.junit.jupiter.api.Test;
 class DirectoryNameResolutionServiceTest {
 
     private final PatientServiceClient client = mock(PatientServiceClient.class);
+
+    /**
+     * Configured, unless a case says otherwise.
+     *
+     * <p>A mock answers {@code false} to a boolean by default, which is the one value that makes
+     * {@link DirectoryNameResolutionService#resolve(List)} return before it does anything — so
+     * without this every case below would assert against the disabled short circuit and pass for the
+     * wrong reason. Stated here rather than per case, and {@link #aDisabledClientMarksTheCandidatesAndIsNeverCalled}
+     * is the one that turns it off.
+     */
+    @BeforeEach
+    void theClientIsConfigured() {
+        when(client.isEnabled()).thenReturn(true);
+    }
 
     /**
      * A patient link with an address is asked about, and the name lands on the transient field.
@@ -51,7 +66,7 @@ class DirectoryNameResolutionServiceTest {
      *
      * <p>Absent is "never a candidate" and {@code UNAVAILABLE} is "asked and no answer", and the
      * console branches on the difference: a clinician's row must not acquire a note saying their
-     * name could not be checked with the patient app, which would be true of nothing.
+     * name could not be looked up, which would be true of nothing.
      *
      * <p>Two ineligible shapes, and both are refusals this class makes rather than 404s it collects.
      * hc-professional's endpoint is not this one and its correlation key is a UUID; a patient link
@@ -134,6 +149,38 @@ class DirectoryNameResolutionServiceTest {
         assertThat(first.getNameResolution()).isEqualTo(NameResolution.UNAVAILABLE);
         assertThat(second.getNameResolution()).isEqualTo(NameResolution.UNAVAILABLE);
         assertThat(third.getNameResolution()).isEqualTo(NameResolution.UNAVAILABLE);
+        verify(client, never()).resolveName(anyString());
+    }
+
+    /**
+     * <b>A deployment that is not configured to ask marks its candidates without asking, and without
+     * counting a lookup.</b>
+     *
+     * <p>Two properties, and the second is why {@link PatientServiceClient#isEnabled()} is consulted
+     * here rather than left to the client's own refusal. The rows must still carry an outcome — they
+     * are candidates, and a candidate with no outcome tells the console it was never one — but
+     * nothing may be recorded as a lookup that opened no socket, or the budget warning reports
+     * network activity to a reader on a machine that has none.
+     *
+     * <p>This is the state {@code deploy/e2e/compose.yml} and every integration test in the
+     * repository run in, so it is also the state a reader is most likely to be looking at.
+     */
+    @Test
+    void aDisabledClientMarksTheCandidatesAndIsNeverCalled() {
+        when(client.isEnabled()).thenReturn(false);
+        // Stubbed although it must never be reached, so that a regression fails on the assertion
+        // below rather than on a null the mock would otherwise return: "it threw" and "it asked" are
+        // not the same finding, and only one of them is this case's.
+        when(client.resolveName(anyString())).thenReturn(new ResolvedName(NameResolution.UNAVAILABLE, null));
+        DirectoryLink candidate = patientLink("kojo@jac.net");
+        DirectoryLink clinician = new DirectoryLink();
+        clinician.setSource(DirectorySource.HC_PROFESSIONAL);
+        clinician.setEmail("k.quartey@abofonsa.care");
+
+        service(4000).resolve(List.of(candidate, clinician));
+
+        assertThat(candidate.getNameResolution()).isEqualTo(NameResolution.UNAVAILABLE);
+        assertThat(clinician.getNameResolution()).as("still not a candidate, disabled or not").isNull();
         verify(client, never()).resolveName(anyString());
     }
 

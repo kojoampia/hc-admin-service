@@ -55,9 +55,16 @@ public enum NameResolution {
      *
      * <p><b>"Never dialled" is deliberately not a fourth value.</b> It is a distinction the api's
      * log makes and the screen cannot act on: an administrator reading a directory row can do
-     * nothing different about a missing environment variable than about a stack that is down, and
-     * the row says "could not be checked" rather than "the patient app is down" so that it is true
-     * of both. See {@code PatientServiceClient}, which logs which it was.
+     * nothing different about a missing environment variable than about a stack that is down. See
+     * {@code PatientServiceClient}, which logs which it was.
+     *
+     * <p><b>Which is why the sentence on the row names nobody</b> — "a name could not be looked up
+     * for this account", not "the patient app could not be reached". Three of the four causes are on
+     * <em>this</em> side: a base url pointing at a container that does not exist here, a deployment
+     * configured off, a request with no token to relay. A row blaming the sibling stack for this
+     * service's own configuration is item 24's wrong-machine pointer in miniature — a screen sending
+     * an operator to go and look at a system that is working — and it is the state a stack would be
+     * in most often, because the default base url is the production container's name.
      */
     UNAVAILABLE,
 }

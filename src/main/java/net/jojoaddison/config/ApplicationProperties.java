@@ -125,8 +125,9 @@ public class ApplicationProperties {
      * hc-patient-service sits on {@code infranet} and this service is already on it, so production
      * needs no line at all — but the quality stack's sibling is called
      * {@code hc-patient-quality-service}, and the {@code deploy/e2e} stack has no hc-patient in it.
-     * Wrong or absent, the console shows the address item 45 put on the row plus a note saying the
-     * name could not be checked, which is honest and is not the feature working.
+     * Wrong or absent, the console shows the address item 45 put on the row plus a note saying a
+     * name could not be looked up, which is honest and is not the feature working. That note names
+     * no stack precisely because this is one of its causes.
      */
     public static class Patientservice {
 

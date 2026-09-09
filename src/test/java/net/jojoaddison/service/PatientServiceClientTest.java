@@ -8,16 +8,21 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import net.jojoaddison.domain.enumeration.NameResolution;
+import net.jojoaddison.security.SecurityUtils;
 import net.jojoaddison.service.PatientServiceClient.ResolvedName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -140,6 +145,37 @@ class PatientServiceClientTest {
     }
 
     /**
+     * <b>And it relays the token a REAL request carries, which is not the same object at all.</b>
+     *
+     * <p>The case above authenticates with a {@code UsernamePasswordAuthenticationToken}, whose
+     * credentials are the {@code String} the fixture put there. <b>No request to this service ever
+     * produces one.</b> {@code SecurityConfiguration} configures
+     * {@code oauth2ResourceServer(oauth2 -> oauth2.jwt(...))}, so an authenticated request arrives as
+     * a {@link JwtAuthenticationToken} — and its base class's two-argument constructor passes the
+     * token as token, principal <em>and</em> credentials (verified in the bytecode of Spring Security
+     * 7.1.1's {@code AbstractOAuth2TokenAuthenticationToken}: {@code aload_1, aload_1, aload_1}). So
+     * {@code getCredentials()} answers a {@code Jwt}, never a {@code String}.
+     *
+     * <p>{@code SecurityUtils.getCurrentUserJWT()} filters on {@code instanceof String}. Against the
+     * only authentication this service actually issues it is therefore <b>empty on every request</b>,
+     * the client takes its no-token branch, and every candidate row reports as unresolvable on every
+     * stack, for ever. The fixture above could not see it, and its own javadoc named the trap without
+     * asking which token a real request produces — which is the more useful half of this finding: a
+     * comment that knows about a hazard is not a test for it.
+     *
+     * <p>{@link SecurityUtils#getCurrentRequestJwt()} is the reading that covers both shapes.
+     */
+    @Test
+    void relaysTheTokenThatARealResourceServerRequestCarries() {
+        authenticateAsTheResourceServerDoes();
+
+        clientAt(server.getAddress().getPort(), true).resolveName("kojo@jac.net");
+
+        assertThat(requests.get()).as("a real authenticated request must reach the far service at all").isOne();
+        assertThat(authorization.get()).isEqualTo("Bearer a.real.bearer.token");
+    }
+
+    /**
      * A 404 is an answer, not a failure.
      *
      * <p>It is <b>both</b> "hc-patient holds no profile for this address" and "this caller may not
@@ -255,6 +291,30 @@ class PatientServiceClientTest {
         SecurityContextHolder
             .getContext()
             .setAuthentication(new UsernamePasswordAuthenticationToken("admin", "a.relayed.token", List.of()));
+    }
+
+    /**
+     * The authentication a real request to this service produces: a {@link JwtAuthenticationToken}
+     * from the resource-server filter chain, holding the decoded {@code Jwt}.
+     *
+     * <p>Built the way {@code JwtAuthenticationProvider} builds it — {@code new
+     * JwtAuthenticationToken(jwt, authorities)} — so the credentials are the {@code Jwt} and the raw
+     * token is reachable only through {@code getToken().getTokenValue()}. The header value below is
+     * not a well-formed JWS and does not need to be: nothing here decodes it, and the point of the
+     * case is which field the relay reads.
+     */
+    private static void authenticateAsTheResourceServerDoes() {
+        Jwt jwt = Jwt
+            .withTokenValue("a.real.bearer.token")
+            .header("alg", "HS512")
+            .subject("admin")
+            .claim("auth", "ROLE_ADMIN")
+            .issuedAt(Instant.now())
+            .expiresAt(Instant.now().plusSeconds(300))
+            .build();
+        SecurityContextHolder
+            .getContext()
+            .setAuthentication(new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
     }
 
     /** Bound and released, so the number is one the kernel says is free rather than one guessed. */

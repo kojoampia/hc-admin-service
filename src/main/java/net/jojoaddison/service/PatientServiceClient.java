@@ -127,7 +127,15 @@ public class PatientServiceClient {
         }
     }
 
-    /** Whether this deployment is configured to ask at all. Read by the resolver before it spends its budget. */
+    /**
+     * Whether this deployment is configured to ask at all.
+     *
+     * <p>Read by {@link DirectoryNameResolutionService} before it enters its loop, so a deployment
+     * with no sibling stack marks its candidate rows without counting a lookup per row. The answer
+     * would be the same without it — {@link #resolveName(String)} refuses when disabled — but the
+     * budget warning would then report lookups that never opened a socket, which is a figure that
+     * sends a reader to the network.
+     */
     public boolean isEnabled() {
         return enabled;
     }
@@ -160,7 +168,7 @@ public class PatientServiceClient {
         if (email == null || email.isBlank()) {
             return ResolvedName.unavailable();
         }
-        String token = SecurityUtils.getCurrentUserJWT().orElse(null);
+        String token = SecurityUtils.getCurrentRequestJwt().orElse(null);
         if (token == null) {
             // A configuration or plumbing fault rather than a fact about the patient: this endpoint
             // is behind the read/write split, so a request that reached it had a token. Worth a warn
@@ -192,9 +200,29 @@ public class PatientServiceClient {
             }
             return new ResolvedName(NameResolution.RESOLVED, nameOf(response.getBody()));
         } catch (RestClientException e) {
-            // Identifiers only, and the subject is pseudonymised: this message is read out of a
-            // support ticket and the address must not be in it.
-            LOG.warn("patientservice could not be reached for subject {}: {}", LogPseudonym.subject(email), e.getMessage());
+            // TYPES, NEVER THE MESSAGE — and this line carried the message until it was reviewed.
+            //
+            // Spring wraps an I/O failure in a ResourceAccessException whose message quotes the
+            // REQUEST URL, and the address is a path segment of that URL. So the line read
+            //
+            //   ... for subject subj-df2b50538c26: I/O error on GET request for
+            //   "http://.../api/profiles/email/kojo%40jac.net": null
+            //
+            // — a pseudonymised subject and a readable address on the same line, percent-encoded,
+            // which is not pseudonymisation. That is backlog item 43's exact breach, into an
+            // unauthenticated estate-wide Loki, and it fired precisely when hc-patient was
+            // unreachable: the moment somebody would be reading these logs.
+            //
+            // The two class names lose nothing worth having. What an operator needs from this line
+            // is which failure it was, and the cause's type says it exactly — ConnectException,
+            // HttpConnectTimeoutException, HttpTimeoutException, UnknownHostException — where the
+            // message adds only a URL nobody may write down. LogPseudonymTest sweeps for the shape.
+            LOG.warn(
+                "patientservice could not be reached for subject {}: {} caused by {}",
+                LogPseudonym.subject(email),
+                e.getClass().getSimpleName(),
+                e.getCause() == null ? "nothing further" : e.getCause().getClass().getSimpleName()
+            );
             return ResolvedName.unavailable();
         }
     }

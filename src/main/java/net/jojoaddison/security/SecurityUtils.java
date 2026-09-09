@@ -10,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 /**
  * Utility class for Spring Security.
@@ -77,6 +78,21 @@ public final class SecurityUtils {
     /**
      * Get the JWT of the current user.
      *
+     * <p><b>⚠ This reads the authentication's credentials as a {@code String}, and no request to
+     * this service produces one.</b> {@code SecurityConfiguration} configures
+     * {@code oauth2ResourceServer(oauth2 -> oauth2.jwt(...))}, so an authenticated request arrives
+     * as a {@code JwtAuthenticationToken}, whose base class passes the token as token, principal
+     * <em>and</em> credentials — verified in the bytecode of Spring Security 7.1.1's
+     * {@code AbstractOAuth2TokenAuthenticationToken}, whose two-argument constructor is
+     * {@code aload_1, aload_1, aload_1}. So {@code getCredentials()} answers a {@code Jwt} and this
+     * method answers <b>empty on every real request</b>.
+     *
+     * <p>It is generated JHipster code and is left exactly as it is on purpose: changing it would
+     * turn every existing caller's "no token" branch into a live outbound call, which is a decision
+     * about those features rather than about this method. <b>Use
+     * {@link #getCurrentRequestJwt()} for anything that relays a token</b>; it covers this shape as
+     * well, so it is a drop-in replacement wherever this is called today.
+     *
      * @return the JWT of the current user.
      */
     public static Optional<String> getCurrentUserJWT() {
@@ -85,6 +101,46 @@ public final class SecurityUtils {
             .ofNullable(securityContext.getAuthentication())
             .filter(authentication -> authentication.getCredentials() instanceof String)
             .map(authentication -> (String) authentication.getCredentials());
+    }
+
+    /**
+     * The raw bearer token this request arrived with, whatever shape the authentication is in.
+     *
+     * <h2>Why this exists beside {@link #getCurrentUserJWT()} rather than replacing it</h2>
+     *
+     * <p>Backlog item 50. A cross-stack client relays the caller's own token — the three gateways
+     * share one signing key, so a token this service received is accepted by the siblings — and
+     * {@code getCurrentUserJWT()} cannot supply it: it filters credentials on {@code instanceof
+     * String}, and this service's resource-server chain produces a {@code JwtAuthenticationToken}
+     * whose credentials are the decoded {@code Jwt}. The failure is silent by construction, because
+     * "no token" is a legitimate state on an unauthenticated request and every caller has a branch
+     * for it — so a relay that never relays looks exactly like a deployment that is not configured
+     * for one.
+     *
+     * <p>Both readings are here rather than one, so this is safe to adopt anywhere the older method
+     * is called: the {@code String} branch keeps whatever behaviour a caller has today, and the
+     * {@code JwtAuthenticationToken} branch is the one that fires in production.
+     *
+     * <p><b>{@code getTokenValue()} and not a re-encode.</b> {@code Jwt} holds the compact
+     * serialization it was decoded from, so this is the caller's token byte for byte — signature
+     * included, which is the whole point. Rebuilding one from the claims would need this service to
+     * hold a signing key it deliberately does not use, and would mint a new token rather than pass
+     * one on.
+     *
+     * @return the compact token, or empty when the request carries none.
+     */
+    public static Optional<String> getCurrentRequestJwt() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return Optional.empty();
+        }
+        if (authentication.getCredentials() instanceof String token && !token.isBlank()) {
+            return Optional.of(token);
+        }
+        if (authentication instanceof JwtAuthenticationToken jwtAuthentication) {
+            return Optional.ofNullable(jwtAuthentication.getToken()).map(Jwt::getTokenValue).filter(token -> !token.isBlank());
+        }
+        return Optional.empty();
     }
 
     /**
