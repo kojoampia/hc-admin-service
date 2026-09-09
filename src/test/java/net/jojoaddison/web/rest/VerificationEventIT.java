@@ -8,7 +8,6 @@ import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import net.jojoaddison.IntegrationTest;
-import net.jojoaddison.config.EmbeddedKafka;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
@@ -52,7 +51,6 @@ import tools.jackson.databind.ObjectMapper;
 @IntegrationTest
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser(username = "admin")
-@EmbeddedKafka
 @ImportAutoConfiguration(TestChannelBinderConfiguration.class)
 class VerificationEventIT {
 

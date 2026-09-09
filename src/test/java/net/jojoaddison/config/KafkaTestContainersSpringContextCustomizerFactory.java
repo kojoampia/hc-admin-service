@@ -17,13 +17,24 @@ public class KafkaTestContainersSpringContextCustomizerFactory implements Contex
 
     private static KafkaTestContainer kafkaBean;
 
+    /**
+     * Whether this class has asked for a real broker.
+     *
+     * <p>Pulled out of the customizer so it can be asserted without starting anything —
+     * {@code BrokerOptInArchTest} pins that the opt-in still resolves through a meta-annotation, which
+     * is the property that made {@code @EmbeddedKafka} on {@code @IntegrationTest} start a container
+     * for every test in the repository, and is the property a reader is least likely to expect.
+     */
+    static boolean wantsBroker(Class<?> testClass) {
+        return AnnotatedElementUtils.findMergedAnnotation(testClass, EmbeddedKafka.class) != null;
+    }
+
     @Override
     public ContextCustomizer createContextCustomizer(Class<?> testClass, List<ContextConfigurationAttributes> configAttributes) {
         return (context, mergedConfig) -> {
             ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
             TestPropertyValues testValues = TestPropertyValues.empty();
-            EmbeddedKafka kafkaAnnotation = AnnotatedElementUtils.findMergedAnnotation(testClass, EmbeddedKafka.class);
-            if (null != kafkaAnnotation) {
+            if (wantsBroker(testClass)) {
                 log.debug("detected the EmbeddedKafka annotation on class {}", testClass.getName());
                 log.info("Warming up the kafka broker");
                 if (null == kafkaBean) {

@@ -34,10 +34,10 @@
   - `HcAdminServiceKafkaResource` publishes through `StreamBridge`.
   - `broker/KafkaConsumer` fans inbound messages out to registered `SseEmitter` clients.
 - Security is centralized in `config/SecurityConfiguration`: `/api/**` requires authentication, `/api/admin/**` and most management endpoints require `ROLE_ADMIN`, and the app is stateless.
-- Integration tests boot the full Spring context through `@IntegrationTest`, which wires reusable **MongoDB** and **Kafka** Testcontainers via `src/test/resources/META-INF/spring.factories` context customizers.
+- Integration tests boot the full Spring context through `@IntegrationTest`, which wires a reusable **MongoDB** Testcontainer via `src/test/resources/META-INF/spring.factories` context customizers, and the in-memory `TestChannelBinderConfiguration` in place of a broker. **No Kafka container starts.**
 - Test execution is intentionally structured:
   - `TestContainersSpringContextCustomizerFactory` injects the Mongo replica-set URI into Spring tests.
-  - `KafkaTestContainersSpringContextCustomizerFactory` only starts Kafka when the test class carries `@EmbeddedKafka`.
+  - `KafkaTestContainersSpringContextCustomizerFactory` starts Kafka only for a class carrying `@EmbeddedKafka`, and nothing does. It sat on `@IntegrationTest` itself until 2026-09-09 and therefore started a broker for all 72 integration tests, none of which asserted anything about one (`docs/backlog.md` item 17).
   - `junit-platform.properties` uses `SpringBootTestClassOrderer` so non-Spring tests run before full integration tests.
 
 ## Key conventions
@@ -49,6 +49,6 @@
   - Responses use `HeaderUtil`, `ResponseUtil`, and `PaginationUtil`.
 - Follow the style of the surrounding feature instead of forcing one API shape across the repo. Most resources use **DTO + MapStruct mapper + paginated list endpoints**, but some endpoints such as `OrganisationResource` and `PersonResource` still expose domain entities directly.
 - For new Mongo fields, mirror the existing document style: annotate with `@Field("snake_case")`, keep validation on the document/DTO, and prefer Spring Data derived queries before adding custom repository code.
-- REST integration tests should use `@IntegrationTest`, `@AutoConfigureMockMvc(addFilters = false)`, and `@WithMockUser`. Add `@EmbeddedKafka` only when the test needs the Kafka container path; stream-focused tests can also import `TestChannelBinderConfiguration` like `HcAdminServiceKafkaResourceIT`.
+- REST integration tests should use `@IntegrationTest`, `@AutoConfigureMockMvc(addFilters = false)`, and `@WithMockUser`. **Do not add `@EmbeddedKafka`** — `BrokerOptInArchTest` fails on it, because a broker costs every test in the run and no test here needs one. Stream-focused tests drive bindings through `InputDestination` / `OutputDestination`, as `HcAdminServiceKafkaResourceIT`, `VerificationEventIT` and `DirectoryEventConsumptionIT` do.
 - This repo is already on **Spring Boot 4** conventions: import `AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure`, and use `PathPatternRequestMatcher` in security code instead of older MVC matcher APIs.
 - Formatting is handled with **Prettier** for Java, YAML, JSON, HTML, and Markdown; keep new files compatible with the existing Prettier/lint-staged setup.
