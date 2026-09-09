@@ -1319,6 +1319,14 @@
         "joinedOn": "2026-09-06",
         "lastActiveOn": "2026-09-06",
         "caseCount": 0
+      },
+      {
+        "id": "a15",
+        "isArchived": false,
+        "status": "ACTIVE",
+        "joinedOn": "2026-09-08",
+        "lastActiveOn": "2026-09-08",
+        "caseCount": 0
       }
     ],
     "directoryLinks": [
@@ -1341,6 +1349,22 @@
         "planCode": "MELON",
         "planName": "MELON Plan",
         "planStatus": "PENDING"
+      },
+      {
+        "id": "dl-a15",
+        "source": "HC_PATIENT",
+        "externalKey": "kojo@jac.net",
+        "externalId": "patient-kojo",
+        "login": "kojo",
+        "email": "kojo@jac.net",
+        "state": "AccountCreated",
+        "subjectKind": "PATIENT",
+        "activated": true,
+        "localId": "a15",
+        "firstSeenAt": "2026-09-08T08:14:00Z",
+        "lastEventAt": "2026-09-08T08:14:00Z",
+        "lastEventId": "evt-seed-a15",
+        "lastEventType": "AccountCreated"
       },
       {
         "id": "dl-plan-a6",

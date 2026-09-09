@@ -6,6 +6,7 @@ import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.support.NamedFilters;
+import net.jojoaddison.service.DirectoryNameResolutionService;
 import net.jojoaddison.service.DirectoryProjectionService;
 import net.jojoaddison.service.dto.DirectoryReconciliationDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
@@ -99,6 +100,7 @@ public class DirectoryLinkResource {
 
     private final DirectoryLinkRepository directoryLinkRepository;
     private final DirectoryProjectionService directoryProjectionService;
+    private final DirectoryNameResolutionService directoryNameResolutionService;
 
     /** For combining the two optional filters below, which is more than a derived query method can do. */
     private final MongoTemplate mongoTemplate;
@@ -106,10 +108,12 @@ public class DirectoryLinkResource {
     public DirectoryLinkResource(
         DirectoryLinkRepository directoryLinkRepository,
         DirectoryProjectionService directoryProjectionService,
+        DirectoryNameResolutionService directoryNameResolutionService,
         MongoTemplate mongoTemplate
     ) {
         this.directoryLinkRepository = directoryLinkRepository;
         this.directoryProjectionService = directoryProjectionService;
+        this.directoryNameResolutionService = directoryNameResolutionService;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -209,12 +213,42 @@ public class DirectoryLinkResource {
      * a decision. Its own javadoc warns of exactly that: "a filter that vanishes is a query that
      * returns everything".
      *
+     * <h2>{@code resolveNames}, and why it is opt-in — backlog item 50</h2>
+     *
+     * <p>The paragraphs above end at the address, and an address is what an operator reported from
+     * production as an email where a name should be. hc-patient <em>can</em> name these people —
+     * {@code GET /api/profiles/email/{email}}, already built, already authorised for an hc-admin
+     * administrator because the three stacks share one signing key — so this parameter asks for
+     * that lookup and decorates each {@code HC_PATIENT} link with the name and with what happened.
+     * See {@link net.jojoaddison.service.DirectoryNameResolutionService}, and
+     * {@link net.jojoaddison.domain.enumeration.NameResolution} for the three outcomes and why
+     * there is no fourth.
+     *
+     * <p><b>Opt-in rather than always-on, because it is the one thing on this endpoint that leaves
+     * the process.</b> Three callers read this handler and only one wants names: the console's plan
+     * choice panel would spend five cross-stack calls per directory load to decorate rows that link
+     * to the record where the name already resolves, and the professional directory's awaiting
+     * table would spend one per clinician on an endpoint keyed by an address it has not got. A flag
+     * lets the caller that needs it pay for it.
+     *
+     * <p><b>Nothing is written and nothing is cached between requests.</b> The name rides on
+     * transient fields; item 27(a)'s rule is that hc-admin does not keep a copy of an identity
+     * hc-patient owns, and a cache outliving the request would be that copy.
+     *
+     * <p><b>A blank {@code resolveNames=} is not refused</b>, unlike the three filters above, and
+     * the difference is the one {@code localId.in} already draws: this parameter has a safe empty
+     * reading. Absent, blank or {@code false} all mean "answer as this endpoint did before item 50",
+     * which is the addresses item 45 put on the rows — a degraded screen, never a wrong one. The
+     * three above have no such reading, because a filter that vanishes returns everything.
+     *
      * @param source when present, only that stream's links.
      * @param localIdIn when present, only links naming one of these local records.
      * @param unlinked when present, only the links that have no local record ({@code true}) or only
      *                 the ones that have ({@code false}).
      * @param planStatus when present, only the links whose stored plan choice was reported in this
      *                   status. Absent means "do not ask", which is what every other caller wants.
+     * @param resolveNames when true, ask hc-patient to name each {@code HC_PATIENT} link on this
+     *                     page. Anything else — absent, blank, false — answers without asking.
      * @param pageable the pagination information.
      */
     @GetMapping("")
@@ -223,6 +257,7 @@ public class DirectoryLinkResource {
         @RequestParam(name = "localId.in", required = false) List<String> localIdIn,
         @RequestParam(required = false) Boolean unlinked,
         @RequestParam(required = false) String planStatus,
+        @RequestParam(required = false) Boolean resolveNames,
         @org.springdoc.core.annotations.ParameterObject Pageable pageable,
         // Not a parameter of this API: the raw request is the only thing left that can tell a blank
         // typed parameter from an absent one, because the converter has already turned both into
@@ -289,6 +324,12 @@ public class DirectoryLinkResource {
         Page<DirectoryLink> page = filters.isEmpty()
             ? directoryLinkRepository.findAll(pageable)
             : NamedFilters.page(mongoTemplate, DirectoryLink.class, filters, pageable);
+        if (Boolean.TRUE.equals(resolveNames)) {
+            // On the way out, on documents that are never saved again. The resolver decides which
+            // rows are candidates and bounds what it spends; it throws nothing, so a sibling stack
+            // that is down costs this page its names and not its response.
+            directoryNameResolutionService.resolve(page.getContent());
+        }
         HttpHeaders headers = PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), page);
         return ResponseEntity.ok().headers(headers).body(page.getContent());
     }

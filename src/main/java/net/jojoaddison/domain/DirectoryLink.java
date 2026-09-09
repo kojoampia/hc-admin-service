@@ -1,11 +1,14 @@
 package net.jojoaddison.domain;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
+import net.jojoaddison.domain.enumeration.NameResolution;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -516,6 +519,56 @@ public class DirectoryLink implements Serializable {
     @Field("phases_joined_at")
     private Instant phasesJoinedAt;
 
+    /**
+     * The name hc-patient holds for this address, resolved at read time and <b>stored nowhere</b> —
+     * backlog item 50.
+     *
+     * <h2>Transient, and that is the feature</h2>
+     *
+     * <p>hc-patient owns identity and this service does not. A name persisted here would be a second
+     * copy that can disagree with theirs, would survive a correction made on their side, and would
+     * put fabricated-looking identity into a directory the moment it was defaulted — which is item
+     * 27(a)'s rule and the whole reason item 50 is a lookup rather than an import. Spring Data
+     * ignores this field on every write, so no code path can accidentally begin storing it; the only
+     * writer is {@link net.jojoaddison.service.DirectoryNameResolutionService}, on documents that
+     * are on their way out of a {@code GET}.
+     *
+     * <p>Null unless the caller asked ({@code GET /api/directory-links?resolveNames=true}) and the
+     * lookup produced a name. See {@link #nameResolution} for the difference between "no name" and
+     * "nobody asked".
+     *
+     * <p><b>Deliberately absent from {@link #toString()}</b>, which the other identifying fields are
+     * too: a document's {@code toString} is one {@code LOG.debug} away from being a person's name in
+     * an estate-wide log store, which is the thing backlog item 43 closed.
+     *
+     * <p><b>{@code NON_NULL}, unlike every other field on this document</b>, so that a row nobody
+     * asked about carries no key at all rather than an explicit {@code null}. The distinction the
+     * console draws is "was this row a candidate", and a serialized null answers it only by
+     * convention — the two are one field's worth of Jackson configuration apart, and the convention
+     * is the part a reader has to be told. The same annotation is on {@link #nameResolution} and for
+     * the same reason; both are decorations rather than facts about the account, so their absence is
+     * meaningful where an empty {@code login} is not.
+     */
+    @Transient
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String resolvedName;
+
+    /**
+     * What happened when the name above was looked up, or null when this row was never a candidate.
+     *
+     * <p>Three states this service genuinely knows, and the console renders only one of them
+     * specially — see {@link NameResolution}, which argues why
+     * there is no fourth for "a name exists and you may not see it".
+     *
+     * <p><b>Absent means "not asked", not "asked and failed".</b> A clinician link and a patient link
+     * with no address are left with a null here rather than an {@code UNAVAILABLE}, so a screen can
+     * tell a row that was never a candidate from a lookup that did not come back. Transient for the
+     * same reason as the field above: an outcome is true of one moment and of no document.
+     */
+    @Transient
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private NameResolution nameResolution;
+
     public String getId() {
         return id;
     }
@@ -754,6 +807,22 @@ public class DirectoryLink implements Serializable {
 
     public void setPhasesJoinedAt(Instant phasesJoinedAt) {
         this.phasesJoinedAt = phasesJoinedAt;
+    }
+
+    public String getResolvedName() {
+        return resolvedName;
+    }
+
+    public void setResolvedName(String resolvedName) {
+        this.resolvedName = resolvedName;
+    }
+
+    public NameResolution getNameResolution() {
+        return nameResolution;
+    }
+
+    public void setNameResolution(NameResolution nameResolution) {
+        this.nameResolution = nameResolution;
     }
 
     @Override

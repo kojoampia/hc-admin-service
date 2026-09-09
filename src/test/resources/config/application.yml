@@ -208,6 +208,21 @@ application:
     # It also stops the @Scheduled refresh doing anything in a booted context, so no test can be
     # raced by a background write to service_plan.
     enabled: false
+  patientservice:
+    # OFF for every integration test, third of three and for the same reason as the two above.
+    #
+    # PatientServiceClient asks hc-patient to name a patient this directory learned from an event
+    # (backlog item 50). Left enabled, every DirectoryLinkResourceIT case that passes
+    # resolveNames=true would open a socket to hc-patient-service:8081 — a name that resolves on a
+    # machine running the quality stack and spends a connect timeout per row on one that is not, so
+    # the suite's timing and its coverage would both depend on what happens to be up. Disabled, the
+    # client answers UNAVAILABLE without dialling.
+    #
+    # The three outcomes are covered by PatientServiceClientTest against a loopback HTTP server, and
+    # the decoration rules by DirectoryNameResolutionServiceTest over a mocked client. What the ITs
+    # assert with this off is the shape on the wire: which rows carry an outcome at all, and that no
+    # clinical field from hc-patient's 27-field Profile can reach the response.
+    enabled: false
 management:
   health:
     mail:
