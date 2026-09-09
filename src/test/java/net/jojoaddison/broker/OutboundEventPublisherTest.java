@@ -8,11 +8,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
 
 /**
@@ -78,6 +83,77 @@ class OutboundEventPublisherTest {
         publisher.publish("binding-out-0", "payload", "Message m1");
 
         assertThatCode(() -> queued.forEach(Runnable::run)).doesNotThrowAnyException();
+    }
+
+    /**
+     * <b>The wording of these two lines is a contract, not prose — backlog item 40c.</b>
+     *
+     * <p>A failed publish is visible in the log and nowhere else, and that was decided rather than
+     * settled for: a Micrometer counter is registered against a composite with no delegate in
+     * production ({@code management.prometheus.metrics.export.enabled: false}) and nothing on the host
+     * scrapes this application, where the log demonstrably reaches Loki — proven in item 43 by reading
+     * a line back out, by two independent paths, with fourteen days of retention. So the detector is a
+     * LogQL query, recorded in {@code deploy/observability/alert-rules.yml}:
+     *
+     * <pre>{@code {service_name="hc-admin-service"} |~ `could not be published to|outbound publish queue is full` }</pre>
+     *
+     * <p>Which makes the message text load-bearing in a way no compiler can see. A reword is a silent
+     * break of the only detector this failure has, so these two cases pin the substrings that query
+     * matches. <b>If one of them fails, the fix is to move the query with the text</b> — in that file
+     * and in this javadoc — not to relax the assertion.
+     *
+     * <p>They assert substrings rather than whole formatted messages on purpose: the subject and the
+     * binding name are already covered by the cases above, and pinning the full line would fail on a
+     * change to the parts the query does not read.
+     */
+    @Test
+    void theFailedSendWarningKeepsTheTextTheLokiQueryMatches() {
+        when(streamBridge.send(anyString(), anyString())).thenThrow(new IllegalStateException("no broker"));
+
+        List<ILoggingEvent> logged = capturingLogsOf(() -> {
+            publisher.publish("binding-out-0", "payload", "Message m1");
+            queued.forEach(Runnable::run);
+        });
+
+        assertThat(logged)
+            .as("the only trace a dropped event leaves; deploy/observability/alert-rules.yml queries this string")
+            .anySatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage()).contains("could not be published to");
+            });
+    }
+
+    /** The second half of the same contract — see the case above. */
+    @Test
+    void theFullQueueWarningKeepsTheTextTheLokiQueryMatches() {
+        Executor full = task -> {
+            throw new RejectedExecutionException("queue full");
+        };
+        OutboundEventPublisher publisherOnAFullQueue = new OutboundEventPublisher(streamBridge, full);
+
+        List<ILoggingEvent> logged = capturingLogsOf(() -> publisherOnAFullQueue.publish("binding-out-0", "payload", "Message m1"));
+
+        assertThat(logged)
+            .as("a queue full enough to drop events is the louder failure of the two and must be queryable with it")
+            .anySatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage()).contains("outbound publish queue is full");
+            });
+    }
+
+    /** Detaches in a {@code finally}, so a failing assertion cannot leave the appender on the logger. */
+    private static List<ILoggingEvent> capturingLogsOf(Runnable work) {
+        Logger logger = (Logger) LoggerFactory.getLogger(OutboundEventPublisher.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            work.run();
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+        return List.copyOf(appender.list);
     }
 
     /**

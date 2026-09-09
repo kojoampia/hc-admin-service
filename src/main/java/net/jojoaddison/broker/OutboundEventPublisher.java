@@ -44,13 +44,51 @@ import org.springframework.stereotype.Component;
  *
  * <p><strong>What it costs, stated plainly.</strong> The sixty-second request was the only externally
  * visible symptom of an unreachable broker, and this removes it — an already-silent failure gets
- * quieter. Nothing replaces it, because there is nowhere in this estate for it to go:
- * {@code MANAGEMENT_HEALTH_BINDERS_ENABLED=false} in all three compose files (deliberately — the
- * indicator feeds the container healthcheck), and {@code management.prometheus.metrics.export.enabled}
- * is {@code false} in {@code application-prod.yml}, so a Micrometer counter would reach no registry
- * anything reads. {@code deploy/observability/alert-rules.yml} records what that costs: a rule that
- * cannot fire is worse than no rule, because the file looks like coverage. The {@code WARN} below is
- * therefore the whole of the visibility, exactly as it was before this change — see backlog item 40.
+ * quieter. That cost was accepted rather than overlooked, and backlog item 40c is where it was
+ * argued out.
+ *
+ * <p><strong>The decision, 2026-09-09: outbound publishing stays log-only, and the log is a detector
+ * rather than a shrug.</strong> The two {@code WARN} lines below are the whole of the visibility, and
+ * they are queried:
+ *
+ * <pre>{@code {service_name="hc-admin-service"} |~ `could not be published to|outbound publish queue is full` }</pre>
+ *
+ * <p>That path is <em>proven</em>, which is the reason it beat the alternatives rather than merely
+ * being cheaper. Item 43 read a line of this service's back out of Loki on the production host by two
+ * independent routes — the OTel agent's OTLP log export and Alloy's {@code job="docker"} scrape — with
+ * {@code multitenancy_enabled: false} and {@code retention_period: 14d}. <b>So the strings in
+ * {@link #publish} and {@link #send} are a contract with
+ * {@code deploy/observability/alert-rules.yml}, and {@code OutboundEventPublisherTest} pins both.</b>
+ * Reword one and that test fails; move the query with it rather than relaxing the test.
+ *
+ * <p><strong>Why not a metric, which is the obvious answer.</strong> It would be registered against
+ * nothing and read by nothing. {@code management.prometheus.metrics.export.enabled} is {@code false}
+ * in {@code application-prod.yml} and {@code micrometer-registry-prometheus} is the only registry on
+ * this classpath, so in production the composite has no delegate and a {@code Counter} records into a
+ * no-op; and this host has no application scrape targets at all — {@code alert-rules.yml} was once
+ * written on Micrometer names and matched nothing for ever, which is also the evidence that the
+ * agent's Micrometer bridge is not exporting here. That file is emphatic that a rule which cannot
+ * fire is worse than no rule, because it looks like coverage.
+ *
+ * <p>The binder health indicator is not the answer either, and is the one candidate that must not be
+ * "fixed". {@code MANAGEMENT_HEALTH_BINDERS_ENABLED=false} in all three compose files is deliberate:
+ * it contributes to {@code /management/health}, which is what the container healthcheck reads, so
+ * switching it on makes an unreachable broker restart the container.
+ *
+ * <p><strong>And why no badge on the platform-health screen.</strong> The dashboard already answers
+ * the neighbouring question from measured data — {@code DashboardMetricsService} reads
+ * {@code sum(kafka_consumer_connection_count)} out of Mimir and reports "Realtime message
+ * notification" as Live, Offline or Unknown. A second badge fed by the counter below would be a
+ * figure about ourselves beside a figure about the platform, and it would claim more than it can
+ * prove: the {@code WARN} fires when a send <em>throws</em>, which is binding creation against an
+ * absent broker. No {@code sync: true} and no producer error channel is configured on either binding,
+ * so once a binding exists the send hands the record to the producer's accumulator and returns — a
+ * broker that dies <em>after</em> the bind loses records without this class ever being told.
+ *
+ * <p><strong>What would reopen this:</strong> an application metric proven present in Mimir (queried,
+ * not inferred), a Loki ruler on the host so the query above can page instead of being run by hand,
+ * or a publish becoming load-bearing — which today it is not, since every caller's javadoc records
+ * that the record survives without it.
  */
 @Component
 public class OutboundEventPublisher {
