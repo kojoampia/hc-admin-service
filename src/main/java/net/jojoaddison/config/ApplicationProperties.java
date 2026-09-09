@@ -37,6 +37,15 @@ public class ApplicationProperties {
      */
     private final AbofonsaContent abofonsaContent = new AbofonsaContent();
 
+    /**
+     * Where the patient app lives, and whether to ask it to name a patient learned from an event.
+     *
+     * <p>Third block, same shape and same trap as the two above — {@code ignoreUnknownFields = false}
+     * means a compose file setting {@code APPLICATION_PATIENTSERVICE_BASE_URL} against a class that
+     * does not declare it fails the whole context at startup. Backlog item 50.
+     */
+    private final Patientservice patientservice = new Patientservice();
+
     // jhipster-needle-application-properties-property
 
     public Professionalservice getProfessionalservice() {
@@ -45,6 +54,10 @@ public class ApplicationProperties {
 
     public AbofonsaContent getAbofonsaContent() {
         return abofonsaContent;
+    }
+
+    public Patientservice getPatientservice() {
+        return patientservice;
     }
 
     // jhipster-needle-application-properties-property-getter
@@ -96,6 +109,88 @@ public class ApplicationProperties {
 
         public void setTimeoutSeconds(int timeoutSeconds) {
             this.timeoutSeconds = timeoutSeconds;
+        }
+    }
+
+    /**
+     * {@code application.patientservice.*} — hc-patient's microservice, which owns patient identity.
+     *
+     * <p>One word, matching {@code professionalservice} above and for the same reason: relaxed
+     * binding would accept {@code patient-service} too, and two spellings in two compose files read
+     * as two settings. The gateway prefix over there is {@code hcpatientservice} and the container is
+     * {@code hc-patient-service}; this name follows the sibling block in this file, which is the one
+     * a reader is comparing it against.
+     *
+     * <p><b>The default is the production container name, and every other environment must set it.</b>
+     * hc-patient-service sits on {@code infranet} and this service is already on it, so production
+     * needs no line at all — but the quality stack's sibling is called
+     * {@code hc-patient-quality-service}, and the {@code deploy/e2e} stack has no hc-patient in it.
+     * Wrong or absent, the console shows the address item 45 put on the row plus a note saying the
+     * name could not be checked, which is honest and is not the feature working.
+     */
+    public static class Patientservice {
+
+        /** Container-network address of hc-patient-service. Port 8081, not 8080 — theirs, not ours. */
+        private String baseUrl = "http://hc-patient-service:8081";
+
+        /**
+         * Off means "do not ask hc-patient to name anybody".
+         *
+         * <p>Disabled, every lookup answers {@code UNAVAILABLE} and the directory reads exactly as it
+         * did before backlog item 50. It never degrades to inventing a name, and it never fails a
+         * request: this read decorates a screen, and a screen that will not load is worse than one
+         * showing an address.
+         */
+        private boolean enabled = true;
+
+        /**
+         * Both the connect and the read timeout, in seconds.
+         *
+         * <p>Two rather than the roster client's five, because this one is on the path of a screen
+         * somebody is waiting for and it runs once per nameless row.
+         */
+        private int timeoutSeconds = 2;
+
+        /**
+         * How long one request may spend resolving names before the rest of the page is reported
+         * unavailable without being asked.
+         *
+         * <p>The bound on the worst case: a page of twenty nameless rows against a sibling that
+         * accepts connections and never answers is twenty read timeouts in series without it. See
+         * {@code DirectoryNameResolutionService}.
+         */
+        private long resolveBudgetMs = 4000;
+
+        public String getBaseUrl() {
+            return baseUrl;
+        }
+
+        public void setBaseUrl(String baseUrl) {
+            this.baseUrl = baseUrl;
+        }
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getTimeoutSeconds() {
+            return timeoutSeconds;
+        }
+
+        public void setTimeoutSeconds(int timeoutSeconds) {
+            this.timeoutSeconds = timeoutSeconds;
+        }
+
+        public long getResolveBudgetMs() {
+            return resolveBudgetMs;
+        }
+
+        public void setResolveBudgetMs(long resolveBudgetMs) {
+            this.resolveBudgetMs = resolveBudgetMs;
         }
     }
 

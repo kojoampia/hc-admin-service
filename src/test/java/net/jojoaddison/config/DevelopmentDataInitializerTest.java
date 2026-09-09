@@ -149,7 +149,7 @@ class DevelopmentDataInitializerTest {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
         assertThat(test.getPersonProfiles()).hasSize(22);
-        assertThat(test.getPatients()).hasSize(14);
+        assertThat(test.getPatients()).hasSize(15);
         assertThat(test.getProfessionals()).hasSize(9);
         assertThat(test.getVendors()).hasSize(9);
         // The relation itself, not just the two collections. Both sides are DBRefs and only the
@@ -725,13 +725,15 @@ class DevelopmentDataInitializerTest {
      * {@code localId.in} round trip. Running a quality stack proved nothing about the change,
      * which is what makes the fixture part of the fix rather than a convenience.
      *
-     * <p><b>Both states are here because they render differently and neither may be guessed at.</b>
-     * {@code a13} is linked, so the row shows the address off the link. {@code a14} has no link at
-     * all — a real and permanent state, not a pending one — so the row says its name is not on file
-     * and says only that.
+     * <p><b>Three states are here because they render differently and none may be guessed at.</b>
+     * {@code a13} is linked to an address no sibling stack holds, so the row shows that address off
+     * the link. {@code a14} has no link at all — a real and permanent state, not a pending one — so
+     * the row says its name is not on file and says only that. {@code a15} is linked to an address
+     * hc-patient really can name, which is backlog item 50 and is the case
+     * {@link #shouldSeedALearnedPatientWhosePatientAppAccountReallyExists} exists for.
      *
      * <p>Named rather than counted, for the reason {@link #shouldLeaveTwoNamedCellsUnpricedUnderTest}
-     * gives: "two patients without a profile" would go on passing if a different two lost theirs,
+     * gives: "three patients without a profile" would go on passing if a different three lost theirs,
      * and an accidentally profile-less patient is exactly what a fixture guard should catch.
      */
     @Test
@@ -741,8 +743,8 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getPatients())
             .filteredOn(patient -> patient.getProfile() == null)
             .extracting(Patient::getId)
-            .as("the two rows that exercise the learned-patient rendering")
-            .containsExactlyInAnyOrder("a13", "a14");
+            .as("the three rows that exercise the learned-patient rendering")
+            .containsExactlyInAnyOrder("a13", "a14", "a15");
 
         Map<String, DirectoryLink> linkByLocalId = test
             .getDirectoryLinks()
@@ -759,6 +761,67 @@ class DevelopmentDataInitializerTest {
                 assertThat(link.getSubjectKind()).isEqualTo(DirectorySubjectKind.PATIENT);
             });
         assertThat(linkByLocalId).as("a14 is the unlinked half and must stay unlinked").doesNotContainKey("a14");
+    }
+
+    /**
+     * <b>One nameless patient's link carries an address hc-patient's own fixture really seeds, and
+     * that foreign-looking address is the fixture rather than a typo.</b>
+     *
+     * <p>Backlog item 50: hc-admin now asks hc-patient to name a patient it learned from an event
+     * ({@code GET /api/profiles/email/{email}}, with the administrator's own token). The lookup has
+     * three outcomes and <b>the one the whole change exists for — a name comes back — was renderable
+     * on no stack at all</b> before this row. Every linked patient here was {@code @mail.gh};
+     * hc-patient's quality fixture seeds {@code kojo@jac.net}, {@code ophelia@localhost} and
+     * {@code adjoa@localhost} under {@code dev} and nothing under {@code test}. Zero overlap, so
+     * every lookup on the quality stack 404ed and the screen showed exactly what it showed before
+     * item 50 — which is item 52's finding for the fifth time, applied here instead of learned again.
+     *
+     * <p><b>{@code kojo@jac.net} of the three, and the choice is not arbitrary.</b> It is the anchor
+     * of hc-patient's {@code dev} fixture: {@code patient-kojo} is referenced 135 times across their
+     * seed file against 2 and 3 for the other two, so it is the row least likely to be renamed or
+     * dropped, and it resolves to a first and last name ({@code Kojo Ampia-Addison}) rather than to a
+     * record with half a name on it. The other two are {@code @localhost}, which is unroutable and
+     * reads as a mistake in a directory of real contact addresses.
+     *
+     * <p><b>This is a coupling to another repository's fixture and it is the house pattern, not a new
+     * one.</b> {@code Profile.accountId} already names nine logins that only hc-professional's
+     * {@code quality/seed-data.json} creates — see
+     * {@link #shouldLinkSomeProfessionalsToRealClinicalLogins}, whose rule applies here word for
+     * word: <b>both ends have to move together.</b> If hc-patient renames or drops
+     * {@code patient-kojo}, nothing fails anywhere — this row simply goes back to rendering an
+     * address, which is the state it is meant to be told apart from.
+     *
+     * <p><b>{@code a13} is deliberately left pointing at an address nobody holds.</b> That keeps the
+     * {@code NOT_FOUND} outcome renderable beside the resolved one, and it keeps {@code dl-a13}'s
+     * plan choice — which several other cases in this file assert against — exactly as item 48 left
+     * it.
+     */
+    @Test
+    void shouldSeedALearnedPatientWhosePatientAppAccountReallyExists() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        Map<String, DirectoryLink> linkByLocalId = test
+            .getDirectoryLinks()
+            .stream()
+            .filter(link -> link.getLocalId() != null)
+            .collect(Collectors.toMap(DirectoryLink::getLocalId, link -> link));
+
+        assertThat(linkByLocalId.get("a15"))
+            .as("a15 is the row whose name hc-patient can actually supply")
+            .isNotNull()
+            .satisfies(link -> {
+                assertThat(link.getEmail()).isEqualTo("kojo@jac.net");
+                assertThat(link.getSource()).isEqualTo(DirectorySource.HC_PATIENT);
+                assertThat(link.getSubjectKind()).isEqualTo(DirectorySubjectKind.PATIENT);
+            });
+
+        // And the other half of the pair, stated here rather than left implicit: without an address
+        // no sibling holds, the resolved rendering and the not-found rendering cannot be told apart
+        // on any stack, because everything on screen would resolve.
+        assertThat(linkByLocalId.get("a13"))
+            .as("a13 stays unresolvable, so NOT_FOUND is renderable beside RESOLVED")
+            .isNotNull()
+            .satisfies(link -> assertThat(link.getEmail()).isEqualTo("naa.adjeley@mail.gh"));
     }
 
     /**
