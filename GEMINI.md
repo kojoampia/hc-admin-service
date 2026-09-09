@@ -4,7 +4,7 @@ This microservice is the administrative hub of the Health-Connect ecosystem. it 
 
 ## 🏗️ Architecture & Technology Stack
 
-- **Framework**: Spring Boot 4.0.6 (JHipster 8.11.0 per `.yo-rc.json`; `package.json` still pins `generator-jhipster` 8.1.0)
+- **Framework**: Spring Boot 4.1.0 (JHipster **9.2.0** — `.yo-rc.json`, `package.json` and the lockfile all agree on it; what is _installed_ under `node_modules` is a separate question, and it has not always matched. See **Before regenerating** below.)
 - **Language**: Java 25 (Maven enforcer accepts JDK `[17,26)`)
 - **Database**: MongoDB (document-oriented), default db `adminService`, migrations via Mongock
 - **Service Discovery & Config**: HashiCorp Consul at `localhost:8500` — the app refuses to start without it. Registers as `hcadminservice`.
@@ -148,6 +148,22 @@ With it on, one Mongo container survives across classes and across runs and this
   header. That test also fails on any `.jdl` here that declares itself neither, so a new file cannot
   arrive unclassified. (`admin-ms.jdl` was listed here until 2026-09-06 and had been zero bytes since
   the day it was created; it was deleted.)
+
+## ⚠️ Before regenerating
+
+**Run `npm ci` first.** Everything checked in agrees on `generator-jhipster` **9.2.0** — `package.json`, `package-lock.json`, and `.yo-rc.json`'s `jhipsterVersion` — but none of that says anything about what is actually installed under `node_modules`. On this project's workstation it was **8.1.0**, measured 2026-09-09. `npx jhipster` resolves the local tree and a global `jhipster` resolves its own install. A run _does_ name its version — it prints `Welcome to JHipster v8.1.0` — but **only once it has already started**, and under `--force` nothing pauses between that line and the first write, so it helps only a reader who already knows which number to expect. Derive it beforehand rather than assuming:
+
+```bash
+node -e "console.log(require('generator-jhipster/package.json').version)"   # what `npx jhipster` will run
+jhipster --version                                                          # what the global binary is
+python3 -c "import json;print(json.load(open('.yo-rc.json'))['generator-jhipster']['jhipsterVersion'])"
+```
+
+If the first two disagree with each other, or either disagrees with the third, stop. **`npm ci` only settles the first of them** — it rewrites `node_modules`, which is what `npx` resolves, and cannot change what a global `jhipster` points at; that needs the global package reinstalling. They drift independently, so check them separately.
+
+**The cost of skipping that is a committable diff that reads as generator tidying.** An 8.1.0 run of `jhipster entities <Entity> --force` rewrites nearly every entity config in `.jhipster/`, adding an `entityTableName` key to each, _and_ edits `.yo-rc.json` to say `"jhipsterVersion": "8.1.0"` — a one-line downgrade of the repo's own record, in a file nobody reads, after which the next person's regeneration inherits the wrong baseline. Nothing in that run is labelled a downgrade and nothing fails. The 9.2.0 run of the same command touches only the configs that were not already Prettier-clean.
+
+The sibling `gateway/` has the same trap in a worse shape — there the stale `node_modules` **agrees** with the stamp, so the run is self-consistently wrong. See its `AGENTS.md`. Both are `docs/backlog.md` item 18.
 
 ## 🛠️ Key Commands
 
