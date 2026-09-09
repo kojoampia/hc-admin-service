@@ -1,5 +1,6 @@
 package net.jojoaddison.service;
 
+import static net.jojoaddison.config.ApplicationPropertiesFixture.resolveBudget;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -203,7 +204,7 @@ class DirectoryNameResolutionServiceTest {
     }
 
     private DirectoryNameResolutionService service(long budgetMs) {
-        return new DirectoryNameResolutionService(client, budgetMs);
+        return new DirectoryNameResolutionService(client, resolveBudget(budgetMs));
     }
 
     private static DirectoryLink patientLink(String email) {

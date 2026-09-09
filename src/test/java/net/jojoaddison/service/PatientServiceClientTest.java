@@ -1,5 +1,6 @@
 package net.jojoaddison.service;
 
+import static net.jojoaddison.config.ApplicationPropertiesFixture.patientservice;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.sun.net.httpserver.HttpServer;
@@ -325,6 +326,6 @@ class PatientServiceClientTest {
     }
 
     private static PatientServiceClient clientAt(int port, boolean enabled) {
-        return new PatientServiceClient(RestClient.builder(), "http://127.0.0.1:" + port, enabled, 1);
+        return new PatientServiceClient(RestClient.builder(), patientservice("http://127.0.0.1:" + port, enabled, 1));
     }
 }

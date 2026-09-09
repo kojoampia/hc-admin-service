@@ -4,9 +4,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import net.jojoaddison.config.ApplicationProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -51,15 +51,21 @@ public class AbofonsaContentClient {
     private final boolean enabled;
     private final String locale;
 
-    public AbofonsaContentClient(
-        RestClient.Builder builder,
-        @Value("${application.abofonsa-content.base-url:https://web.abofonsa.com}") String baseUrl,
-        @Value("${application.abofonsa-content.enabled:true}") boolean enabled,
-        @Value("${application.abofonsa-content.locale:en}") String locale,
-        @Value("${application.abofonsa-content.timeout-seconds:5}") int timeoutSeconds
-    ) {
-        this.enabled = enabled;
-        this.locale = locale;
+    /**
+     * Takes the properties object rather than four placeholders — backlog item 58.
+     *
+     * <p>Not named by that item, which found the same defect in the two sibling-stack clients and
+     * missed this one; binding two of the three would have left the repository with two idioms and
+     * made the guard that enforces the rule unwritable. The two remaining
+     * {@code application.abofonsa-content.*} keys — the schedule — cannot be read this way and are
+     * argued at their fields in {@link ApplicationProperties.AbofonsaContent}.
+     */
+    public AbofonsaContentClient(RestClient.Builder builder, ApplicationProperties properties) {
+        ApplicationProperties.AbofonsaContent config = properties.getAbofonsaContent();
+        String baseUrl = config.getBaseUrl();
+        int timeoutSeconds = config.getTimeoutSeconds();
+        this.enabled = config.isEnabled();
+        this.locale = config.getLocale();
         // Both timeouts, for the reason ProfessionalServiceClient records: the connect timeout lives
         // on the HttpClient and the read timeout on the factory, and setting only the second leaves
         // the connect side unbounded. This runs on a scheduler rather than a request thread, so the

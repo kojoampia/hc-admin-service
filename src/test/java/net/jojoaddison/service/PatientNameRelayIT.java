@@ -1,5 +1,6 @@
 package net.jojoaddison.service;
 
+import static net.jojoaddison.config.ApplicationPropertiesFixture.patientservice;
 import static net.jojoaddison.security.jwt.JwtAuthenticationTestUtils.BEARER;
 import static net.jojoaddison.security.jwt.JwtAuthenticationTestUtils.createValidTokenForUser;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -189,7 +190,10 @@ class PatientNameRelayIT {
 
         @Bean
         PatientServiceClient patientServiceClient() {
-            return new PatientServiceClient(RestClient.builder(), "http://127.0.0.1:" + STUB.getAddress().getPort(), true, 2);
+            return new PatientServiceClient(
+                RestClient.builder(),
+                patientservice("http://127.0.0.1:" + STUB.getAddress().getPort(), true, 2)
+            );
         }
 
         @Bean

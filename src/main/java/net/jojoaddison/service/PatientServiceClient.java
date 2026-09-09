@@ -1,11 +1,11 @@
 package net.jojoaddison.service;
 
 import java.time.Duration;
+import net.jojoaddison.config.ApplicationProperties;
 import net.jojoaddison.domain.enumeration.NameResolution;
 import net.jojoaddison.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -84,13 +84,19 @@ public class PatientServiceClient {
     private final RestClient restClient;
     private final boolean enabled;
 
-    public PatientServiceClient(
-        RestClient.Builder builder,
-        @Value("${application.patientservice.base-url:http://hc-patient-service:8081}") String baseUrl,
-        @Value("${application.patientservice.enabled:true}") boolean enabled,
-        @Value("${application.patientservice.timeout-seconds:2}") int timeoutSeconds
-    ) {
-        this.enabled = enabled;
+    /**
+     * Takes the properties object rather than three placeholders — backlog item 58.
+     *
+     * <p>It read {@code @Value("${application.patientservice.base-url:http://hc-patient-service:8081}")}
+     * and two more like it until 2026-09-09, while {@link ApplicationProperties.Patientservice}
+     * declared the same three defaults for nobody. Every value here is now written in exactly one
+     * place, and that place is the properties class.
+     */
+    public PatientServiceClient(RestClient.Builder builder, ApplicationProperties properties) {
+        ApplicationProperties.Patientservice config = properties.getPatientservice();
+        String baseUrl = config.getBaseUrl();
+        int timeoutSeconds = config.getTimeoutSeconds();
+        this.enabled = config.isEnabled();
         // Both timeouts, for the reason ProfessionalServiceClient records: the connect timeout lives
         // on the HttpClient and the read timeout on the factory, and setting only the second leaves
         // the connect side unbounded — a sibling that accepts nothing hangs a request thread as

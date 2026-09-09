@@ -2,10 +2,10 @@ package net.jojoaddison.service;
 
 import java.time.Duration;
 import java.util.Map;
+import net.jojoaddison.config.ApplicationProperties;
 import net.jojoaddison.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -74,13 +74,18 @@ public class ProfessionalServiceClient {
     private final RestClient restClient;
     private final boolean enabled;
 
-    public ProfessionalServiceClient(
-        RestClient.Builder builder,
-        @Value("${application.professionalservice.base-url:http://hc-professional-service:8081}") String baseUrl,
-        @Value("${application.professionalservice.enabled:true}") boolean enabled,
-        @Value("${application.professionalservice.timeout-seconds:5}") int timeoutSeconds
-    ) {
-        this.enabled = enabled;
+    /**
+     * Takes the properties object rather than three placeholders — backlog item 58.
+     *
+     * <p>{@link ApplicationProperties.Professionalservice} declared these three defaults and nothing
+     * read them, while this constructor declared the same three again and everything did. The
+     * properties class is now the one place each is written.
+     */
+    public ProfessionalServiceClient(RestClient.Builder builder, ApplicationProperties properties) {
+        ApplicationProperties.Professionalservice config = properties.getProfessionalservice();
+        String baseUrl = config.getBaseUrl();
+        int timeoutSeconds = config.getTimeoutSeconds();
+        this.enabled = config.isEnabled();
         // JdkClientHttpRequestFactory and both timeouts, for the reasons hc-professional's
         // PatientServiceClient records: the connect timeout lives on the HttpClient and the read
         // timeout on the factory, and setting only the second leaves the connect side unbounded —
