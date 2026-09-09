@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -65,13 +66,38 @@ class LogPseudonymTest {
     private static final String PSEUDONYMISER_CALL = "LogPseudonym\\s*\\.\\s*subject\\s*\\(";
 
     /**
-     * A {@code LOG.x(...)} call, up to the closing bracket of its argument list.
+     * The <b>head</b> of a {@code LOG.x(} call. Where the argument list <em>ends</em> is decided by
+     * {@link #endOfArgumentList}, not by this pattern — backlog item 59.
      *
      * <p>Tolerant of whitespace around the dot, for the reason {@link #SECURITY_UTILS_RELAY} records:
      * a formatter may split a call across lines, and this pattern failing to match is <b>silent</b> —
      * the statements simply are not scanned and every rule below passes vacuously.
+     *
+     * <h2>It used to close the bracket itself, and that was fail-open</h2>
+     *
+     * <p>It read {@code LOG\s*\.\s*(trace|…)\s*\((.*?)\);} under {@code DOTALL} — non-greedy to the
+     * first {@code );}. <b>A {@code );} inside the format string therefore ended the match there</b>,
+     * and everything after it — the arguments — was never scanned. {@code AbofonsaContentClient:146}
+     * is the live example: the capture stopped at
+     * {@code "Abofonsa's plan catalogue could not be read ({}} and never reached the
+     * {@code e.getMessage()} beside it.
+     *
+     * <p>This file's other known edges are all fail-<b>closed</b> — a {@code {@code}} mention pulling
+     * a class into a swept set, {@code LOG} matching inside {@code CATALOG}, a commented-out log line
+     * — so the worst case is a false red naming a file, which is the diagnosable one. This one was
+     * fail-<b>open</b>: a real leak positioned after such a {@code );} in a swept class was simply not
+     * looked at, and every rule reported green.
+     *
+     * <p><b>Accepting the limit was considered and is not available</b>, and the comparison is
+     * measured rather than argued. {@link #WRAPPED}'s over-strip is accepted <em>because nothing
+     * reaches it</em> — 0 of the 12 {@code subject()} calls in {@code src/main/java} do. This one was
+     * reached by 1 of 394 log statements on the day it was found, and the trigger is writing
+     * {@code ({})} in a format string, which is idiomatic. That justification does not transfer.
+     *
+     * <p><b>Making the capture greedy is the other wrong answer</b>: it would run to the last
+     * {@code );} in the file and swallow every statement in between.
      */
-    private static final Pattern LOG_CALL = Pattern.compile("LOG\\s*\\.\\s*(trace|debug|info|warn|error)\\s*\\((.*?)\\);", Pattern.DOTALL);
+    private static final Pattern LOG_CALL_HEAD = Pattern.compile("LOG\\s*\\.\\s*(trace|debug|info|warn|error)\\s*\\(");
 
     /**
      * A {@code LogPseudonym.subject(...)} call, including one level of nested parentheses so that the
@@ -279,22 +305,19 @@ class LogPseudonymTest {
     @Test
     void noLogStatementPassesTheSubjectKeyUnwrapped() {
         for (Path source : inScopeSources()) {
-            String text = read(source);
-            Matcher call = LOG_CALL.matcher(text);
-            while (call.find()) {
-                String arguments = call.group(2);
-                String unwrapped = WRAPPED.matcher(arguments).replaceAll("");
+            for (LogStatement statement : logStatements(read(source))) {
+                String unwrapped = unwrappedArguments(statement);
                 for (String forbidden : FORBIDDEN) {
                     assertThat(unwrapped.contains(forbidden))
                         .as(
                             "%s logs %s unwrapped — it is a patient's email address. Wrap it in " +
-                            "LogPseudonym.subject(...), which explains why, and note that a screen is a " +
-                            "different question with a different answer (DirectoryLinkResource's javadoc). " +
-                            "Statement: LOG.%s(%s)",
+                                "LogPseudonym.subject(...), which explains why, and note that a screen is a " +
+                                "different question with a different answer (DirectoryLinkResource's javadoc). " +
+                                "Statement: LOG.%s(%s)",
                             source.getFileName(),
                             forbidden,
-                            call.group(1),
-                            arguments.strip()
+                            statement.level(),
+                            statement.arguments().strip()
                         )
                         .isFalse();
                 }
@@ -342,7 +365,10 @@ class LogPseudonymTest {
         // and a formatter could have taken a class out of this set with nothing going red. See
         // PSEUDONYMISER_CALL.
         Pattern pseudonymiser = Pattern.compile(PSEUDONYMISER_CALL);
-        List<Path> pseudonymising = inScopeSources().stream().filter(source -> pseudonymiser.matcher(read(source)).find()).toList();
+        List<Path> pseudonymising = inScopeSources()
+            .stream()
+            .filter(source -> pseudonymiser.matcher(read(source)).find())
+            .toList();
 
         // Non-emptiness is not enough and was not enough: DirectoryProjectionService satisfies it on
         // its own, so this rule went on "sweeping something" while the class it was written for had
@@ -353,18 +379,16 @@ class LogPseudonymTest {
             .contains("PatientServiceClient.java", "DirectoryProjectionService.java");
 
         for (Path source : pseudonymising) {
-            Matcher call = LOG_CALL.matcher(read(source));
-            while (call.find()) {
-                String arguments = call.group(2);
-                assertThat(EXCEPTION_MESSAGE.matcher(arguments).find())
+            for (LogStatement statement : logStatements(read(source))) {
+                assertThat(EXCEPTION_MESSAGE.matcher(statement.arguments()).find())
                     .as(
                         "%s logs an exception's message. A message quotes what the library was given — for an " +
-                        "HTTP client that is the request URL, and this service puts a patient's address in one " +
-                        "(backlog items 43 and 50). Log the exception's type, and its cause's type if the " +
-                        "distinction matters. Statement: LOG.%s(%s)",
+                            "HTTP client that is the request URL, and this service puts a patient's address in one " +
+                            "(backlog items 43 and 50). Log the exception's type, and its cause's type if the " +
+                            "distinction matters. Statement: LOG.%s(%s)",
                         source.getFileName(),
-                        call.group(1),
-                        arguments.strip()
+                        statement.level(),
+                        statement.arguments().strip()
                     )
                     .isFalse();
             }
@@ -398,19 +422,17 @@ class LogPseudonymTest {
             .contains("PatientServiceClient.java", "ProfessionalServiceClient.java");
 
         for (Path source : clients) {
-            Matcher call = LOG_CALL.matcher(read(source));
-            while (call.find()) {
-                String arguments = call.group(2);
-                assertThat(EXCEPTION_MESSAGE.matcher(arguments).find())
+            for (LogStatement statement : logStatements(read(source))) {
+                assertThat(EXCEPTION_MESSAGE.matcher(statement.arguments()).find())
                     .as(
                         "%s logs an exception's message, and it calls another product. A ResourceAccessException " +
-                        "quotes the request URL; a refusal goes through RestClient's default error handler, which " +
-                        "appends the RESPONSE BODY — so a far service echoing a rejected value logs it here " +
-                        "(backlog items 43, 50 and 57). Log the exception's type and its cause's type. " +
-                        "Statement: LOG.%s(%s)",
+                            "quotes the request URL; a refusal goes through RestClient's default error handler, which " +
+                            "appends the RESPONSE BODY — so a far service echoing a rejected value logs it here " +
+                            "(backlog items 43, 50 and 57). Log the exception's type and its cause's type. " +
+                            "Statement: LOG.%s(%s)",
                         source.getFileName(),
-                        call.group(1),
-                        arguments.strip()
+                        statement.level(),
+                        statement.arguments().strip()
                     )
                     .isFalse();
             }
@@ -430,6 +452,20 @@ class LogPseudonymTest {
      * standing between the sweep and that class was two javadoc mentions of {@code DirectoryLink} —
      * see {@code IN_SCOPE}. Adding a class to a discovered set without adding it here leaves exactly
      * the gap this method exists to close.
+     *
+     * <p><b>Since item 59 a head that never resolves is the third way this can go quiet</b>, and it is
+     * the one the scan introduced. {@link #logStatements} drops a {@code LOG.x(} whose argument list it
+     * cannot close — the same answer the old pattern gave when it found no {@code );} — so a scanner
+     * bug that mis-reads a literal loses a statement with no rule going red. The count therefore has to
+     * agree with the number of heads, which is a figure nothing but the head pattern decides.
+     *
+     * <p><b>That reconciliation is over both swept sets, not over this method's own one.</b> The floor
+     * above counts the in-scope set, because that is the discovery this method was written to pin. The
+     * head count cannot: {@link #noCrossStackClientLogsAnExceptionMessage} runs the same scan over
+     * {@link #crossStackClientSources()}, and {@code ProfessionalServiceClient} matches
+     * {@link #IN_SCOPE} <b>zero</b> times — so summing only the in-scope set would leave a give-up in
+     * that file reconciled by nothing. It is the class item 57 found sitting in the swept set through a
+     * single discriminator; the blind spot follows it around.
      */
     @Test
     void theSweepStillFindsTheStatementsItIsSweeping() {
@@ -444,11 +480,307 @@ class LogPseudonymTest {
                 "PatientServiceClient.java"
             );
 
-        long statements = sources.stream().map(LogPseudonymTest::read).mapToLong(text -> LOG_CALL.matcher(text).results().count()).sum();
+        long statements = sources
+            .stream()
+            .map(LogPseudonymTest::read)
+            .mapToLong(text -> logStatements(text).size())
+            .sum();
 
         assertThat(statements)
-            .as("the log-call pattern matches nothing, so the sweep above passes vacuously — fix the pattern, not this number")
+            .as("the log-call scan matches nothing, so the sweep above passes vacuously — fix the scan, not this number")
             .isGreaterThanOrEqualTo(10);
+
+        // Every file any rule in this class scans, in-scope or cross-stack client. Not the same set as
+        // `sources` above, and the difference is a whole file — see this method's javadoc.
+        List<Path> swept = Stream.concat(sources.stream(), crossStackClientSources().stream()).distinct().toList();
+        long sweptStatements = swept
+            .stream()
+            .map(LogPseudonymTest::read)
+            .mapToLong(text -> logStatements(text).size())
+            .sum();
+        long sweptHeads = swept
+            .stream()
+            .map(LogPseudonymTest::read)
+            .mapToLong(text -> LOG_CALL_HEAD.matcher(text).results().count())
+            .sum();
+
+        assertThat(sweptStatements)
+            .as(
+                "%d of the %d LOG.x( heads in the swept files have no argument list the scan can close, so those statements are read by nothing — see logStatements",
+                sweptHeads - sweptStatements,
+                sweptHeads
+            )
+            .isEqualTo(sweptHeads);
+    }
+
+    /**
+     * <b>The case backlog item 59 exists for, and it went green until 2026-09-09.</b>
+     *
+     * <p>A leak positioned after a {@code );} inside the format string. The old capture stopped at
+     * {@code "the link ({}} and the {@code link.getEmail()} beside it was read by nothing — so
+     * {@link #noLogStatementPassesTheSubjectKeyUnwrapped} passed on a statement that logs a patient's
+     * address. Constructed rather than borrowed: no swept class has one today, which is why this is a
+     * hole rather than an incident, and a hole nothing exercises closes itself again on the next
+     * refactor.
+     *
+     * <p>It goes through {@link #WRAPPED} and {@link #FORBIDDEN} rather than reading the captured text
+     * for {@code getEmail}, so this case and the rule cannot come to disagree about what a leak is.
+     */
+    @Test
+    void aForbiddenIdentifierAfterAClosingBracketInsideAFormatStringIsSeen() {
+        String source = "LOG.warn(\"the link ({}); could not be read\", link.getEmail());";
+
+        List<LogStatement> statements = logStatements(source);
+
+        assertThat(statements).singleElement().extracting(LogStatement::level).isEqualTo("warn");
+        assertThat(FORBIDDEN.stream().anyMatch(unwrappedArguments(statements.getFirst())::contains))
+            .as("the scan stopped at the ');' inside the format string, so the leak after it is not looked at")
+            .isTrue();
+
+        // The inversion: the same statement without the identifier must be clean, or the assertion
+        // above would hold for a scan that captured the whole file.
+        String innocent = "LOG.warn(\"the link ({}); could not be read\", link.getExternalId());";
+        assertThat(FORBIDDEN.stream().anyMatch(unwrappedArguments(logStatements(innocent).getFirst())::contains)).isFalse();
+    }
+
+    /**
+     * The same shape for the two exception-message rules, which read a different pattern over the same
+     * capture — {@link #noPseudonymisingClassLogsAnExceptionMessage} and
+     * {@link #noCrossStackClientLogsAnExceptionMessage}.
+     *
+     * <p>This is {@code AbofonsaContentClient:146} with the class name taken off. That statement is the
+     * one live truncation in {@code src/main/java} and it is swept by neither rule — its far side is a
+     * public marketing site, argued in {@link #CROSS_STACK_CLIENT}'s javadoc — so the property to pin
+     * is that the scan <em>would</em> see it, not that the class is swept.
+     */
+    @Test
+    void anExceptionMessageAfterAClosingBracketInsideAFormatStringIsSeen() {
+        String source = "LOG.warn(\"the catalogue could not be read ({}); the local copy is unchanged\", e.getMessage());";
+
+        List<LogStatement> statements = logStatements(source);
+
+        assertThat(EXCEPTION_MESSAGE.matcher(statements.getFirst().arguments()).find())
+            .as("the scan stopped at the ');' inside the format string, so the getMessage() after it is not looked at")
+            .isTrue();
+    }
+
+    /**
+     * The four things a bracket can hide inside, each on its own, because a scanner that gets one wrong
+     * loses whole statements silently.
+     *
+     * <p>Two of these are unexercised by the sources this file actually reads and are here for that
+     * reason: <b>no log statement in {@code src/main/java} contains an escaped quote or a character
+     * literal today</b>, and the one text block in the main sources sits under a {@code log.info} that
+     * the {@code LOG} head does not match. So every one of them is a path that first runs on the day
+     * somebody writes it, against a guard that reports nothing when it fails.
+     */
+    @Test
+    void theScanStepsOverEverythingABracketCanHideInside() {
+        assertThat(onlyArgumentsOf("LOG.info(\"a \\\" ); quote\", value);"))
+            .as("an escaped quote does not close the literal")
+            .isEqualTo("\"a \\\" ); quote\", value");
+
+        assertThat(onlyArgumentsOf("LOG.info(\"x {}\", text.indexOf(')'), value);"))
+            .as("a bracket inside a character literal does not close the argument list")
+            .isEqualTo("\"x {}\", text.indexOf(')'), value");
+
+        assertThat(onlyArgumentsOf("LOG.info(/* a ) here */ \"x {}\", value);"))
+            .as("a bracket inside a block comment does not close the argument list")
+            .isEqualTo("/* a ) here */ \"x {}\", value");
+
+        // The lone quote in the content is what makes this case discriminate, and it was missing until
+        // item 59's own review. With content of `a ); b` the case passes whether or not the scan knows
+        // what a text block is: naive pairing reads """…""" as empty string, string, empty string and
+        // lands on the same closing bracket, so deleting endOfTextBlock left the capture byte-identical
+        // and even isEqualTo would have gone green. One bare " unbalances that pairing, and the mutant
+        // then truncates at the bracket inside the block — item 59's own shape, one construct along.
+        String quotes = "\"\"\"";
+        String textBlock = quotes + "\n    a \" b ); c\n    " + quotes;
+        assertThat(onlyArgumentsOf("LOG.info(" + textBlock + ", value);"))
+            .as("a text block is one token — a lone quote inside it opens nothing, and a bracket inside it closes nothing")
+            .isEqualTo(textBlock + ", value");
+
+        assertThat(onlyArgumentsOf("LOG.info(\"x {}\", compute(() -> { step(); return 1; }), value);"))
+            .as("a statement inside a nested lambda is not the end of this one")
+            .isEqualTo("\"x {}\", compute(() -> { step(); return 1; }), value");
+    }
+
+    /**
+     * A call split across lines by a formatter, with a line comment inside it.
+     *
+     * <p>The comment is the point. An apostrophe is prose in {@code // it's the address} and opens a
+     * character literal everywhere else, so a scan that does not take the comment <b>whole</b> reads
+     * the rest of the file as a literal, finds no closing quote, and <b>drops the statement</b> — which
+     * is this item's own failure mode, reintroduced by the fix for it.
+     *
+     * <p>It is the atomic consumption that buys this and <em>not</em> the order of the branches, which
+     * is what this javadoc claimed until item 59's own review reordered them and watched every case
+     * still pass. See {@link #logStatements}.
+     */
+    @Test
+    void aStatementSplitAcrossLinesIsReadWhole() {
+        String source = """
+        LOG.warn(
+            // it's the address, and it must not be here
+            "the link ({}); could not be read",
+            link.getEmail()
+        );
+        """;
+
+        List<LogStatement> statements = logStatements(source);
+
+        assertThat(statements).singleElement().extracting(LogStatement::level).isEqualTo("warn");
+        assertThat(FORBIDDEN.stream().anyMatch(unwrappedArguments(statements.getFirst())::contains)).isTrue();
+    }
+
+    /** The one statement in {@code source}, so a case that finds none or two says so rather than throwing. */
+    private static String onlyArgumentsOf(String source) {
+        List<LogStatement> statements = logStatements(source);
+
+        assertThat(statements).as("expected exactly one statement in: %s", source).hasSize(1);
+
+        return statements.getFirst().arguments();
+    }
+
+    /** One {@code LOG.x(...)} call: the level it logs at, and the source text of its argument list. */
+    private record LogStatement(String level, String arguments) {}
+
+    /**
+     * An argument list with the pseudonymised calls taken out of it — see {@link #WRAPPED}. Shared by
+     * {@link #noLogStatementPassesTheSubjectKeyUnwrapped} and the constructed cases above, so that the
+     * cases exercise the rule's own reading rather than one written beside it.
+     */
+    private static String unwrappedArguments(LogStatement statement) {
+        return WRAPPED.matcher(statement.arguments()).replaceAll("");
+    }
+
+    /**
+     * Every {@code LOG.x(...)} call in a source file, with the <b>whole</b> of its argument list —
+     * backlog item 59, and the reason {@link #LOG_CALL_HEAD} no longer closes its own bracket.
+     *
+     * <p>A head found by the pattern, then a forward scan for the {@code )} that closes it, counting
+     * brackets and stepping over the four things a bracket can hide inside: a string literal, a text
+     * block, a character literal and a comment. That is enough Java to find the end of an argument
+     * list and deliberately not enough to be a parser — {@link #IN_SCOPE}'s javadoc argues that this
+     * file has to stay a blunt, narrow instrument, and the alternative to the scan was leaving a
+     * fail-open hole rather than leaving the instrument blunt.
+     *
+     * <h2>A comment is consumed atomically, and that is what keeps an apostrophe out of trouble</h2>
+     *
+     * <p>An apostrophe is ordinary prose inside {@code // it's fine} and opens a character literal
+     * everywhere else. What keeps the two apart is that a comment is consumed <b>whole, from its
+     * opening {@code /}</b>, so a {@code '} or a {@code "} inside one is never dispatched on at all.
+     *
+     * <p><b>It is not the order of the branches, and this javadoc said it was.</b> The comment branches
+     * guard on {@code c == '/'} and the literal branches on {@code c == '"' || c == '\''}; a character
+     * is never both, so the two are mutually exclusive and reordering them changes nothing. Item 59's
+     * own review reordered them and every case still passed, apostrophe-in-comment included — a
+     * document asserting a property the code lacks, inside the fix for an instance of exactly that.
+     *
+     * <p><b>One order is load-bearing and it is the other one:</b> {@code """} must be tested before
+     * {@code "}. Both guards are true when the text starts with a text block, so swapping them reads
+     * {@code """…"""} as an empty string, a string and an empty string, and the scan then closes on the
+     * first bracket <em>inside</em> the block — item 59's own fail-open shape, one construct along.
+     * {@link #theScanStepsOverEverythingABracketCanHideInside} kills that mutant.
+     *
+     * <h2>A head that never closes is dropped, which is the direction that needs watching</h2>
+     *
+     * <p>An argument list with no closing bracket in the rest of the file yields nothing — the same
+     * answer the old pattern gave when it found no {@code );}, and the same fail-open direction as the
+     * defect this replaced. A file that compiles gives every real call a closing bracket, but that is
+     * not quite the guarantee it sounds like: {@link #LOG_CALL_HEAD} matches raw text, so it also finds
+     * heads inside comments and string literals, whose tails Java's grammar does not govern. Measured
+     * across {@code src/main/java}: <b>zero</b> heads dropped.
+     * {@link #theSweepStillFindsTheStatementsItIsSweeping} requires one statement per head rather than
+     * trusting that, over every file any rule here scans rather than over one of the two sets.
+     */
+    private static List<LogStatement> logStatements(String source) {
+        List<LogStatement> statements = new ArrayList<>();
+        Matcher head = LOG_CALL_HEAD.matcher(source);
+        while (head.find()) {
+            int arguments = head.end();
+            int closing = endOfArgumentList(source, arguments);
+            if (closing >= 0) {
+                statements.add(new LogStatement(head.group(1), source.substring(arguments, closing)));
+            }
+        }
+        return statements;
+    }
+
+    /**
+     * The index of the {@code )} closing an argument list whose contents begin at {@code from}, or
+     * {@code -1} if the file ends first.
+     */
+    private static int endOfArgumentList(String source, int from) {
+        int depth = 1;
+        int i = from;
+        while (i < source.length()) {
+            char c = source.charAt(i);
+            if (c == '/' && source.startsWith("//", i)) {
+                i = source.indexOf('\n', i);
+                if (i < 0) {
+                    return -1;
+                }
+            } else if (c == '/' && source.startsWith("/*", i)) {
+                i = source.indexOf("*/", i + 2);
+                if (i < 0) {
+                    return -1;
+                }
+                i += 1;
+            } else if (source.startsWith("\"\"\"", i)) {
+                i = endOfTextBlock(source, i);
+                if (i < 0) {
+                    return -1;
+                }
+                continue;
+            } else if (c == '"' || c == '\'') {
+                i = endOfLiteral(source, i, c);
+                if (i < 0) {
+                    return -1;
+                }
+                continue;
+            } else if (c == '(') {
+                depth++;
+            } else if (c == ')') {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+            i++;
+        }
+        return -1;
+    }
+
+    /** The index just past a {@code "…"} or {@code '…'} literal opening at {@code open}, or {@code -1}. */
+    private static int endOfLiteral(String source, int open, char quote) {
+        int i = open + 1;
+        while (i < source.length()) {
+            char c = source.charAt(i);
+            if (c == '\\') {
+                i += 2;
+            } else if (c == quote) {
+                return i + 1;
+            } else {
+                i++;
+            }
+        }
+        return -1;
+    }
+
+    /** The index just past a {@code """…"""} text block opening at {@code open}, or {@code -1}. */
+    private static int endOfTextBlock(String source, int open) {
+        int i = open + 3;
+        while (i < source.length()) {
+            if (source.charAt(i) == '\\') {
+                i += 2;
+            } else if (source.startsWith("\"\"\"", i)) {
+                return i + 3;
+            } else {
+                i++;
+            }
+        }
+        return -1;
     }
 
     /** Every main source that touches the sibling-link identity, whatever package it lives in. */
