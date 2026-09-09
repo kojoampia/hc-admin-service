@@ -82,10 +82,17 @@ public final class SecurityUtils {
      * this service produces one.</b> {@code SecurityConfiguration} configures
      * {@code oauth2ResourceServer(oauth2 -> oauth2.jwt(...))}, so an authenticated request arrives
      * as a {@code JwtAuthenticationToken}, whose base class passes the token as token, principal
-     * <em>and</em> credentials — verified in the bytecode of Spring Security 7.1.1's
+     * <em>and</em> credentials — verified in the bytecode of Spring Security <b>7.1.0</b>'s
      * {@code AbstractOAuth2TokenAuthenticationToken}, whose two-argument constructor is
      * {@code aload_1, aload_1, aload_1}. So {@code getCredentials()} answers a {@code Jwt} and this
      * method answers <b>empty on every real request</b>.
+     *
+     * <p>(This said <b>7.1.1</b> until 2026-09-09, and no such artifact is on this classpath:
+     * {@code spring-boot-dependencies:4.1.0} manages Spring Security at {@code 7.1.0}, which is what
+     * {@code dependency:list} resolves. The mechanism is identical in both and the claim was true —
+     * but it is the one fact this javadoc exists to establish, so a reader who checked it against the
+     * jar would have found nothing there to check. Corrected as part of backlog item 57, which is the
+     * defect this paragraph describes, in the client that adopted the method below.)
      *
      * <p>It is generated JHipster code and is left exactly as it is on purpose: changing it would
      * turn every existing caller's "no token" branch into a live outbound call, which is a decision
@@ -120,6 +127,21 @@ public final class SecurityUtils {
      * <p>Both readings are here rather than one, so this is safe to adopt anywhere the older method
      * is called: the {@code String} branch keeps whatever behaviour a caller has today, and the
      * {@code JwtAuthenticationToken} branch is the one that fires in production.
+     *
+     * <p><b>⚠ That first branch returns any non-blank credential, and a test fixture can supply one
+     * — so a green test is not on its own evidence that a relay works.</b> {@code @WithMockUser}
+     * builds a {@code UsernamePasswordAuthenticationToken} whose credentials are literally
+     * {@code "password"}, so an {@code *ResourceIT} running {@code addFilters = false} with a sibling
+     * client enabled would relay {@code Bearer password} and pass against any stub that does not
+     * check the header. No test does that today and no production request can reach it — every real
+     * caller arrives through the resource-server chain. It is called out because the failure it would
+     * produce is the one this method exists to end: a suite proving a relay that cannot work. Assert
+     * the token, through the real chain, as {@code PatientNameRelayIT} and {@code RoundRelayIT} do.
+     *
+     * <p>The branch is <b>not</b> narrowed to exclude it. It is item 50's deliberate compatibility
+     * path — the reason this method is a drop-in for {@link #getCurrentUserJWT()} — and tightening it
+     * would trade a documented trap for a silent behaviour change in callers that have nothing to do
+     * with either item.
      *
      * <p><b>{@code getTokenValue()} and not a re-encode.</b> {@code Jwt} holds the compact
      * serialization it was decoded from, so this is the caller's token byte for byte — signature

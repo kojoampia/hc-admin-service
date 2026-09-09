@@ -44,6 +44,24 @@ import tools.jackson.databind.JsonNode;
  * <p><b>No token is a configuration failure, not an empty result.</b> A planning call always arrives
  * on an authenticated request; if the token is missing the write cannot be attempted and must not be
  * reported as anything but a failure.
+ *
+ * <p><b>⚠ Read the token with {@link SecurityUtils#getCurrentRequestJwt()} and never with
+ * {@code getCurrentUserJWT()}</b> — backlog item 57. This class called the latter from the day it
+ * was written until 2026-09-09, and it filters the authentication's credentials on
+ * {@code instanceof String}. This api authenticates as an OAuth2 resource server
+ * ({@code SecurityConfiguration}'s {@code oauth2ResourceServer(oauth2 -> oauth2.jwt(...))}), so a
+ * real request arrives as a {@code JwtAuthenticationToken} whose credentials are the decoded
+ * {@code Jwt} — verified in the bytecode of {@code AbstractOAuth2TokenAuthenticationToken}, whose
+ * two-argument constructor stores the token as token, principal <em>and</em> credentials. So the
+ * lookup answered empty on <b>every</b> request, {@link #fileRound} took its no-token branch, and
+ * <b>every round this service has ever filed has failed</b> — reported to the console as a fact
+ * about hc-professional, which had not been asked anything.
+ *
+ * <p>The {@code String} branch that made it look reachable is the one a
+ * {@code UsernamePasswordAuthenticationToken} takes, which is what
+ * {@code ProfessionalServiceClientTest} authenticated with. <b>A relay is only proven by a test with
+ * the filter chain on</b> — {@link net.jojoaddison.service.RoundRelayIT}, the shape
+ * {@code PatientNameRelayIT} established for the sibling client.
  */
 @Service
 public class ProfessionalServiceClient {
@@ -128,13 +146,29 @@ public class ProfessionalServiceClient {
      * 24). It had been distinguishable in the log and nowhere else — the {@code warn} below names
      * the far service only when one was contacted — which meant a reader with the api's log had the
      * answer and a reader with only the screen did not.
+     *
+     * <p><b>The no-token branch is kept, and what changed on 2026-09-09 is that it stopped being the
+     * only one taken.</b> Before item 57 it fired on every call; after it, the only caller is
+     * {@code RosterPlanResource}, {@code POST /api/roster-plans} matches
+     * {@code SecurityConfiguration}'s {@code /api/** -> hasAuthority(ADMIN)}, and the chain answers
+     * {@code 401} to an unauthenticated request before the resource is entered — so no request that
+     * reaches here can lack a token. It is therefore a guard against an <em>in-process</em> caller
+     * with no {@code SecurityContext}: a scheduled planner, a consumer thread, a startup runner.
+     * There is no such caller today, and if one is added it must not be allowed to report a round as
+     * filed. It stays a throw for the reason the class exists — a swallowed failed write tells an
+     * administrator a clinician was rostered when nobody was — and it stays the
+     * <em>not-configured</em> subtype, because a caller with no token dialled nothing and so learned
+     * nothing about hc-professional.
      */
     public String fileRound(Map<String, Object> round) {
         if (!enabled) {
             throw new RosterServiceNotConfiguredException("professionalservice is disabled; refusing to report a round as filed");
         }
+        // getCurrentRequestJwt, never getCurrentUserJWT — see the class javadoc and backlog item 57.
+        // The older method reads credentials as a String and this service's chain puts a decoded Jwt
+        // there, so it answered empty on every request and this branch was the only one ever taken.
         String token = SecurityUtils
-            .getCurrentUserJWT()
+            .getCurrentRequestJwt()
             .orElseThrow(() -> new RosterServiceNotConfiguredException("No caller token available; cannot file a round"));
         try {
             JsonNode created = restClient
@@ -150,11 +184,56 @@ public class ProfessionalServiceClient {
             if (created == null || created.get("id") == null || created.get("id").isNull()) {
                 throw new RosterServiceUnavailableException("professionalservice accepted the round but returned no id");
             }
-            return created.get("id").asString();
+            String roundId = created.get("id").asString();
+            // SUCCESS IS ANNOUNCED, AND UNTIL 2026-09-09 THIS PATH LOGGED NOTHING AT ALL.
+            //
+            // Only failure had a line, which was affordable while every call failed and is not now.
+            // The first successful file in this service's history happens on the deploy that lands
+            // item 57, and without this an operator watching that deploy cannot tell "the relay
+            // works" from "nobody has pressed the button" — the same two states item 57's own entry
+            // had to write a "measured but not observed" paragraph about, and the same ambiguity
+            // item 46 removed from DirectoryProjectionService by announcing the outcome rather than
+            // one branch of it. Absence of use and presence of success are different observations
+            // and this line is what makes them different in the log.
+            //
+            // INFO rather than debug: planning is a deliberate human act at human volume, not a
+            // per-row loop. The round id is hc-professional's own generated identifier — the round
+            // NAME is free text an administrator typed and the body carries customer ids, and
+            // neither goes near this line, for the reason the warn below records.
+            LOG.info("professionalservice filed a round; it returned id {}", roundId);
+            return roundId;
         } catch (RestClientException e) {
-            // Identifiers only. The round carries customer ids and this service must not log them
-            // beside a message that will be read out of a support ticket.
-            LOG.warn("professionalservice refused or could not be reached while filing a round: {}", e.getMessage());
+            // TYPES, NEVER THE MESSAGE — and this line carried the message until item 57.
+            //
+            // The comment that used to sit here said "identifiers only: the round carries customer
+            // ids and this service must not log them beside a message that will be read out of a
+            // support ticket". That was true of what the statement INTERPOLATED and false of what
+            // getMessage() CARRIES, which is the more dangerous half and is exactly the shape item
+            // 43 was about — a comment reassuring a reader about the precise thing it was getting
+            // wrong.
+            //
+            // Two library-built strings reach that message and neither is ours. A transport failure
+            // is a ResourceAccessException quoting the request URL. A refusal goes through
+            // RestClient's default error handler, whose getErrorMessage(int, String, byte[], Charset)
+            // appends the RESPONSE BODY — so a validation refusal from hc-professional that echoes a
+            // rejected value puts that value here, and the values in a round body are customer ids,
+            // which are hcpatientservice patient ids.
+            //
+            // ITEM 57 IS WHAT MADE THIS REACHABLE. Until the token relay was fixed this client threw
+            // before opening a socket on every call, so no RestClientException here had ever held a
+            // response from hc-professional. The fix arms it, which is why it is repaired on the
+            // same commit rather than filed.
+            //
+            // The two class names lose nothing worth having: what an operator needs is which failure
+            // it was, and the cause's type says it exactly — ConnectException,
+            // HttpConnectTimeoutException, UnknownHostException — while a 4xx arrives as
+            // HttpClientErrorException, which is the distinction RoundPlanningService reads to tell
+            // "refused" from "unreachable". None of them can quote anything.
+            LOG.warn(
+                "professionalservice refused or could not be reached while filing a round: {} caused by {}",
+                e.getClass().getSimpleName(),
+                e.getCause() == null ? "nothing further" : e.getCause().getClass().getSimpleName()
+            );
             throw new RosterServiceUnavailableException("Could not file the round with professionalservice", e);
         }
     }
