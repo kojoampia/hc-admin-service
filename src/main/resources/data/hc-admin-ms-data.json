@@ -1827,6 +1827,14 @@
           "name": "Kumasi Hub"
         },
         "homeSpaceId": "gs-asokwa"
+      },
+      {
+        "id": "p10",
+        "role": "NURSE",
+        "licenceNumber": "NMC/GH/26-9013",
+        "verification": "PENDING",
+        "status": "PENDING",
+        "joinedOn": "2026-09-01"
       }
     ],
     "geographicSpaces": [
@@ -17258,6 +17266,18 @@
         "professional": {
           "id": "p9",
           "licenceNumber": "NMC/GH/18-2204"
+        }
+      },
+      {
+        "id": "verif-p10-1",
+        "status": "PENDING",
+        "recordedAt": "2026-09-01T09:15:00Z",
+        "recordedBy": "admin",
+        "method": "Document review",
+        "note": "Licence supplied on the application; no profile has been created for this applicant yet.",
+        "professional": {
+          "id": "p10",
+          "licenceNumber": "NMC/GH/26-9013"
         }
       }
     ]

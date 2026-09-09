@@ -150,7 +150,7 @@ class DevelopmentDataInitializerTest {
 
         assertThat(test.getPersonProfiles()).hasSize(22);
         assertThat(test.getPatients()).hasSize(15);
-        assertThat(test.getProfessionals()).hasSize(9);
+        assertThat(test.getProfessionals()).hasSize(10);
         assertThat(test.getVendors()).hasSize(9);
         // The relation itself, not just the two collections. Both sides are DBRefs and only the
         // vendor's array is the owning one, so a seed that sets `vendor` on the facility and
@@ -281,8 +281,14 @@ class DevelopmentDataInitializerTest {
             .containsEntry("afrimpong", ProfessionalRole.PARAMEDIC)
             .containsEntry("makoto", ProfessionalRole.NURSE);
 
-        // Every professional is now reachable by a login somebody can actually sign in with.
-        assertThat(loginToRole).hasSameSizeAs(test.getProfessionals());
+        // Every professional who has a profile is reachable by a login somebody can actually sign in
+        // with. `p10` is the one that has none, so nothing can resolve a login to it and nothing
+        // should — see shouldCarryAProfessionalWithNobodyOnIt. It is named here rather than
+        // subtracted, because `hasSize(getProfessionals().size() - 1)` goes on passing if a
+        // *different* professional quietly loses its link and p10 quietly gains one.
+        List<Professional> withAProfile = test.getProfessionals().stream().filter(p -> p.getProfile() != null).toList();
+        assertThat(withAProfile).extracting(Professional::getId).doesNotContain("p10");
+        assertThat(loginToRole).hasSameSizeAs(withAProfile);
 
         // And the state the placeholders used to hold open is still reachable: profiles that belong
         // to no professional at all. `admin` is the one that matters, because it is a login on all
@@ -340,13 +346,93 @@ class DevelopmentDataInitializerTest {
      * null, exactly as production does. A dataset that populated both sides would let a resolver
      * reading either one pass — which is how a version that read the unpopulated side shipped and
      * answered 404 for every caller.
+     *
+     * <p><b>{@code p10} is excluded by name and the exclusion is the point of another test.</b> This
+     * assertion read {@code allSatisfy} over every professional until 2026-09-09, and while its
+     * subject is the <em>direction</em> of the link it also asserted, in passing, that a professional
+     * always has one. That is not true of the api — {@code Professional.profile} carries no
+     * {@code @NotNull} — and it was the pin that made the missing fixture state look impossible to
+     * add (backlog item 53's refusal cites this line). Excluding it by id keeps the direction rule
+     * exact for the nine records it is about, and leaves the tenth to
+     * {@link #shouldCarryAProfessionalWithNobodyOnIt()}.
      */
     @Test
     void shouldStoreTheAccountLinkOnTheProfessionalAndNotOnTheProfile() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getProfessionals()).allSatisfy(professional -> assertThat(professional.getProfile()).isNotNull());
+        assertThat(test.getProfessionals())
+            .filteredOn(professional -> !"p10".equals(professional.getId()))
+            .allSatisfy(professional -> assertThat(professional.getProfile()).isNotNull());
         assertThat(test.getPersonProfiles()).allSatisfy(profile -> assertThat(profile.getProfessional()).isNull());
+    }
+
+    /**
+     * <b>One professional has no {@code Profile} at all, and it is the fixture rather than an
+     * omission.</b>
+     *
+     * <p>{@code p10} exists to make three renderings reachable that were reachable on no stack short
+     * of production. All three were written for backlog item 45's defect — a record named by its own
+     * ObjectId — and item 49 fixed the last of them on a screen nobody could drive:
+     *
+     * <ul>
+     *   <li>{@code professional-detail.ts}'s {@code headingName()}, whose second branch shows the
+     *       licence number and whose third says "Identity not on file". Nine seeded professionals all
+     *       carried a profile, so only the first branch had ever rendered.
+     *   <li>{@code professional/list/professional.ts}'s {@code displayName()}, the same fallback one
+     *       screen along.
+     *   <li>{@code initials()} on both, which returns an em dash rather than two hex characters of
+     *       an id.
+     * </ul>
+     *
+     * <p><b>The state is ordinary, and the record is what the api writes when only its required
+     * fields are supplied.</b> {@code role}, {@code licenceNumber}, {@code verification},
+     * {@code status} and {@code joinedOn} are {@code @NotNull} on {@code Professional} and nothing
+     * else is, so a {@code POST} or {@code PUT} carrying those five is accepted — and because
+     * {@code ProfessionalResource} restores only {@code verification}, {@code homeSpaceId} and
+     * {@code unavailabilityPeriods} from the stored copy, such a {@code PUT} nulls a profile that was
+     * there. {@code ProfileResource.deleteProfile} reaches the same state from the other side: it
+     * cascades nowhere, and a dangling {@code @DBRef} reads back as null.
+     *
+     * <p>Seeding it moves nothing that is pinned, and that was measured rather than hoped:
+     *
+     * <ul>
+     *   <li><b>Status {@code PENDING}</b> keeps {@code duty-roster.cy.ts}'s {@code staff: 7} exact —
+     *       {@code buildRows()} drops PENDING, so the figure is ten professionals less three rather
+     *       than nine less two. The comment in that file says so; the number did not move.
+     *   <li>The dashboard's approval card caps at {@code APPROVAL_ROWS = 5} and orders patients,
+     *       then professionals, then vendors, so a sixth PENDING account leaves five rows with
+     *       Beatrice Sarsah still first. <b>It also makes that assertion mean what it claims:</b>
+     *       {@code dashboard.cy.ts} says it pins "five rows with more behind them", and until now
+     *       there was nothing behind them.
+     *   <li><b>No {@code team}, deliberately.</b> {@code RoundPlanningService} draws candidates from
+     *       {@code findByTeamIn}, and its private {@code displayName(Professional)} returns
+     *       {@code chosen.getId()} when the profile is null — the same defect one service along,
+     *       which backlog item 53 recorded and did not fix. A team on this record would put an
+     *       ObjectId on the planning screen. The assertion below is what stops one being added
+     *       without that being noticed.
+     * </ul>
+     *
+     * <p>It is named here rather than counted, for the reason the whole file is: "one professional
+     * without a profile" goes on passing when the one is a different one, or when it quietly gains
+     * a profile and some other record loses theirs.
+     */
+    @Test
+    void shouldCarryAProfessionalWithNobodyOnIt() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getProfessionals())
+            .filteredOn(professional -> professional.getProfile() == null)
+            .singleElement()
+            .satisfies(professional -> {
+                assertThat(professional.getId()).isEqualTo("p10");
+                // The licence number is the second branch of `headingName()`, so it has to be there
+                // and has to be legible — a blank one would render the third branch instead and the
+                // second would still never be seen.
+                assertThat(professional.getLicenceNumber()).isNotBlank();
+                // See the javadoc: a team makes it a planning candidate, and the planner names a
+                // profile-less candidate by its ObjectId.
+                assertThat(professional.getTeam()).isNull();
+            });
     }
 
     /**
@@ -673,16 +759,31 @@ class DevelopmentDataInitializerTest {
      * possible answer, so this asserts the four cases the ranking has to tell apart: two clinicians
      * in the same space, two sharing a parent, two sharing only a distant ancestor, and — through the
      * hub check below — no home that contradicts where the person actually works.
+     *
+     * <p><b>"Every professional" is now "every professional the planner can choose", and that is a
+     * narrowing towards the truth rather than away from it.</b> {@code RoundPlanningService} draws
+     * its candidates from {@code findByTeamIn}, so a professional with no team is never ranked and
+     * has nothing to be near. This read {@code getProfessionals()} whole until 2026-09-09, which was
+     * indistinguishable while the fixture happened to give all nine a team; {@code p10} has none, on
+     * purpose, and is the record that makes the difference visible (see
+     * {@link #shouldCarryAProfessionalWithNobodyOnIt()}).
      */
     @Test
     void shouldGiveEveryProfessionalAHomeSpaceThatMakesProximityMeaningful() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
+        List<Professional> candidates = test.getProfessionals().stream().filter(professional -> professional.getTeam() != null).toList();
+        // Who the filter removes, by name rather than by count: a rule over nothing passes, and
+        // "one fewer than all of them" goes on passing when the one is a different one.
+        assertThat(test.getProfessionals())
+            .filteredOn(professional -> professional.getTeam() == null)
+            .extracting(Professional::getId)
+            .containsExactly("p10");
+
         // Collected into a HashMap rather than through Collectors.toMap, which throws on a null
         // value — the assertion below has to be able to report a missing home space rather than be
         // pre-empted by an NPE inside the collector.
-        Map<String, String> homeOf = test
-            .getProfessionals()
+        Map<String, String> homeOf = candidates
             .stream()
             .collect(HashMap::new, (map, professional) -> map.put(professional.getId(), professional.getHomeSpaceId()), HashMap::putAll);
         Map<String, String> parentOf = test
@@ -690,7 +791,7 @@ class DevelopmentDataInitializerTest {
             .stream()
             .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
 
-        assertThat(homeOf).hasSameSizeAs(test.getProfessionals()).doesNotContainValue(null);
+        assertThat(homeOf).hasSameSizeAs(candidates).doesNotContainValue(null);
         assertThat(homeOf.values())
             .allSatisfy(spaceId -> assertThat(parentOf).as("home space %s is a seeded space", spaceId).containsKey(spaceId));
 
@@ -704,7 +805,7 @@ class DevelopmentDataInitializerTest {
         // fields and nothing joins them, so a fixture can put an Accra clinician in Kumasi and read
         // as complete — which would make every proximity result look like a bug in the ranking.
         Map<String, String> regionOf = Map.of("hub-1", "gs-greater-accra", "hub-2", "gs-ashanti");
-        assertThat(test.getProfessionals())
+        assertThat(candidates)
             .allSatisfy(professional ->
                 assertThat(regionOf.get(professional.getHub().getId()))
                     .as("home region of %s", professional.getId())
