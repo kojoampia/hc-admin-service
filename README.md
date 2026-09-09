@@ -128,8 +128,8 @@ Conventions:
 
 - Unit tests are `*Test.java`; integration tests are `*IT.java`. `junit-platform.properties` uses `SpringBootTestClassOrderer`, so plain unit tests run before context-booting ones.
 - Integration tests annotate `@IntegrationTest` plus `@AutoConfigureMockMvc(addFilters = false)` and `@WithMockUser`.
-- Testcontainers are wired via `src/test/resources/META-INF/spring.factories`. `TestContainersSpringContextCustomizerFactory` injects a MongoDB replica-set URI; `KafkaTestContainersSpringContextCustomizerFactory` only starts Kafka for classes annotated `@EmbeddedKafka`. Stream-focused tests can import `TestChannelBinderConfiguration` instead — see `HcAdminServiceKafkaResourceIT`.
-- Docker must be running for any integration test, since Testcontainers provisions MongoDB (and optionally Kafka).
+- Testcontainers are wired via `src/test/resources/META-INF/spring.factories`. `TestContainersSpringContextCustomizerFactory` injects a MongoDB replica-set URI; `KafkaTestContainersSpringContextCustomizerFactory` starts Kafka only for classes annotated `@EmbeddedKafka`, and **nothing is** — `@IntegrationTest` supplies the in-memory `TestChannelBinderConfiguration` instead, so no run starts a broker (`docs/backlog.md` item 17). If a Mongo container cannot start, read the banner the fixture logs rather than the first failing class; `GEMINI.md` § Testing explains why they are not the same thing.
+- Docker must be running for any integration test, since Testcontainers provisions MongoDB.
 
 ### Development seed data
 

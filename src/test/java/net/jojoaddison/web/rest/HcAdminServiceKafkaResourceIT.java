@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.HashMap;
 import java.util.Map;
 import net.jojoaddison.IntegrationTest;
-import net.jojoaddison.config.EmbeddedKafka;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
@@ -28,7 +27,6 @@ import org.springframework.util.MimeTypeUtils;
 @IntegrationTest
 @AutoConfigureMockMvc(addFilters = false)
 @WithMockUser
-@EmbeddedKafka
 @ImportAutoConfiguration(TestChannelBinderConfiguration.class)
 class HcAdminServiceKafkaResourceIT {
 
