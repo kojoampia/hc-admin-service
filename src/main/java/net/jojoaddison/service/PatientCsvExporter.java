@@ -152,12 +152,31 @@ public class PatientCsvExporter {
     }
 
     /**
-     * The lead's name, falling back to their licence number and then their id.
+     * The lead's name, falling back to their licence number and then to nothing at all.
      *
      * <p>The console shows a licence number here until the names it fetches separately land, because
      * {@code Patient.clinicalLead} is serialised with {@code @JsonIgnoreProperties("profile")}. That
      * constraint is on the wire, not on the database: reading the profile through the reference is
      * free here, so the file carries the name the screen has to go and fetch.
+     *
+     * <p><strong>It never falls back to the lead's id.</strong> That is what it did until backlog
+     * item 53, and the state is reachable rather than theoretical: no field in this service carries
+     * {@code @NotBlank}, so {@code ""} passes {@code licenceNumber}'s {@code @NotNull} and is stored.
+     * The cell then held a 24-character ObjectId, which reads as data — and this is a file an
+     * administrator downloads, keeps and may forward, so unlike a screen it is not corrected by a
+     * refresh. Item 45's rule is that an unresolved record is reported as unresolved, never named by
+     * its key.
+     *
+     * <p><strong>Empty rather than an em dash, which is what the two console sites use.</strong> A
+     * spreadsheet is not a screen. Every other absent value in this file is an empty cell — the id
+     * number, the age, the sex, the location, the plan, both sponsor columns, and this column itself
+     * in this method's first branch, when there is no lead at all. A dash would make this the only
+     * column that marks absence with a character, and it would give one column two markers for two
+     * states a reader cannot act on differently and that no CSV has a legend to explain. It would be a
+     * value: it sorts with the names, survives {@code COUNTA}, defeats {@code ISBLANK} and a
+     * filter's "Blanks", and a pivot table groups it beside real clinicians. That is a milder form of
+     * the same "reads as data" failure the id had. Encoding is not the reason — the response carries
+     * a UTF-8 BOM and would render the dash correctly.
      */
     private static String clinicalLead(Patient patient) {
         if (patient.getClinicalLead() == null) {
@@ -176,7 +195,7 @@ public class PatientCsvExporter {
             }
         }
         String licence = patient.getClinicalLead().getLicenceNumber();
-        return licence == null || licence.isBlank() ? text(patient.getClinicalLead().getId()) : licence;
+        return licence == null || licence.isBlank() ? "" : licence;
     }
 
     private static String text(Object value) {

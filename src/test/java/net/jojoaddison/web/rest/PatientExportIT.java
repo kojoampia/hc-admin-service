@@ -11,12 +11,16 @@ import java.util.List;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Address;
 import net.jojoaddison.domain.Patient;
+import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.IdType;
+import net.jojoaddison.domain.enumeration.ProfessionalRole;
 import net.jojoaddison.domain.enumeration.Sex;
+import net.jojoaddison.domain.enumeration.VerificationStatus;
 import net.jojoaddison.repository.AddressRepository;
 import net.jojoaddison.repository.PatientRepository;
+import net.jojoaddison.repository.ProfessionalRepository;
 import net.jojoaddison.repository.ProfileRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,6 +64,15 @@ class PatientExportIT {
     @Autowired
     private AddressRepository addressRepository;
 
+    @Autowired
+    private ProfessionalRepository professionalRepository;
+
+    /**
+     * Removed by id rather than by {@code deleteAll()}, because the professional collection is not
+     * this class's to empty — every other case here owns only patients, profiles and addresses.
+     */
+    private static final String UNNAMEABLE_LEAD_ID = "patient-export-it-lead";
+
     @BeforeEach
     void seed() {
         patientRepository.deleteAll();
@@ -77,6 +90,59 @@ class PatientExportIT {
         patientRepository.deleteAll();
         profileRepository.deleteAll();
         addressRepository.deleteAll();
+        professionalRepository.deleteById(UNNAMEABLE_LEAD_ID);
+    }
+
+    /**
+     * A clinical lead with nothing to name it by exports an empty cell, and its id reaches the file
+     * nowhere.
+     *
+     * <p><strong>This case exists to be run against a real database, not because the shaping needs
+     * it.</strong> {@code PatientCsvExporterTest} asserts the same rule on a hand-built object, and
+     * that proves the branch. What it cannot prove is that the branch is reachable — and the whole
+     * argument for fixing this was that {@code ""} is storable, because {@code licenceNumber} is
+     * {@code @NotNull} with no {@code @NotBlank} anywhere in this service. So the professional below
+     * goes in through the repository, past the {@code ValidatingMongoEventListener} that
+     * {@code DatabaseConfiguration} registers, and is read back before anything is asserted about the
+     * file. If a {@code @NotBlank} is ever added, this fails at the save and says so, instead of
+     * quietly becoming a test of an unreachable branch.
+     *
+     * <p>It also reads the bytes the endpoint actually returns rather than an exporter's output. No
+     * test in this repository opened the clinical-lead cell of a real response before this one, which
+     * is why an id sat in it through four passes over the rule that forbids it.
+     */
+    @Test
+    void aLeadWithABlankLicenceIsStorableAndItsIdNeverReachesTheFile() throws Exception {
+        Professional lead = new Professional()
+            .role(ProfessionalRole.NURSE)
+            .licenceNumber("")
+            .verification(VerificationStatus.PENDING)
+            .status(AccountStatus.ACTIVE)
+            .joinedOn(LocalDate.of(2026, 2, 1));
+        lead.setId(UNNAMEABLE_LEAD_ID);
+        Professional stored = professionalRepository.save(lead);
+
+        // The reachability claim, asserted rather than reasoned from the annotations.
+        assertThat(professionalRepository.findById(stored.getId()))
+            .get()
+            .satisfies(found -> assertThat(found.getLicenceNumber()).isEmpty());
+        assertThat(stored.getProfile()).isNull();
+
+        Patient patient = patient(AccountStatus.ACTIVE, false, profile("Adjoa", "Mensah", "Madina", "Accra"));
+        patient.setClinicalLead(stored);
+        patientRepository.save(patient);
+
+        List<String> lines = export();
+        String row = lines.stream().filter(line -> line.startsWith("\"Adjoa Mensah\"")).findFirst().orElseThrow();
+
+        assertThat(cells(row).get(8)).isEmpty();
+        assertThat(body()).doesNotContain(UNNAMEABLE_LEAD_ID);
+    }
+
+    /** Splits a fully-quoted row back into its cells. */
+    private static List<String> cells(String line) {
+        String inner = line.substring(1, line.length() - 1);
+        return List.of(inner.split("\",\"", -1));
     }
 
     @Test
