@@ -104,16 +104,14 @@ class ConfigurationBindingTest {
     void jhipsterSecurityIsNeverAnEmptyValue() throws IOException {
         for (String resource : List.of("config/application.yml", "config/application-dev.yml", "config/application-prod.yml")) {
             Binder binder = binderFor(resource);
-            binder
-                .bind("jhipster.security", String.class)
-                .ifBound(value -> {
-                    throw new AssertionError(
-                        resource +
+            binder.bind("jhipster.security", String.class).ifBound(value -> {
+                throw new AssertionError(
+                    resource +
                         " binds jhipster.security to the String \"" +
                         value +
                         "\". It is an object: an empty `security:` key here fails the whole application at startup."
-                    );
-                });
+                );
+            });
         }
     }
 
@@ -166,6 +164,41 @@ class ConfigurationBindingTest {
                 )
                 .isNotNull();
         }
+    }
+
+    /**
+     * <b>The plan-verification binding publishes to {@code patient-events-plan}, by name.</b>
+     *
+     * <p>The sweep above asserts that every outbound binding <em>has</em> a destination. It cannot
+     * assert <em>which</em>, and for this one binding that is not enough — measured rather than
+     * assumed: typing {@code patient-events-plan} as {@code patient-event-plan} leaves the sweep and
+     * every other test in this repository green, because a misspelled topic is still a topic.
+     *
+     * <p><b>Why a literal here, when the file next door argues at length against enumerating.</b>
+     * The rule that a hand-maintained list stops covering things is right and the sweep stays. This
+     * is the exception it does not reach: the value is a <b>cross-product contract</b>, not an
+     * internal name this service is free to choose. hc-patient binds a consumer, a group and a
+     * dead-letter queue to that exact string — their {@code PlanVerificationConsumerBindingIT} pins
+     * their half with literals for the same reason, in their words because "the destination is a
+     * two-product agreement and a rename is a coordinated deploy". Ours was pinned by nothing.
+     *
+     * <p>And the failure mode is the one the {@code application.yml} comment beside this binding
+     * already names, one step further along: a healthy producer, a real topic, an administrator told
+     * the decision was accepted, and a consumer next door that never receives it. No log line on
+     * either side says so — theirs is not lagging, it is subscribed elsewhere.
+     *
+     * <p>Two names, not one, and the binding name matters as much as the topic: the binding is what
+     * {@code PatientPlanVerificationService.PLAN_VERIFICATION_BINDING} passes to
+     * {@code StreamBridge}, and a binding that resolves to nothing declared gets a dynamic
+     * destination named after itself — the same silent shape.
+     */
+    @Test
+    void thePlanVerificationBindingPublishesToTheTopicHcPatientConsumes() throws IOException {
+        Map<String, Object> properties = propertiesOf("config/application.yml");
+
+        assertThat(properties.get("spring.cloud.stream.bindings.plan-verification-out-0.destination"))
+            .as("item 54's return leg must publish to the exact topic hc-patient binds to; a misspelling is a real topic that nobody reads")
+            .isEqualTo("patient-events-plan");
     }
 
     /**
@@ -267,8 +300,11 @@ class ConfigurationBindingTest {
             .as("hc-professional's api publishes the profile status — phase 2 — to hc.professional.entity")
             .isEqualTo("hc.professional.entity");
 
-        List<Object> groups = Stream
-            .of("patientDirectoryConsumer-in-0", "professionalDirectoryConsumer-in-0", "professionalProfileConsumer-in-0")
+        List<Object> groups = Stream.of(
+            "patientDirectoryConsumer-in-0",
+            "professionalDirectoryConsumer-in-0",
+            "professionalProfileConsumer-in-0"
+        )
             .map(binding -> {
                 Object group = properties.get(prefix + binding + ".group");
                 assertThat(group).as("%s needs a durable group of its own", binding).isNotNull();
