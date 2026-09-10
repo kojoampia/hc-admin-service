@@ -1,19 +1,26 @@
 package net.jojoaddison.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.StringWriter;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import net.jojoaddison.domain.Address;
 import net.jojoaddison.domain.Angel;
+import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.ServicePlan;
 import net.jojoaddison.domain.enumeration.AccountStatus;
+import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.Sex;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -28,7 +35,9 @@ class PatientCsvExporterTest {
 
     private static final LocalDate TODAY = LocalDate.of(2026, 8, 24);
 
-    private final PatientCsvExporter exporter = new PatientCsvExporter();
+    private final CountingLinks links = new CountingLinks();
+
+    private final PatientCsvExporter exporter = new PatientCsvExporter(links.repository());
 
     @Test
     void writesTheHeaderEvenWithNoRows() throws Exception {
@@ -71,20 +80,159 @@ class PatientCsvExporterTest {
     }
 
     /**
-     * A patient whose profile has not been filled in still identifies itself.
+     * A patient learned from a sibling event exports the address off its link, as the console shows
+     * it — backlog item 62.
      *
-     * <p>Falling back to the id rather than leaving the first column blank: mid-intake is a real
-     * state, and a file where some rows have no identifier at all cannot be acted on — there is
-     * nothing to click through to.
+     * <p>This case replaced {@code fallsBackToTheIdWhenThereIsNoName}, which asserted the defect: the
+     * first column held the record's own id, so the same three rows read {@code a13} in the file and
+     * {@code naa.adjeley@mail.gh} on the screen, and nothing anywhere reported that the two
+     * disagreed.
      */
     @Test
-    void fallsBackToTheIdWhenThereIsNoName() throws Exception {
+    void aLearnedPatientIsNamedByTheAddressOnItsLink() throws Exception {
+        links.save("p-42", "naa.adjeley@mail.gh", null);
         Patient patient = new Patient().status(AccountStatus.PENDING);
         patient.setId("p-42");
 
         List<String> lines = write(patient);
 
-        assertThat(lines.get(1)).startsWith("\"p-42\"");
+        assertThat(cells(lines.get(1)).getFirst()).isEqualTo("naa.adjeley@mail.gh");
+        assertThat(lines.get(1)).doesNotContain("p-42");
+    }
+
+    /**
+     * A profile still wins over a link, which is the common row and the one a regression here would
+     * be least visible on.
+     *
+     * <p>Asserted with a link present rather than absent: with no link the profile branch is the only
+     * one that can answer, so the case would pass against an implementation that had the precedence
+     * exactly backwards.
+     */
+    @Test
+    void aPatientWithAProfileIsNamedByItEvenWhenALinkAlsoNamesThem() throws Exception {
+        links.save("p-7", "ama.b@mail.gh", null);
+        Patient patient = new Patient().status(AccountStatus.ACTIVE);
+        patient.setId("p-7");
+        patient.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+
+        List<String> lines = write(patient);
+
+        assertThat(cells(lines.get(1)).getFirst()).isEqualTo("Ama Boateng");
+    }
+
+    /**
+     * A link with no address falls through to the login, which is what the console's
+     * {@code resolveLinkIdentity} does one branch down.
+     *
+     * <p>Reachable rather than theoretical: an {@code onboarding.state} frame carries no email at
+     * all, which is the state the {@code dl-prof-anon} fixture row exists for. Matching the screen
+     * here is the whole of this item — a fallback the console has and the file does not is the same
+     * disagreement one branch along.
+     */
+    @Test
+    void aLinkWithNoAddressFallsThroughToTheLogin() throws Exception {
+        links.save("p-43", "   ", "nadjeley");
+        Patient patient = new Patient().status(AccountStatus.PENDING);
+        patient.setId("p-43");
+
+        List<String> lines = write(patient);
+
+        assertThat(cells(lines.get(1)).getFirst()).isEqualTo("nadjeley");
+    }
+
+    /**
+     * A patient with neither profile nor link says so in words.
+     *
+     * <p><b>Words rather than the empty cell every other absent value in this file uses</b>, and the
+     * exception is argued at {@code displayName}: this is the row's only identity column, so a blank
+     * makes the row anonymous rather than incomplete. {@code a14} is that state in the {@code test}
+     * fixture, and it is permanent rather than pending.
+     */
+    @Test
+    void aPatientNothingCanNameSaysSoRatherThanCarryingItsId() throws Exception {
+        Patient patient = new Patient().status(AccountStatus.PENDING);
+        patient.setId("68b4f2a19c3d5e7f81a02c44");
+
+        List<String> lines = write(patient);
+
+        assertThat(cells(lines.get(1)).getFirst()).isEqualTo(PatientCsvExporter.IDENTITY_NOT_ON_FILE);
+        assertThat(lines.get(1)).doesNotContain("68b4f2a19c3d5e7f81a02c44");
+    }
+
+    /**
+     * <b>No cell in the file is any patient's id, on any row.</b>
+     *
+     * <p>The defect's own shape rather than a restatement of the three cases above: they each pin one
+     * branch, and this reads every cell of every row against every id in the export. An id moving from
+     * the first column to another one — or a fourth branch acquiring the old fallback — passes all
+     * three and fails this.
+     *
+     * <p>Deliberately over a mixed set. A sweep over nameless rows alone would go green the day the
+     * fallback moved onto the named path instead.
+     */
+    @Test
+    void noCellInTheFileIsAPatientsOwnId() throws Exception {
+        links.save("a13", "naa.adjeley@mail.gh", null);
+        Patient named = new Patient().status(AccountStatus.ACTIVE);
+        named.setId("a12");
+        named.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+        Patient linked = new Patient().status(AccountStatus.PENDING);
+        linked.setId("a13");
+        Patient unknown = new Patient().status(AccountStatus.PENDING);
+        unknown.setId("a14");
+
+        List<String> lines = write(named, linked, unknown);
+
+        List<String> ids = List.of("a12", "a13", "a14");
+        for (String line : lines.subList(1, lines.size())) {
+            assertThat(cells(line)).as("a patient's id reached the file: %s", line).doesNotContainAnyElementsOf(ids);
+        }
+    }
+
+    /**
+     * The links are read <b>once for the whole file</b>, not once per row.
+     *
+     * <p>Counted rather than asserted in prose, because this is an export with no page size: the one
+     * endpoint here where a per-row read is a fan-out over the whole collection, and the reason item
+     * 53 deferred this rather than fixing it cheaply. The stub below records every call it receives,
+     * so a lookup moved inside the loop fails here with a number rather than passing silently and
+     * slowly.
+     */
+    @Test
+    void theLinksAreReadOnceForTheWholeFileRatherThanOncePerRow() throws Exception {
+        links.save("a13", "naa.adjeley@mail.gh", null);
+        links.save("a15", "kojo@jac.net", null);
+
+        write(nameless("a13"), nameless("a14"), nameless("a15"));
+
+        assertThat(links.reads()).isEqualTo(1);
+    }
+
+    /**
+     * And not read at all when every row already has a name.
+     *
+     * <p>The same property the console has — one request per page, none when the page is fully named
+     * — and the half that a "one query" assertion alone does not cover. It matters most on the export
+     * a real directory produces, where the learned rows are the minority: a directory of named
+     * patients costs this endpoint exactly what it cost before item 62.
+     */
+    @Test
+    void theLinksAreNotReadAtAllWhenEveryRowHasAProfile() throws Exception {
+        Patient patient = new Patient().status(AccountStatus.ACTIVE);
+        patient.setId("a12");
+        patient.setProfile(new Profile().firstName("Ama").lastName("Boateng"));
+
+        write(patient);
+
+        assertThat(links.reads()).isZero();
+    }
+
+    /** A patient with no name and no id cannot be looked up, and must not be reported as one. */
+    @Test
+    void aPatientWithNoIdIsUnidentifiedRatherThanBlank() throws Exception {
+        List<String> lines = write(new Patient().status(AccountStatus.PENDING));
+
+        assertThat(cells(lines.get(1)).getFirst()).isEqualTo(PatientCsvExporter.IDENTITY_NOT_ON_FILE);
     }
 
     /**
@@ -107,7 +255,13 @@ class PatientCsvExporterTest {
     void ageIsWholeYearsAtTheGivenDate() throws Exception {
         Patient patient = new Patient().status(AccountStatus.ACTIVE);
         // Birthday tomorrow: still 39, which is the case a naive year subtraction gets wrong.
-        patient.setProfile(new Profile().firstName("Ama").lastName("Boateng").dateOfBirth(LocalDate.of(1986, 8, 25)).sex(Sex.FEMALE));
+        patient.setProfile(
+            new Profile()
+                .firstName("Ama")
+                .lastName("Boateng")
+                .dateOfBirth(LocalDate.of(1986, 8, 25))
+                .sex(Sex.FEMALE)
+        );
 
         List<String> lines = write(patient);
 
@@ -298,6 +452,59 @@ class PatientCsvExporterTest {
         StringWriter writer = new StringWriter();
         exporter.write(writer, Stream.of(patients), TODAY);
         return List.of(writer.toString().split("\r\n"));
+    }
+
+    /** A patient with an id and nothing else — the shape a sibling event leaves behind. */
+    private static Patient nameless(String id) {
+        Patient patient = new Patient().status(AccountStatus.PENDING);
+        patient.setId(id);
+        return patient;
+    }
+
+    /**
+     * The link collection, and a count of how many times it was asked.
+     *
+     * <p>The count is the assertion {@link #theLinksAreReadOnceForTheWholeFileRatherThanOncePerRow}
+     * and {@link #theLinksAreNotReadAtAllWhenEveryRowHasAProfile} are made of, and it is a count
+     * rather than a Mockito {@code verify} so that a regression reports <em>how many</em> reads there
+     * were. "Wanted 1, was 3" names a per-row lookup; "wanted 1, was 15" on a real directory would be
+     * the fan-out this endpoint has no page size to bound.
+     */
+    private static final class CountingLinks {
+
+        private final List<DirectoryLink> stored = new ArrayList<>();
+        private final DirectoryLinkRepository repository = mock(DirectoryLinkRepository.class);
+        private int reads;
+
+        private CountingLinks() {
+            when(repository.findBySource(any())).thenAnswer(invocation -> {
+                reads++;
+                DirectorySource source = invocation.getArgument(0);
+                return stored
+                    .stream()
+                    .filter(link -> link.getSource() == source)
+                    .toList();
+            });
+        }
+
+        /** One HC_PATIENT link naming a local record, as the projection would have written it. */
+        void save(String localId, String email, String login) {
+            DirectoryLink link = new DirectoryLink();
+            link.setSource(DirectorySource.HC_PATIENT);
+            link.setExternalKey(email);
+            link.setLocalId(localId);
+            link.setEmail(email);
+            link.setLogin(login);
+            stored.add(link);
+        }
+
+        DirectoryLinkRepository repository() {
+            return repository;
+        }
+
+        int reads() {
+            return reads;
+        }
     }
 
     /** Splits a fully-quoted row back into its cells. */

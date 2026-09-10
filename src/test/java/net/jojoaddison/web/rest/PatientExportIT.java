@@ -6,19 +6,24 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Address;
+import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.enumeration.AccountStatus;
+import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
 import net.jojoaddison.domain.enumeration.IdType;
 import net.jojoaddison.domain.enumeration.ProfessionalRole;
 import net.jojoaddison.domain.enumeration.Sex;
 import net.jojoaddison.domain.enumeration.VerificationStatus;
 import net.jojoaddison.repository.AddressRepository;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.PatientRepository;
 import net.jojoaddison.repository.ProfessionalRepository;
 import net.jojoaddison.repository.ProfileRepository;
@@ -67,11 +72,25 @@ class PatientExportIT {
     @Autowired
     private ProfessionalRepository professionalRepository;
 
+    @Autowired
+    private DirectoryLinkRepository directoryLinkRepository;
+
     /**
      * Removed by id rather than by {@code deleteAll()}, because the professional collection is not
      * this class's to empty — every other case here owns only patients, profiles and addresses.
      */
     private static final String UNNAMEABLE_LEAD_ID = "patient-export-it-lead";
+
+    /**
+     * The same rule for the links, and here it matters more than it does for the lead.
+     *
+     * <p>{@code directory_link} is the identity map two consumers upsert into, so emptying it in a
+     * teardown would delete rows another test — or another run's leftovers — depend on, and the
+     * damage would show up as a directory that has forgotten who it learned about rather than as a
+     * failure here.
+     */
+    private static final String LINKED_ID = "patient-export-it-link";
+    private static final String UNCLAIMED_LINK_ID = "patient-export-it-link-unclaimed";
 
     @BeforeEach
     void seed() {
@@ -91,6 +110,8 @@ class PatientExportIT {
         profileRepository.deleteAll();
         addressRepository.deleteAll();
         professionalRepository.deleteById(UNNAMEABLE_LEAD_ID);
+        directoryLinkRepository.deleteById(LINKED_ID);
+        directoryLinkRepository.deleteById(UNCLAIMED_LINK_ID);
     }
 
     /**
@@ -133,10 +154,63 @@ class PatientExportIT {
         patientRepository.save(patient);
 
         List<String> lines = export();
-        String row = lines.stream().filter(line -> line.startsWith("\"Adjoa Mensah\"")).findFirst().orElseThrow();
+        String row = lines
+            .stream()
+            .filter(line -> line.startsWith("\"Adjoa Mensah\""))
+            .findFirst()
+            .orElseThrow();
 
         assertThat(cells(row).get(8)).isEmpty();
         assertThat(body()).doesNotContain(UNNAMEABLE_LEAD_ID);
+    }
+
+    /**
+     * A patient with no {@code Profile} is named from its {@link DirectoryLink}, or says it cannot be
+     * named — and its id reaches the file nowhere. Backlog item 62.
+     *
+     * <p><strong>This case exists to be run against a real database, and the reason is the one item
+     * 53 wrote down one column along.</strong> {@code PatientCsvExporterTest} asserts the same three
+     * branches against a mocked repository, which proves the shaping and proves nothing about the
+     * lookup: {@code findBySource} is an explicit {@code @Query} over the stored field names, and
+     * {@code local_id} reaches Java as {@code localId} only through the {@code @Field} indirection.
+     * A mock agrees with whatever the code asks it, so a query naming the wrong field would leave
+     * every unit case green and every real row exporting "identity not on file" — the same silent
+     * shape as the defect being fixed, arrived at from the other side.
+     *
+     * <p>All three states in one case deliberately: they are one rule and the file has to be read
+     * across to see them agree. Named by name, not counted — a fixture that quietly loses one of the
+     * three goes on passing a count.
+     */
+    @Test
+    void aPatientWithNoProfileIsNamedFromItsLinkAndNeverByItsOwnId() throws Exception {
+        Patient linked = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 1)));
+        Patient unknown = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 2)));
+        directoryLinkRepository.save(link(LINKED_ID, linked.getId(), "naa.adjeley@mail.gh"));
+        // A link of the same source naming nobody — the care-angel and erased rows are both this
+        // shape — so the map this export builds has to skip it rather than key on a null.
+        directoryLinkRepository.save(link(UNCLAIMED_LINK_ID, null, "former.patient@mail.gh"));
+
+        List<String> lines = export();
+
+        assertThat(lines).anyMatch(line -> line.startsWith("\"naa.adjeley@mail.gh\""));
+        assertThat(lines).anyMatch(line -> line.startsWith("\"Identity not on file\""));
+        // The whole file, not the two rows above: an id in any cell of any row is the defect, and a
+        // per-row assertion would not see it move columns.
+        assertThat(body()).doesNotContain(linked.getId()).doesNotContain(unknown.getId());
+    }
+
+    /** One {@code HC_PATIENT} link, as the projection writes it. */
+    private static DirectoryLink link(String id, String localId, String email) {
+        DirectoryLink link = new DirectoryLink();
+        link.setId(id);
+        link.setSource(DirectorySource.HC_PATIENT);
+        link.setSubjectKind(DirectorySubjectKind.PATIENT);
+        link.setExternalKey(email);
+        link.setEmail(email);
+        link.setLocalId(localId);
+        link.setFirstSeenAt(Instant.parse("2026-03-01T00:00:00Z"));
+        link.setLastEventAt(Instant.parse("2026-03-01T00:00:00Z"));
+        return link;
     }
 
     /** Splits a fully-quoted row back into its cells. */
@@ -284,7 +358,11 @@ class PatientExportIT {
 
     private Patient patient(AccountStatus status, boolean archived, Profile profile) {
         Profile saved = profileRepository.save(profileWithSavedAddress(profile));
-        return new Patient().status(status).joinedOn(LocalDate.of(2026, 1, 1)).isArchived(archived).profile(saved);
+        return new Patient()
+            .status(status)
+            .joinedOn(LocalDate.of(2026, 1, 1))
+            .isArchived(archived)
+            .profile(saved);
     }
 
     private Profile profileWithSavedAddress(Profile profile) {
