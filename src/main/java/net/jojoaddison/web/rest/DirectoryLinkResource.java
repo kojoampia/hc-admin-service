@@ -8,7 +8,9 @@ import net.jojoaddison.repository.DirectoryLinkRepository;
 import net.jojoaddison.repository.support.NamedFilters;
 import net.jojoaddison.service.DirectoryNameResolutionService;
 import net.jojoaddison.service.DirectoryProjectionService;
+import net.jojoaddison.service.DirectoryRegistrationService;
 import net.jojoaddison.service.dto.DirectoryReconciliationDTO;
+import net.jojoaddison.service.dto.RegistrationTotalsDTO;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,6 +116,7 @@ public class DirectoryLinkResource {
     private final DirectoryLinkRepository directoryLinkRepository;
     private final DirectoryProjectionService directoryProjectionService;
     private final DirectoryNameResolutionService directoryNameResolutionService;
+    private final DirectoryRegistrationService directoryRegistrationService;
 
     /** For combining the two optional filters below, which is more than a derived query method can do. */
     private final MongoTemplate mongoTemplate;
@@ -122,11 +125,13 @@ public class DirectoryLinkResource {
         DirectoryLinkRepository directoryLinkRepository,
         DirectoryProjectionService directoryProjectionService,
         DirectoryNameResolutionService directoryNameResolutionService,
+        DirectoryRegistrationService directoryRegistrationService,
         MongoTemplate mongoTemplate
     ) {
         this.directoryLinkRepository = directoryLinkRepository;
         this.directoryProjectionService = directoryProjectionService;
         this.directoryNameResolutionService = directoryNameResolutionService;
+        this.directoryRegistrationService = directoryRegistrationService;
         this.mongoTemplate = mongoTemplate;
     }
 
@@ -383,5 +388,38 @@ public class DirectoryLinkResource {
     public ResponseEntity<DirectoryReconciliationDTO> reconcile() {
         LOG.debug("REST request to reconcile the directory against its links");
         return ResponseEntity.ok(directoryProjectionService.reconcile());
+    }
+
+    /**
+     * {@code GET /api/directory-links/registrations} : how many accounts the sibling stacks have told
+     * this service about, split by whether they can sign in.
+     *
+     * <p>Backlog item 75's estate-wide half — the headline the console shows beside hc-admin-gateway's
+     * much smaller count of its own staff accounts. <b>Three buckets and not the two the item asked
+     * for</b>; {@link RegistrationTotalsDTO} argues why, and it is the same argument
+     * {@code DirectoryLink.activated}'s javadoc already makes about a defect this service has had.
+     *
+     * <p>A sub-path of this resource rather than a resource of its own, because it is an aggregate of
+     * exactly this collection and nothing else — and it is deliberately <b>not</b> on
+     * {@code /api/dashboard/metrics} next door. That payload is one contract with
+     * {@code SparklinesIT} and {@code DashboardMetricsResourceIT} pinning figures to each other, and
+     * this belongs to a different screen asking a different question.
+     *
+     * <p>Not paginated, and it does not need to be: the response is fixed-size — three totals and one
+     * row per {@link DirectorySource} — however large the collection grows. {@code PaginationIT}'s
+     * sweep matches single-segment paths under {@code /api} and therefore does not claim this one,
+     * which is the right answer rather than a gap: there is no page to take a slice of.
+     *
+     * <p><b>Nothing identifying is in this response</b> — counts and enum names only — so the
+     * retention argument at the top of this class does not reach it, and the ordinary
+     * admin-or-operator read rule applies. The gateway's half of the same screen is
+     * {@code ROLE_ADMIN} alone because it names logins as they were entered; each end says so.
+     *
+     * @return {@code 200 OK} with the totals.
+     */
+    @GetMapping("/registrations")
+    public ResponseEntity<RegistrationTotalsDTO> getRegistrationTotals() {
+        LOG.debug("REST request to get directory registration totals");
+        return ResponseEntity.ok(directoryRegistrationService.totals());
     }
 }
