@@ -299,6 +299,28 @@ class ApiAuthorizationIT {
     }
 
     /**
+     * The registration totals are admin-or-operator, and that is <b>deliberately wider</b> than the
+     * other half of the same screen.
+     *
+     * <p>hc-admin-gateway's {@code GET /api/auth-activity} is {@code ROLE_ADMIN} alone, because it
+     * names logins as they were entered. This endpoint answers with counts and enum names and carries
+     * no identifier at all, so the ordinary read rule is right for it and
+     * {@code DirectoryLinkResource}'s retention argument does not reach it.
+     *
+     * <p>Asserted rather than left implied, for the reason the case above gives: every case in
+     * {@code DirectoryRegistrationTotalsIT} runs {@code addFilters = false} and none of them would
+     * notice this path being opened — or, in the other direction, being narrowed to admin-only by
+     * somebody synchronising it to the gateway's half without reading why the two differ.
+     */
+    @Test
+    void anOperatorReadsTheRegistrationTotalsAndAnAnonymousCallerDoesNot() throws Exception {
+        mvc.perform(get("/api/directory-links/registrations").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isOk());
+        mvc.perform(get("/api/directory-links/registrations").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isOk());
+        mvc.perform(get("/api/directory-links/registrations").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/directory-links/registrations")).andExpect(status().isUnauthorized());
+    }
+
+    /**
      * Recording a verification is a write, so it is the administrator's.
      *
      * <p>Covered by the blanket rule rather than a matcher of its own, and asserted anyway because
