@@ -187,7 +187,16 @@ class PatientExportIT {
         Patient unknown = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 2)));
         directoryLinkRepository.save(link(LINKED_ID, linked.getId(), "naa.adjeley@mail.gh"));
         // A link of the same source naming nobody — the care-angel and erased rows are both this
-        // shape — so the map this export builds has to skip it rather than key on a null.
+        // shape — so the map this export builds walks one and keys on the rest.
+        //
+        // It exercises the LOOP, not the skip, and the difference is worth stating because this
+        // comment claimed the skip was necessary until the item 62 review measured it. Removing
+        // `LinkedIdentities.load`'s null/blank guard leaves all 30 cases green, this one included
+        // against a real Mongo: `HashMap.putIfAbsent(null, …)` is legal, and the null key is never
+        // consulted because `identify` returns early for a null or blank local id and a persisted
+        // patient always has a Mongo-assigned one. So the early return is what does the work here,
+        // the hand-built HashMap chosen for duplicate tolerance buys null tolerance for free, and
+        // the guard is precautionary belt to that braces rather than the thing being tested.
         directoryLinkRepository.save(link(UNCLAIMED_LINK_ID, null, "former.patient@mail.gh"));
 
         List<String> lines = export();
