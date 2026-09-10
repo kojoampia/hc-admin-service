@@ -198,6 +198,34 @@ spring:
           destination: professional-verification
           content-type: text/plain
           group: hc-admin-service
+        # Plan verifications, back to hc-patient (backlog item 54). The answer to the `PlanChosen`
+        # that patientDirectoryConsumer-in-0 reads below: an administrator verifies the tier a patient
+        # chose, and this is the only thing that tells them so.
+        #
+        # THE TOPIC NAME IS hc-patient's AND IS NOT TO BE TIDIED. `patient-events-plan` reads as a
+        # sub-topic of `patient-events` and is not one — that topic is theirs and inbound, this one is
+        # ours and outbound, and the name for what it carries would be something like
+        # `patient-plan-verification`. It stays because they chose it knowingly, it is written into
+        # their decision, and they are already built to consume it. Renaming it later is a coordinated
+        # deploy across two products with a silent failure in the window, which is the same trade
+        # `destination` itself carries: publishing to a topic nobody reads looks exactly like success.
+        #
+        # application/json, UNLIKE every other outbound binding here, and the difference is required
+        # rather than stylistic. hc-patient binds this topic to a `Consumer<PatientEvent>` under
+        # `content-type: application/json`; the Kafka binder propagates `contentType` as a record
+        # header, so declaring text/plain here would tell their converter to hand the function a
+        # String and every frame would be dead-lettered.
+        #
+        # The payload is sent as BYTES with the header set explicitly (OutboundEventPublisher.keyed).
+        # That is belt-and-braces rather than a fix for a live defect, and this comment claimed the
+        # latter until the review read the jar: a String on a json binding COULD be serialised as a
+        # JSON *string* — well-formed, deceptive, unbindable — but spring-cloud-function-context
+        # 5.0.3 special-cases a String that already parses as JSON and passes the raw bytes through.
+        # Bytes mean the frame does not depend on that passthrough staying where it is.
+        plan-verification-out-0:
+          destination: patient-events-plan
+          content-type: application/json
+          group: hc-admin-service
         # THE TWO DOMAIN SUBSCRIPTIONS. Everything above this line is either outbound or the SSE
         # fan-out; these are the only bindings on which this service learns anything from another.
         #

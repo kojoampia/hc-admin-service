@@ -1,12 +1,18 @@
 package net.jojoaddison.broker;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
+import org.springframework.util.MimeTypeUtils;
 
 /**
  * The one place this service publishes to the broker, and the only class allowed to hold a
@@ -127,8 +133,45 @@ public class OutboundEventPublisher {
      * @param subject what to name in the log if this never reaches the broker, e.g. {@code Message m1}
      */
     public void publish(String bindingName, String payload, String subject) {
+        publish(bindingName, payload, subject, null);
+    }
+
+    /**
+     * Queues one already-serialised event under a partition key, and returns immediately.
+     *
+     * <p>As {@link #publish(String, String, String)}, plus the two things a cross-product topic needs
+     * that this service's own fan-out channels do not. Added for backlog item 54.
+     *
+     * <p><b>The key is what makes one person one.</b> Without it Kafka partitions round-robin, so two
+     * frames about the same patient can land on different partitions and be consumed out of order —
+     * the exact reasoning item 48 used when it refused hc-patient's request to key plan events on
+     * {@code accountId + "-" + Plan.name}. It is set as {@code KafkaHeaders.KEY} and, redundantly, as
+     * the {@code patientKey} header hc-patient's own publishers use, so a consumer reading either
+     * convention finds it.
+     *
+     * <p><b>And the payload goes out as JSON bytes rather than as a String</b>, which does not depend
+     * on the converter doing anything in particular. The concern it removes is real but
+     * <b>version-dependent</b>, and the version on this classpath is fine: a {@code String} on a
+     * binding declaring {@code application/json} could be serialised <em>as a JSON string</em> —
+     * {@code "\"{\\\"plan\\\"...\""} — which is well-formed, deceptive and unbindable at the far end,
+     * but {@code spring-cloud-function-context} 5.0.3 special-cases it, logging <i>"String already
+     * represents JSON. Skipping conversion in favor of 'getBytes(StandardCharsets.UTF_8)'"</i> and
+     * passing the raw bytes through. <b>So this is belt-and-braces, not a bug fix</b>, and it was
+     * described as the latter until the review checked the jar. The partition key below is what
+     * actually requires a {@code Message}; sending bytes simply means the frame does not rely on a
+     * passthrough that a future version is free to move.
+     *
+     * <p>The three {@code text/plain} bindings above are unaffected and still go through
+     * {@link #publish(String, String, String)}.
+     *
+     * @param bindingName the binding as {@code application.yml} declares it
+     * @param payload the wire form, already serialised as JSON
+     * @param subject what to name in the log if this never reaches the broker
+     * @param messageKey the partition key, or null to send unkeyed as the three-argument form does
+     */
+    public void publish(String bindingName, String payload, String subject, String messageKey) {
         try {
-            executor.execute(() -> send(bindingName, payload, subject));
+            executor.execute(() -> send(bindingName, payload, subject, messageKey));
         } catch (RejectedExecutionException e) {
             // The queue is full, which takes a broker that has been unreachable long enough for the
             // one thread to still be stuck creating the binding. Dropping is the honest answer: the
@@ -144,11 +187,33 @@ public class OutboundEventPublisher {
      * <p><b>A missing broker is silent</b> — the app starts, serves and reports healthy while
      * everything produced goes nowhere. This log line is the only thing that says so.
      */
-    private void send(String bindingName, String payload, String subject) {
+    private void send(String bindingName, String payload, String subject, String messageKey) {
         try {
-            streamBridge.send(bindingName, payload);
+            if (messageKey == null) {
+                streamBridge.send(bindingName, payload);
+            } else {
+                streamBridge.send(bindingName, keyed(payload, messageKey));
+            }
         } catch (RuntimeException e) {
             LOG.warn("{} was recorded but its event could not be published to {}", subject, bindingName, e);
         }
+    }
+
+    /**
+     * One JSON frame under a partition key.
+     *
+     * <p>{@code KafkaHeaders.KEY} takes bytes; the binder's serialiser for the key is a
+     * {@code ByteArraySerializer} by default, so handing it a {@code String} produces a
+     * {@code ClassCastException} inside the producer rather than a compile error here.
+     */
+    private static Message<byte[]> keyed(String payload, String messageKey) {
+        return MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8))
+            .setHeader(MessageHeaders.CONTENT_TYPE, MimeTypeUtils.APPLICATION_JSON_VALUE)
+            .setHeader(KafkaHeaders.KEY, messageKey.getBytes(StandardCharsets.UTF_8))
+            // The spelling hc-patient's own publishers use on `patient-events`, which this service
+            // reads back as DirectoryEventConsumers.PATIENT_KEY_HEADER. Sent as well as the Kafka key
+            // so that the return leg is legible to a consumer following either convention.
+            .setHeader("patientKey", messageKey)
+            .build();
     }
 }
