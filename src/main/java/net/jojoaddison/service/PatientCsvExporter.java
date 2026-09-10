@@ -3,12 +3,17 @@ package net.jojoaddison.service;
 import java.io.IOException;
 import java.io.Writer;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
 import net.jojoaddison.domain.Address;
+import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Profile;
+import net.jojoaddison.domain.enumeration.DirectorySource;
+import net.jojoaddison.repository.DirectoryLinkRepository;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,9 +35,57 @@ import org.springframework.stereotype.Service;
  * <p>Rows are written as the cursor yields them rather than collected first. The directory is small
  * today; an export is the one endpoint with no page size, so it is the one place where the size of
  * the collection decides whether the service stays up.
+ *
+ * <h2>A patient with no {@code Profile} is named from its {@link DirectoryLink} — backlog item 62</h2>
+ *
+ * <p>Until 2026-09-10 the first column fell back to {@code patient.getId()}, so the three seeded
+ * nameless patients exported as {@code a13}, {@code a14} and {@code a15} while the console showed an
+ * address for two of them and said "identity not on file" for the third. <b>The console and the
+ * export disagreed about the same record and nothing anywhere reported it</b> — item 45's sweep,
+ * {@code record-identity.spec.ts}, is a Vitest spec over Angular templates and structurally cannot
+ * see server-side Java, so the rule was enforced everywhere a <em>screen</em> renders and nowhere a
+ * <em>document</em> does.
+ *
+ * <p>The rule is now the console's own: the profile name, then the address on the link, then the
+ * login on the link, then {@link #IDENTITY_NOT_ON_FILE}. Never the record's id. See
+ * {@link #displayName} for why the last of those is words rather than the empty cell every other
+ * absent value in this file uses.
  */
 @Service
 public class PatientCsvExporter {
+
+    /**
+     * What the first column says when nothing this service holds can name the patient.
+     *
+     * <p>The console's wording, in words, and it is the one place in this file where an absence is
+     * marked with a value rather than left empty. That reverses nothing: {@code clinicalLead}'s
+     * javadoc argues at length for the empty cell and its argument is about a <b>secondary</b>
+     * column — the row is still identified by its first column, still findable, and a reader can act
+     * on "no lead named" and "a lead nothing can name" identically. This column is the identity, and
+     * the two failures are not alike. A blank here does not make the row incomplete, it makes it
+     * <b>anonymous</b>: the file carries no local-id column ({@code Id number} is the government
+     * document number), so a blank first cell is a row that cannot be matched to anything at all,
+     * and an administrator reading it has no way to tell it from a row whose export went wrong.
+     *
+     * <p>The other half of {@code clinicalLead}'s objection does not arise either. Its complaint was
+     * that a dash would give <b>one column two markers for two states nobody can act on
+     * differently</b>; there is one marker here for one state, and it is a sentence rather than a
+     * character, so it explains itself in a format that carries no legend.
+     */
+    static final String IDENTITY_NOT_ON_FILE = "Identity not on file";
+
+    /**
+     * The identity map, for the rows that have no {@code Profile}.
+     *
+     * <p>Injected rather than reached through the resource, because the fallback is a shaping rule
+     * and this class owns the shaping rules. It is read at most once per export — see
+     * {@link LinkedIdentities}.
+     */
+    private final DirectoryLinkRepository directoryLinkRepository;
+
+    public PatientCsvExporter(DirectoryLinkRepository directoryLinkRepository) {
+        this.directoryLinkRepository = directoryLinkRepository;
+    }
 
     /** The header row, and the definition of what a column means. */
     static final List<String> COLUMNS = List.of(
@@ -61,19 +114,20 @@ public class PatientCsvExporter {
      */
     public void write(Writer writer, Stream<Patient> patients, LocalDate today) throws IOException {
         writeRow(writer, COLUMNS);
+        LinkedIdentities identities = new LinkedIdentities(directoryLinkRepository);
         // The stream holds a cursor. Closing it is the caller's job in principle, but a partial
         // write throws from inside the loop and would leak it, so it is closed here where it is read.
         try (Stream<Patient> rows = patients) {
             for (Patient patient : (Iterable<Patient>) rows::iterator) {
-                writeRow(writer, row(patient, today));
+                writeRow(writer, row(patient, today, identities));
             }
         }
     }
 
-    private List<String> row(Patient patient, LocalDate today) {
+    private List<String> row(Patient patient, LocalDate today, LinkedIdentities identities) {
         Profile profile = patient.getProfile();
         return List.of(
-            displayName(patient),
+            displayName(patient, identities),
             text(profile == null ? null : profile.getIdNumber()),
             age(profile, today),
             profile == null ? "" : text(profile.getSex()),
@@ -91,17 +145,45 @@ public class PatientCsvExporter {
     }
 
     /**
-     * First and last name, falling back to the id.
+     * First and last name, then the identity on the patient's {@link DirectoryLink}, then words.
      *
-     * <p>The same rule as the directory's {@code displayName}, and the fallback matters for the same
-     * reason: a patient whose profile has not been filled in yet is a real state, and a blank first
-     * column would make that row unidentifiable in a file nobody can click through.
+     * <p>The directory screen's own order, restated here for the reason this class's javadoc gives —
+     * the screen's version is TypeScript and cannot be called from Java. It is
+     * {@code Patient.displayName} over {@code resolveLinkIdentity} in
+     * {@code app/.../entities/directory/directory-link/directory-link.model.ts}, and the address
+     * before the login is that function's decision rather than a new one: somebody who reports that
+     * they registered and cannot be found gives their email, never their login.
+     *
+     * <p><b>Never the record's id.</b> That is what this did until backlog item 62 — the same defect
+     * item 45 removed from the screen and item 53 removed from the clinical-lead column, arriving a
+     * third time in the one column nothing had looked at. A 24-character ObjectId in a spreadsheet
+     * reads as data rather than as an absence, and unlike a screen a downloaded file is not corrected
+     * by a refresh.
+     *
+     * <h2>The address is deliberate, and it is a cost that was taken rather than a side effect</h2>
+     *
+     * <p>{@code DirectoryLinkResource}'s class javadoc permits a patient's address <b>on a screen</b>
+     * partly because "retention is the collection, not a copy of it". A downloaded CSV is exactly a
+     * copy with its own lifetime, so this decision does not follow from that one, and it is recorded
+     * in both places rather than inferred in either. What makes it the right answer anyway is that
+     * the alternatives are worse: a blank leaves the row anonymous (see {@link #IDENTITY_NOT_ON_FILE}),
+     * and an id labelled as an id keeps the file and the screen disagreeing, which is the defect.
+     * Item 43's rule is untouched — <b>never into a log, at any level</b> — and this reader is
+     * narrower than the screen's, since the export is {@code ROLE_ADMIN} alone where the directory is
+     * {@code ROLE_ADMIN} or {@code ROLE_OPERATOR}.
+     *
+     * <p><b>What this deliberately does not do is ask hc-patient for the name.</b> The console's list
+     * sends {@code resolveNames=true} and shows a resolved name above the address (backlog item 50),
+     * so on a stack where hc-patient answers, a row reading {@code kojo@jac.net} here reads
+     * {@code Kojo Ampia-Addison} there. That residual is real and this change does not close it: a
+     * live per-row lookup on a stream with no page size is the N-request fan-out item 53 refused, and
+     * {@code DirectoryNameResolutionService} bounds itself per page — a bound an export has no page
+     * to apply.
      */
-    private static String displayName(Patient patient) {
+    private static String displayName(Patient patient, LinkedIdentities identities) {
         Profile profile = patient.getProfile();
         if (profile != null) {
-            String name = Stream
-                .of(profile.getFirstName(), profile.getLastName())
+            String name = Stream.of(profile.getFirstName(), profile.getLastName())
                 .filter(Objects::nonNull)
                 .filter(part -> !part.isBlank())
                 .reduce((a, b) -> a + " " + b)
@@ -110,7 +192,8 @@ public class PatientCsvExporter {
                 return name;
             }
         }
-        return text(patient.getId());
+        String linked = identities.identify(patient.getId());
+        return linked == null ? IDENTITY_NOT_ON_FILE : linked;
     }
 
     /**
@@ -139,8 +222,7 @@ public class PatientCsvExporter {
         if (address == null) {
             return "";
         }
-        String townAndCity = Stream
-            .of(address.getTownDistrict(), address.getCityState())
+        String townAndCity = Stream.of(address.getTownDistrict(), address.getCityState())
             .filter(Objects::nonNull)
             .filter(part -> !part.isBlank())
             .reduce((a, b) -> a + ", " + b)
@@ -184,8 +266,7 @@ public class PatientCsvExporter {
         }
         Profile profile = patient.getClinicalLead().getProfile();
         if (profile != null) {
-            String name = Stream
-                .of(profile.getFirstName(), profile.getLastName())
+            String name = Stream.of(profile.getFirstName(), profile.getLastName())
                 .filter(Objects::nonNull)
                 .filter(part -> !part.isBlank())
                 .reduce((a, b) -> a + " " + b)
@@ -224,5 +305,104 @@ public class PatientCsvExporter {
      */
     private static String quote(String cell) {
         return '"' + cell.replace("\"", "\"\"") + '"';
+    }
+
+    /**
+     * The identities on the {@code HC_PATIENT} links, keyed by the record each one names.
+     *
+     * <h2>One read for the whole file, and none at all when the file needs none</h2>
+     *
+     * <p><b>This is the reason backlog item 53 deferred item 62 rather than fixing it cheaply</b>, so
+     * it is the part to get right. The export is the one endpoint in this service with no page size:
+     * a lookup per row is a fan-out that grows with the collection, on a handler whose whole
+     * justification is that it is cheaper than paging the same rows out.
+     *
+     * <p>So the collection is read <b>once</b>, into a map, and it is read <b>lazily</b> — the first
+     * row that has no {@code Profile} pays for it and every later one is free, and an export where
+     * every patient is named never asks at all. That is the console's property exactly (its
+     * {@code loadLinks} sends one request per page and none when the page is fully named), and here
+     * it is worth more: today's directory is fifteen patients of whom three are nameless, so the
+     * common export costs nothing it did not cost before.
+     *
+     * <p>Reading every {@code HC_PATIENT} link rather than the ids on this page is deliberate and is
+     * the opposite of the console's choice, because the constraints are opposite. A screen knows its
+     * twenty ids before it asks; a stream does not know its ids until it has finished, and gathering
+     * them first is the materialisation this handler exists not to do. The collection is small — it
+     * grows at the rate accounts are created on hc-patient, and the query is by {@code source} — and
+     * one bounded read beats an unbounded number of small ones.
+     *
+     * <p><b>{@code HC_PATIENT} only, which is narrower than the console asks and is not a
+     * disagreement.</b> {@code findByLocalIds} filters by id alone, so it would also match a link of
+     * another source naming this id. No such link can exist: no {@code HC_PROFESSIONAL} link has a
+     * {@code localId} at all, both types on that topic being {@code LINK_ONLY}, and if backlog item 35
+     * ever gives them one it will name a {@code Professional} and not a {@code Patient}. Asking for
+     * the source this file is about is the honest query; if that ever stops being true, this is the
+     * line that has to change and the console's is not.
+     */
+    private static final class LinkedIdentities {
+
+        private final DirectoryLinkRepository directoryLinkRepository;
+        private Map<String, DirectoryLink> byLocalId;
+
+        private LinkedIdentities(DirectoryLinkRepository directoryLinkRepository) {
+            this.directoryLinkRepository = directoryLinkRepository;
+        }
+
+        /**
+         * How this record's link names it, or {@code null} when nothing does.
+         *
+         * <p>A patient with no id cannot be looked up and does not provoke the read — matching
+         * nothing is not a question worth a query, and the caller says "identity not on file" either
+         * way.
+         */
+        private String identify(String localId) {
+            if (localId == null || localId.isBlank()) {
+                return null;
+            }
+            return identity(load().get(localId));
+        }
+
+        private Map<String, DirectoryLink> load() {
+            if (byLocalId == null) {
+                // Built by hand rather than with `toMap`, which throws on a duplicate key. Two links
+                // claiming one record should not happen — `createAndClaim` claims atomically — but an
+                // export is the wrong place to find out, and refusing the whole file over it would
+                // turn a stale row into a failed download.
+                byLocalId = new HashMap<>();
+                for (DirectoryLink link : directoryLinkRepository.findBySource(DirectorySource.HC_PATIENT)) {
+                    if (link.getLocalId() != null && !link.getLocalId().isBlank()) {
+                        byLocalId.putIfAbsent(link.getLocalId(), link);
+                    }
+                }
+            }
+            return byLocalId;
+        }
+
+        /**
+         * The console's {@code resolveLinkIdentity}: the address, then the login, then nothing.
+         *
+         * <p>{@code externalKey} is deliberately not a third fallback, for the reason that function
+         * gives — for a patient it equals the address and adds nothing, and for anything else it is a
+         * UUID, which is the unreadable-identifier-as-a-name defect this item removes, one field
+         * along.
+         *
+         * <p>Written out rather than chained, because {@code strip()} yields {@code ""} for a
+         * whitespace-only field: falsy to a reader, present to a null check, and a chain would export
+         * it as somebody's name.
+         */
+        private static String identity(DirectoryLink link) {
+            if (link == null) {
+                return null;
+            }
+            String email = link.getEmail() == null ? null : link.getEmail().strip();
+            if (email != null && !email.isEmpty()) {
+                return email;
+            }
+            String login = link.getLogin() == null ? null : link.getLogin().strip();
+            if (login != null && !login.isEmpty()) {
+                return login;
+            }
+            return null;
+        }
     }
 }

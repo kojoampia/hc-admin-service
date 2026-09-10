@@ -61,10 +61,23 @@ import tech.jhipster.web.util.PaginationUtil;
  *       {@code ROLE_OPERATOR}, on a token this gateway issued. A Loki stream has no such gate:
  *       {@code multitenancy_enabled: false} and unauthenticated on the {@code monitoring} network,
  *       so every product on it reads every other product's lines.</li>
- *   <li><b>Retention is the collection, not a copy of it.</b> A log line is a duplicate of the
- *       address into a store with its own lifetime, which is what made deletion a question nobody
- *       owned. Here the address is already the document, under the retention decision that governs
- *       {@code directory_link} itself (backlog item 28).</li>
+ *   <li><b>Retention is the collection, not a copy of it</b> — <b>for this endpoint. Since
+ *       2026-09-10 the CSV export is a deliberate exception, and it is stated here rather than left
+ *       for a reader to find.</b> A log line is a duplicate of the address into a store with its own
+ *       lifetime, which is what made deletion a question nobody owned. Here the address is already
+ *       the document, under the retention decision that governs {@code directory_link} itself
+ *       (backlog item 28).
+ *       <p>{@code GET /api/patients/export} now carries the same address in its first column, for a
+ *       patient with no {@code Profile} (backlog item 62, {@code PatientCsvExporter.displayName}),
+ *       and <b>a downloaded CSV is exactly the copy-with-its-own-lifetime this bullet rules out</b> —
+ *       on a laptop, in an email, outside item 28's decision. That cost was weighed and taken rather
+ *       than overlooked: the alternatives were a blank first column, which makes a nameless row
+ *       anonymous in a file with no local-id column, and the record's ObjectId, which is the defect
+ *       item 45 removed from the screen and leaves the file and the console disagreeing about the
+ *       same record. <b>It is narrower than this endpoint</b>, which is the one thing in its favour
+ *       worth stating: the export is {@code ROLE_ADMIN} alone (item 53's decision — an operator may
+ *       page the directory but not download it), where this handler reaches
+ *       {@code ROLE_ADMIN} and {@code ROLE_OPERATOR}. <b>Nothing about the log rule moves.</b></li>
  *   <li><b>It is the purpose of the screen rather than a side effect.</b> An administrator's patient
  *       directory is precisely where a patient's contact address belongs — the console already shows
  *       a phone number, an ID document number and a date of birth on the same row's record. A log
@@ -297,29 +310,34 @@ public class DirectoryLinkResource {
         // matches exactly as little as no query does. It is kept so that all three forms above take
         // one code path rather than two that happen to agree, and so that a `local_id: ""` arriving
         // some day cannot turn a blank into a match. Do not describe it as the guard.
-        List<String> localIds = localIdIn == null ? null : localIdIn.stream().filter(id -> id != null && !id.isBlank()).toList();
+        List<String> localIds =
+            localIdIn == null
+                ? null
+                : localIdIn
+                      .stream()
+                      .filter(id -> id != null && !id.isBlank())
+                      .toList();
         if (localIds != null && localIds.isEmpty()) {
             Page<DirectoryLink> none = Page.empty(pageable);
-            return ResponseEntity
-                .ok()
+            return ResponseEntity.ok()
                 .headers(PaginationUtil.generatePaginationHttpHeaders(ServletUriComponentsBuilder.fromCurrentRequest(), none))
                 .body(none.getContent());
         }
 
         // Stored field names, matching PatientResource — `local_id` is what the document carries, and
         // going through the Java property name works only via the @Field indirection.
-        NamedFilters.Builder filters = NamedFilters
-            .builder()
-            .equals("source", source)
-            .in("local_id", localIds)
-            // `local_id: null` matches a missing field as well as a null one, which is what a link
-            // with no record actually looks like — the projection never writes the field until there
-            // is a record to name. Same match as DirectoryProjectionService.createAndClaim.
-            .isNull("local_id", unlinked)
-            // Stored field name again, and hc-patient's own value: `equals` on a String drops a
-            // blank, which is why the handler refused one above rather than letting the filter
-            // vanish into a query for the whole collection.
-            .equals("plan_status", planStatus);
+        NamedFilters.Builder filters =
+            NamedFilters.builder()
+                .equals("source", source)
+                .in("local_id", localIds)
+                // `local_id: null` matches a missing field as well as a null one, which is what a link
+                // with no record actually looks like — the projection never writes the field until there
+                // is a record to name. Same match as DirectoryProjectionService.createAndClaim.
+                .isNull("local_id", unlinked)
+                // Stored field name again, and hc-patient's own value: `equals` on a String drops a
+                // blank, which is why the handler refused one above rather than letting the filter
+                // vanish into a query for the whole collection.
+                .equals("plan_status", planStatus);
 
         Page<DirectoryLink> page = filters.isEmpty()
             ? directoryLinkRepository.findAll(pageable)
