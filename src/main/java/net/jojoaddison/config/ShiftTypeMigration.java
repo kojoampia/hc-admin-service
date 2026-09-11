@@ -19,8 +19,42 @@ import org.springframework.stereotype.Component;
  * change added, and reports any stored shift value the {@link ShiftType} enum can no longer parse.
  *
  * <p>Written with {@code FLEXIBLE} on 2026-09-04 in the shape of hc-professional's
- * {@code config/ShiftTypeMigration}, because neither repo has Liquibase or Mongock and an
- * {@link ApplicationRunner} is the only migration seam either of them has.
+ * {@code config/ShiftTypeMigration}.
+ *
+ * <h2>⚠ It was written for a stated reason that was false, and the real reason is a better one</h2>
+ *
+ * <p>This paragraph said until 2026-09-11 that it took that shape <b>"because neither repo has
+ * Liquibase or Mongock and an {@link ApplicationRunner} is the only migration seam either of them
+ * has."</b> Both halves were false when written. This service has had {@code io.mongock} 5.5.1 on the
+ * classpath, {@code @EnableMongock} on {@code DatabaseConfiguration} and
+ * {@code mongock.migration-scan-package} pointing at {@code config/dbmigrations} since the generator's
+ * first commit; the gateway has the same, and its {@code InitialSetupMigration} and
+ * {@code AuthoritiesMigration} are change units. <b>The scan package was simply empty here until
+ * backlog item 56 put the first change unit in it</b>, which is presumably how the claim survived —
+ * a scan target with nothing in it looks exactly like no scan target.
+ *
+ * <p><b>The seam was there; the choice is still right, for a reason the old sentence hid.</b> Held
+ * against Mongock, a change unit records itself as executed and never repeats, and that is the wrong
+ * behaviour for this class — half of what it does is not a migration at all. It <b>reports</b>, on
+ * every start, any stored {@code shift} value the {@link ShiftType} enum can no longer parse. A
+ * one-shot change unit would make that report once, against the database as it stood on the day it
+ * first ran, and say nothing ever again; an unparseable value written afterwards would be found by
+ * nobody. {@code runAlways = true} would restore the repetition and then be a change unit that is not
+ * a change — recorded in a changelog a reader consults to see what has run, while running every time.
+ *
+ * <p><b>And this one has already run against production, on every start since it deployed</b> —
+ * {@code @Profile("!testdev & !testprod")} excludes only the two test profiles. So re-homing it buys
+ * nothing it does not already have: Mongock would hold no record of the runs that have happened, the
+ * unit would execute again on the next start, and the only thing gained would be a changelog row
+ * asserting a first execution that is not the first. The backfill half is idempotent by its own
+ * effort — a targeted update over rows missing the field — which is what makes running every start
+ * safe, and that property is load-bearing rather than incidental. <b>Do not convert this to a change
+ * unit to make the two files consistent.</b> Backlog item 84.
+ *
+ * <p>Item 56's {@code config/dbmigrations/package-info.java} is where the Mongock seam is described
+ * for somebody writing a migration that genuinely is one-shot — a backfill that must not repeat, and
+ * that wants a changelog. The two seams coexist deliberately and this comment is the pointer between
+ * them.
  *
  * <h2>The enum change rewrote nothing; the schema change did</h2>
  *
