@@ -12,8 +12,11 @@ import net.jojoaddison.domain.Vendor;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.repository.VendorRepository;
 import net.jojoaddison.repository.support.NamedFilters;
+import net.jojoaddison.security.AuthoritiesConstants;
+import net.jojoaddison.security.SecurityUtils;
 import net.jojoaddison.service.VendorSummaryService;
 import net.jojoaddison.service.dto.VendorSummaryDTO;
+import net.jojoaddison.web.rest.errors.AmbiguousAccountException;
 import net.jojoaddison.web.rest.errors.BadRequestAlertException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +28,7 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import tech.jhipster.web.util.HeaderUtil;
@@ -172,7 +176,41 @@ public class VendorResource {
     }
 
     /**
-     * {@code GET  /vendors} : get all the Vendors.
+     * {@code GET  /vendors} : get all the Vendors — the console's directory, and a supplier's own row.
+     *
+     * <h2>Two callers, and the second one is scoped from its token</h2>
+     *
+     * <p>Since backlog item 31 this endpoint is reachable by {@code ROLE_VENDOR} as well as by the
+     * console's admin and operator. <b>The authority and the scoping are one decision.</b> The
+     * matcher in {@code SecurityConfiguration} admits a supplier to an <em>unfiltered list</em>, and
+     * {@code accountId.equals} is a parameter the caller chooses to send — so a grant with no
+     * scoping behind it is every vendor reading every vendor's record, by sending nothing at all.
+     *
+     * <p>So the scope is taken from the token and never from the query string:
+     * {@link #scopeToTheCallersOwnAccount} reads the caller's login out of the JWT's subject, which
+     * is the same string {@code Vendor.accountId} holds, and a vendor asking about anybody else is
+     * <b>refused</b> rather than quietly answered with its own row. A request that was not honoured
+     * must not be reported as a success. An administrator and an operator are unscoped, and a
+     * principal holding both authorities is unscoped too — a scope has to be a function of the token
+     * and not of the order two authorities appear in, which is the answer hc-vendor's own
+     * {@code VendorScopeResolver} gives about the same token.
+     *
+     * <h2>And two rows on one login are refused, not picked between</h2>
+     *
+     * <p>{@link net.jojoaddison.config.VendorAccountIndexes} makes that unstorable, and — following
+     * the policy every index creator in {@code config/} follows — it reports and carries on when it
+     * cannot create the index, so this service can be running without it. The index is the
+     * prevention; this refusal is the enforcement, and each is the other's backstop. Answering with
+     * the first of two matches would be one supplier holding another's record under a 200, which is
+     * precisely the {@code AMBIGUOUS} outcome hc-vendor cited as its reason for not asking this
+     * service who its callers are.
+     *
+     * <p><b>The count is taken on the resolved account alone, before this handler's own filters are
+     * applied</b> — see {@link #refuseAnAmbiguousAccount}, which carries the argument and the defect
+     * it closes. The first version of this sentence was true of the sentence and not of the code: the
+     * refusal read the <em>filtered</em> page, so {@code ?status.equals=} or the archived filter
+     * separated the duplicates and served them one at a time under a 200, and the console's default
+     * list filter did it without anybody trying.
      *
      * @param pageable the pagination information.
      * @param isArchivedEquals when true, return only archived records; when false, only unarchived.
@@ -197,23 +235,39 @@ public class VendorResource {
         @RequestParam(name = "accountId.equals", required = false) String accountIdEquals
     ) {
         LOG.debug("REST request to get a page of Vendors");
-        // NamedFilters drops blank values as well as nulls, so a present-but-blank
-        // `?accountId.equals=` would silently become no filter and return the whole directory — a
+        // Normalised on the way in as well as on the way out: stored values are trimmed and
+        // lower-cased, so an exact-match filter on "Kaneshie " would resolve nothing and the portal
+        // would tell its user they have no vendor record. Symmetry is what keeps that from happening.
+        String accountId = accountIdEquals == null ? null : accountIdEquals.trim().toLowerCase(java.util.Locale.ROOT);
+
+        // NORMALISE FIRST, THEN TEST FOR EMPTY — the order is the fix, and it is the rule
+        // scopeToTheCallersOwnAccount's own javadoc states, which this parameter broke one line above
+        // the method that states it. String.isBlank() asks about whitespace while String.trim() strips
+        // every code point at or below U+0020, and the two disagree on the C0 controls: this guard ran
+        // on the RAW value, so `?accountId.equals=%00` was not blank, passed, trimmed to "", was
+        // dropped by NamedFilters as a blank criterion, and left the ambiguity refusal below counting
+        // the whole directory — a 409 about an account that had resolved nobody, or a 200 carrying the
+        // entire directory as though it were a resolution. Found by the review of c637228.
+        //
+        // Why it is refused at all: NamedFilters drops blank values as well as nulls, so a
+        // present-but-blank filter would silently become no filter and return the whole directory — a
         // caller resolving an empty login would be handed the first vendor in the collection. On a
         // filter that decides which vendor a portal caller is, that is worth an error rather than a
-        // note in the caller's documentation. Absent is still "no filter"; blank is now a mistake.
-        if (accountIdEquals != null && accountIdEquals.isBlank()) {
-            throw new BadRequestAlertException("accountId.equals was sent but is blank", ENTITY_NAME, "accountidblank");
+        // note in the caller's documentation. Absent is still "no filter"; empty is a mistake.
+        if (accountId != null && accountId.isEmpty()) {
+            throw new BadRequestAlertException("accountId.equals was sent but names nobody", ENTITY_NAME, "accountidblank");
         }
         // The operators the console and the vendor portal send, and only those. This is not a
         // criteria framework: every other entity here lists unfiltered, and inventing a general
         // query language would be a much larger surface than the screens that need it.
         Boolean archived = resolveArchivedFilter(isArchivedEquals, isArchivedNotEquals);
 
-        // Normalised on the way in as well as on the way out: stored values are trimmed and
-        // lower-cased, so an exact-match filter on "Kaneshie " would resolve nothing and the portal
-        // would tell its user they have no vendor record. Symmetry is what keeps that from happening.
-        String accountId = accountIdEquals == null ? null : accountIdEquals.trim().toLowerCase(java.util.Locale.ROOT);
+        // A vendor reads its own row and nothing else, whatever it sent — including nothing.
+        accountId = scopeToTheCallersOwnAccount(accountId);
+        // Before the page is built, and counting the account alone. Handing this the filtered page is
+        // what let a narrowing filter separate two duplicates and serve them one at a time; see the
+        // method's javadoc, which is the corrected version of a claim three documents used to make.
+        refuseAnAmbiguousAccount(accountId);
 
         NamedFilters.Builder filters = NamedFilters.builder().equals("status", statusEquals).equals("account_id", accountId);
         // Archived stays `$ne: true` rather than `is(false)`: a document written before the field
@@ -317,13 +371,140 @@ public class VendorResource {
     }
 
     /**
+     * The account this caller may read, which for a supplier is its own and nobody else's.
+     *
+     * <h2>From the token, never from the query string</h2>
+     *
+     * <p>{@code Vendor.accountId} holds a vendor-gateway login and the gateway puts the login in the
+     * JWT's {@code sub}, so {@code SecurityUtils.getCurrentUserLogin()} is the join — no claim is
+     * invented here, and none could be: a new claim would be a contract change in another product.
+     * ({@code uid} is this estate's <em>account id</em> claim and names a user document in a gateway
+     * this service cannot read, so it is not the same thing.)
+     *
+     * <p><b>A vendor naming somebody else is refused, not silently corrected.</b> Substituting the
+     * caller's own login would answer a question nobody asked with a 200 on it, and a portal that
+     * sent the wrong login would go on looking correct. It is the same argument the blank filter above
+     * settles one parameter along.
+     *
+     * <p><b>A vendor token with no login is refused too, and that is not the same as "no rows".</b>
+     * It is a broken credential. The dangerous reading is not "answer nothing" but "answer with no
+     * filter", which is what an empty string does to {@code NamedFilters} — the whole directory, with
+     * a 200. Normalise first and test afterwards: {@link String#isBlank()} asks about whitespace while
+     * {@link String#trim()} strips every code point at or below {@code U+0020}, so a subject of
+     * {@code U+0000} passes a guard placed ahead of the trim and arrives as the empty string the check
+     * exists to keep out. hc-vendor's resolver was fixed for exactly this and says so at length.
+     *
+     * <p>An administrator or an operator is unscoped and keeps the whole directory, including the
+     * resolution filter hc-vendor's reconciliation report calls. A principal holding
+     * {@code ROLE_VENDOR} <em>and</em> one of those is unscoped as well — decided rather than
+     * inherited, so that one token cannot mean two things depending on which authority is read first.
+     *
+     * @param requestedAccountId the normalised {@code accountId.equals} the caller sent, or null.
+     * @return the account to filter on: the caller's own when it is a supplier, otherwise whatever
+     *         was asked for.
+     * @throws AccessDeniedException when a supplier's token carries no login, or names another one.
+     */
+    private static String scopeToTheCallersOwnAccount(String requestedAccountId) {
+        boolean isSupplier =
+            SecurityUtils.hasCurrentUserThisAuthority(AuthoritiesConstants.VENDOR) &&
+            SecurityUtils.hasCurrentUserNoneOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR);
+        if (!isSupplier) {
+            return requestedAccountId;
+        }
+        String login = SecurityUtils.getCurrentUserLogin()
+            .map(subject -> subject.trim().toLowerCase(java.util.Locale.ROOT))
+            .filter(subject -> !subject.isEmpty())
+            .orElse(null);
+        if (login == null) {
+            // No login in the message: it identifies nobody, and the rows it could be about are
+            // somebody's. See LoginAttempt's javadoc for why an identifier is not put in a log here
+            // even when there is one.
+            LOG.warn("A vendor token carries no login; refusing rather than scoping the directory to nothing");
+            throw new AccessDeniedException("A vendor token must carry a login for its own record to be identified");
+        }
+        if (requestedAccountId != null && !requestedAccountId.equals(login)) {
+            LOG.warn("A vendor asked for a directory record that is not its own; refusing");
+            throw new AccessDeniedException("A vendor may only read its own directory record");
+        }
+        return login;
+    }
+
+    /**
+     * Refuses to answer when more than one vendor carries the account that was resolved.
+     *
+     * <p>The enforcement half of {@link net.jojoaddison.config.VendorAccountIndexes}, whose javadoc
+     * carries the argument: that index is the prevention, it reports and continues rather than
+     * failing startup when the data already holds a duplicate, and a service running without the
+     * index it believes it has needs the read itself to refuse. Returning the first of two would be
+     * one supplier reading another's record under a 200 — the {@code AMBIGUOUS} answer hc-vendor
+     * named as its reason for resolving callers locally rather than asking this service.
+     *
+     * <h2>⚠ It counts the account criterion ALONE, and the first version did not</h2>
+     *
+     * <p>This used to be handed the page the handler had already built — {@code account_id}
+     * <em>plus</em> {@code status.equals} <em>plus</em> the archived filter — and to return early
+     * whenever that page held one row. <b>So any filter that separated the duplicates walked past the
+     * refusal</b>, and the review of {@code c637228} demonstrated it: {@code ?isArchived.equals=true}
+     * and {@code ?isArchived.notEquals=true} served the two rows one at a time under a 200, and a
+     * supplier could enumerate {@code status.equals} over the five {@code AccountStatus} values to
+     * walk every row sharing its login. The administrator's half needed no attacker at all — the
+     * console's default list filter <em>is</em> {@code isArchived.notEquals=true}, so hc-vendor's
+     * reconciliation slipped past it in ordinary use.
+     *
+     * <p>The javadoc of the day said the refusal fired "whenever resolving a login finds more than one
+     * row", which was true of the sentence and not of the code. What had been reasoned about was
+     * <em>paging</em> — a count over the whole match rather than over the returned slice, which was
+     * correct — and the hole was one clause along, in <em>filtering</em>. A guard that reads a query
+     * somebody else composed is only as narrow as that query.
+     *
+     * <p>So it now runs its own count, on {@code account_id} alone, before the page is built: the same
+     * shape {@link #rejectDuplicateAccountId} uses on the three write handlers. One extra query, and
+     * only on a request that resolves an account. Being independent of the filters is the point — a
+     * filter added to this endpoint later cannot narrow a count it is not part of.
+     *
+     * <p>Nothing is refused when no account was resolved, and an empty one counts as none: an
+     * unfiltered directory listing is allowed to contain a duplicate and show it, which is how an
+     * administrator finds the rows the message tells them to fix. (The empty case is belt and braces —
+     * {@code getAllVendors} rejects a blank filter before reaching here — and it is written down
+     * because the version that lacked it counted the <em>whole collection</em> and answered 409 to a
+     * caller who had resolved nobody.)
+     */
+    private void refuseAnAmbiguousAccount(String accountId) {
+        if (accountId == null || accountId.isEmpty()) {
+            return;
+        }
+        long holders = mongoTemplate.count(Query.query(Criteria.where("account_id").is(accountId)), Vendor.class);
+        if (holders <= 1) {
+            return;
+        }
+        LOG.error(
+            "{} vendors share one portal login, so the account resolves to no single record. The unique index " +
+                "vendor_account_id is missing or was created before the duplicates existed; clear account_id from " +
+                "every row but the one that really holds the login.",
+            holders
+        );
+        throw new AmbiguousAccountException(
+            "That account is held by more than one vendor, so it does not identify a record",
+            ENTITY_NAME,
+            "accountidambiguous"
+        );
+    }
+
+    /**
      * Refuses to give one login to two vendors.
      *
      * <p>{@code accountId} decides which vendor a portal caller is, so a duplicate does not read as
-     * a data-quality problem — it shows one vendor another vendor's purchase orders and invoices.
-     * Nothing in MongoDB prevents it: no field in this domain is indexed. An admin pasting the wrong
-     * login into the console is the realistic way one appears, so the check belongs here, on the
-     * three handlers that write.
+     * a data-quality problem — it shows one vendor another vendor's purchase orders and invoices. An
+     * admin pasting the wrong login into the console is the realistic way one appears, so the check
+     * belongs here, on the three handlers that write.
+     *
+     * <p><b>Since backlog item 31 the database prevents it as well</b> —
+     * {@link net.jojoaddison.config.VendorAccountIndexes} creates a unique sparse index on
+     * {@code account_id}, where this javadoc used to say that nothing in MongoDB did. This check is
+     * not made redundant by it and is not a substitute for it: this one answers a {@code 400} naming
+     * the field, where the index answers a {@code DuplicateKeyException} that reaches the console as
+     * a 500 carrying a Mongo error string; the index catches everything that does not come through
+     * these three handlers. {@code ServicePlanResource} carries the same pairing for the same reason.
      *
      * @param excludedId the vendor being updated, whose own value must not count as a collision;
      *                   null when creating.

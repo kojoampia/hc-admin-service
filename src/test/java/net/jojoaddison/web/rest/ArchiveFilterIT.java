@@ -83,7 +83,11 @@ class ArchiveFilterIT {
         activeProfessional = professionalRepository.save(ProfessionalResourceIT.createEntity().isArchived(false));
         archivedProfessional = professionalRepository.save(ProfessionalResourceIT.createEntity().isArchived(true));
         activeVendor = vendorRepository.save(VendorResourceIT.createEntity().isArchived(false));
-        archivedVendor = vendorRepository.save(VendorResourceIT.createEntity().isArchived(true));
+        // Not two copies of createEntity()'s accountId: since backlog item 31 that field carries a
+        // unique index (config/VendorAccountIndexes), because it decides which vendor a portal caller
+        // is. Null rather than a second literal — a vendor with no portal login is the ordinary
+        // directory entry, and nothing in this class is about the account link.
+        archivedVendor = vendorRepository.save(VendorResourceIT.createEntity().isArchived(true).accountId(null));
     }
 
     @AfterEach
