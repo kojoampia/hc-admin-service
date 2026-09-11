@@ -479,6 +479,66 @@ class ApiAuthorizationIT {
             .containsExactlyInAnyOrder("/api/geographic-spaces", "/api/geographic-spaces/{id}");
     }
 
+    // --- the vendor carve-out: one path, and only the list ----------------------------------------
+
+    /**
+     * <b>A supplier reaches the vendor directory listing and nothing else here.</b>
+     *
+     * <p>Backlog item 31, and hc-vendor's {@code vendor-portal-spec.md} row 5.1.
+     * {@code ROLE_VENDOR} is issued by hc-vendor's gateway against the shared signing key and is
+     * honoured on exactly one path in this service.
+     *
+     * <p>The 200 is also the behavioural half of the ordering: the matcher has to sit above the
+     * blanket {@code GET /api/**} rule or admin-or-operator answers first and this is a 403. Position
+     * is asserted structurally as well, in {@code SecurityConfigurationOrderIT}, because a matcher
+     * moved below that rule fails nothing that only asserts the rule exists.
+     *
+     * <p><b>What the 200 does not say is what the caller sees</b> — the endpoint is a list, and the
+     * scoping that keeps one supplier off another's row is {@code VendorResource}'s, asserted in
+     * {@code VendorScopeIT}. The authority and the scoping are one decision; this file is half of it.
+     */
+    @Test
+    void aVendorReachesTheVendorDirectoryListing() throws Exception {
+        mvc.perform(get("/api/vendors").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isOk());
+    }
+
+    /**
+     * And that carve-out is the list path alone.
+     *
+     * <p>{@code /api/vendors/{id}} and {@code /api/vendors/summary} take no account of who is asking
+     * — an id-addressed record hands a supplier another supplier's row for the price of guessing an
+     * id, which is the defect the deleted patient-roster rule had. They fall to the blanket read rule
+     * and stay admin-or-operator, and the writes stay the administrator's.
+     *
+     * <p>{@code /api/teams} stands for the rest of the entity surface, the same way
+     * {@link #plainUserIsRefusedEverywhere} uses it.
+     */
+    @Test
+    void aVendorReachesNothingElse() throws Exception {
+        mvc.perform(get("/api/vendors/any-id").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/vendors/summary").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
+        mvc.perform(get(ENTITY_PATH).with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
+        mvc.perform(get("/api/patients").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
+        mvc.perform(
+            post("/api/vendors").with(as(AuthoritiesConstants.VENDOR)).contentType(MediaType.APPLICATION_JSON).content("{}")
+        ).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/vendors/any-id").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
+    }
+
+    /**
+     * The authority is not a substitute for one, either: anonymous is still challenged on this path.
+     *
+     * <p>The carve-out names an authority rather than {@code permitAll}, and the difference is
+     * invisible to every case above — a token holding {@code ROLE_VENDOR} passes both. This is the
+     * gap that let {@code /api/** -> authenticated()} survive, one path along, and the geographic-
+     * space carve-out carries the same assertion for the same reason.
+     */
+    @Test
+    void anonymousStillCannotReadTheVendorDirectory() throws Exception {
+        mvc.perform(get("/api/vendors")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/vendors").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
+    }
+
     // --- the patient carve-out, and its removal ---------------------------------------------------
 
     /**

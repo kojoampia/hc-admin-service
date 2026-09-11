@@ -118,6 +118,31 @@ public class SecurityConfiguration {
                     // split was drawn around what an operator needs in order to work, and bulk
                     // extraction is not on that list.
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/patients/export")).hasAuthority(AuthoritiesConstants.ADMIN)
+                    // A supplier reading its own directory row, from hc-vendor's portal. Backlog
+                    // item 31, and hc-vendor's vendor-portal-spec row 5.1.
+                    //
+                    // ABOVE the blanket read rule, like every carve-out in this file: below it,
+                    // admin-or-operator answers first and a vendor token is 403 while this line goes
+                    // on reading like a grant. SecurityConfigurationOrderTest asserts the position
+                    // and not merely the rule, because a misplaced matcher fails nothing.
+                    //
+                    // ADMIN and OPERATOR are named here as well, and dropping them is the regression
+                    // this rule invites: first match wins, so once this matcher owns
+                    // GET /api/vendors the blanket rule below never sees it and a vendor-only rule
+                    // would take the directory away from the console it was built for.
+                    //
+                    // ⚠ The authority and the scoping are ONE decision. This admits a vendor to an
+                    // unfiltered list endpoint; what keeps it to its own row is
+                    // VendorResource.getAllVendors, which derives the caller's accountId from the
+                    // token and refuses a request naming anybody else. Neither half is safe alone,
+                    // and each names the other where it is written.
+                    //
+                    // Exactly /api/vendors, not /api/vendors/**. The summary tiles and the
+                    // id-addressed record fall to the blanket rule and stay admin-or-operator —
+                    // /api/vendors/{id} takes its subject from the path and has no relationship to
+                    // the caller, which is the same reason the duty-roster patient rule was deleted.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/vendors"))
+                        .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR, AuthoritiesConstants.VENDOR)
                     // The read/write split. Everything else under /api is admin data: operators read
                     // it, only admins change it. Authentication alone is deliberately not enough —
                     // a bare ROLE_USER reaches nothing here.
