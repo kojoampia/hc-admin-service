@@ -77,8 +77,7 @@ public class PlatformServiceResource {
             throw new BadRequestAlertException("A new platformService cannot already have an ID", ENTITY_NAME, "idexists");
         }
         PlatformService result = platformServiceRepository.save(platformService);
-        return ResponseEntity
-            .created(new URI("/api/platform-services/" + result.getId()))
+        return ResponseEntity.created(new URI("/api/platform-services/" + result.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, result.getId()))
             .body(result);
     }
@@ -106,8 +105,7 @@ public class PlatformServiceResource {
             throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
         }
         PlatformService result = platformServiceRepository.save(platformService);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, platformService.getId()))
             .body(result);
     }

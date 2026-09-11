@@ -72,6 +72,5 @@ public record ServicePlanSummaryDTO(long totalSubscribers, List<PlanMixRow> mix)
         long subscribers,
         BigDecimal share,
         BigDecimal monthlyRevenue
-    )
-        implements Serializable {}
+    ) implements Serializable {}
 }

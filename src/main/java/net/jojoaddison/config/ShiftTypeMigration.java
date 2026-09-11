@@ -156,8 +156,8 @@ public class ShiftTypeMigration implements ApplicationRunner {
         mongoTemplate.updateMulti(missing, new Update().set(BACKFILLED.field(), BACKFILL_VALUE.name()), BACKFILLED.collection());
         LOG.warn(
             "Backfilled {} to {} on {} {} row(s) that predate the shift-type dimension. " +
-            "The other shift types stay unpriced for those roles rather than inheriting this rate, " +
-            "so shifts worked at them are reported as unpriced rather than valued at a rate nobody set.",
+                "The other shift types stay unpriced for those roles rather than inheriting this rate, " +
+                "so shifts worked at them are reported as unpriced rather than valued at a rate nobody set.",
             BACKFILLED.field(),
             BACKFILL_VALUE,
             count,
@@ -189,7 +189,7 @@ public class ShiftTypeMigration implements ApplicationRunner {
             if (count > 0) {
                 LOG.warn(
                     "{} row(s) in {} hold a {} value outside {} — they will fail to map when read. " +
-                    "Nothing was rewritten: this migration reports, it does not guess.",
+                        "Nothing was rewritten: this migration reports, it does not guess.",
                     count,
                     column.collection(),
                     column.field(),

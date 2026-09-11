@@ -184,7 +184,7 @@ public class ServicePlanCatalogueSyncService {
                 created++;
                 LOG.info(
                     "Plan catalogue learned {} ({}) from Abofonsa. It has no monthlyPrice until an administrator sets one, " +
-                    "so it earns nothing on the dashboard — the published price is a display string this service does not parse.",
+                        "so it earns nothing on the dashboard — the published price is a display string this service does not parse.",
                     plan.code(),
                     plan.name()
                 );
@@ -227,7 +227,7 @@ public class ServicePlanCatalogueSyncService {
 
         LOG.info(
             "Plan catalogue synced with Abofonsa: {} published, {} created, {} updated, {} unchanged, {} refused, {} held " +
-            "here but not published (left alone — patients reference plans), {} with no local price",
+                "here but not published (left alone — patients reference plans), {} with no local price",
             plans.size(),
             created,
             updated,

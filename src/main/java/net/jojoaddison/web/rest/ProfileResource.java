@@ -58,8 +58,7 @@ public class ProfileResource {
             throw new BadRequestAlertException("A new profile cannot already have an ID", ENTITY_NAME, "idexists");
         }
         profile = profileRepository.save(profile);
-        return ResponseEntity
-            .created(new URI("/api/profiles/" + profile.getId()))
+        return ResponseEntity.created(new URI("/api/profiles/" + profile.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, profile.getId()))
             .body(profile);
     }
@@ -92,8 +91,7 @@ public class ProfileResource {
         }
 
         profile = profileRepository.save(profile);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, profile.getId()))
             .body(profile);
     }
@@ -219,7 +217,9 @@ public class ProfileResource {
     public ResponseEntity<Void> deleteProfile(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Profile : {}", id);
         profileRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

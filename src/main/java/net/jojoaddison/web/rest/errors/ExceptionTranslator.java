@@ -113,7 +113,7 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
         if (problemProperties == null || !problemProperties.containsKey(PATH_KEY)) problem.setProperty(PATH_KEY, getPathValue(request));
 
         if (
-            (err instanceof MethodArgumentNotValidException fieldException) &&
+            err instanceof MethodArgumentNotValidException fieldException &&
             (problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
         ) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(fieldException));
 
@@ -155,11 +155,9 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
         // Let the ErrorResponse take this responsibility
         if (throwable instanceof ErrorResponse err) return HttpStatus.valueOf(err.getBody().getStatus());
 
-        return Optional
-            .ofNullable(getMappedStatus(throwable))
-            .orElse(
-                Optional.ofNullable(resolveResponseStatus(throwable)).map(ResponseStatus::value).orElse(HttpStatus.INTERNAL_SERVER_ERROR)
-            );
+        return Optional.ofNullable(getMappedStatus(throwable)).orElse(
+            Optional.ofNullable(resolveResponseStatus(throwable)).map(ResponseStatus::value).orElse(HttpStatus.INTERNAL_SERVER_ERROR)
+        );
     }
 
     private ResponseStatus extractResponseStatus(final Throwable throwable) {
@@ -216,12 +214,12 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
     private HttpHeaders buildHeaders(Throwable err) {
         return err instanceof BadRequestAlertException badRequestAlertException
             ? HeaderUtil.createFailureAlert(
-                applicationName,
-                true,
-                badRequestAlertException.getEntityName(),
-                badRequestAlertException.getErrorKey(),
-                badRequestAlertException.getMessage()
-            )
+                  applicationName,
+                  true,
+                  badRequestAlertException.getEntityName(),
+                  badRequestAlertException.getErrorKey(),
+                  badRequestAlertException.getMessage()
+              )
             : null;
     }
 

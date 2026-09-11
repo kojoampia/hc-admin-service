@@ -789,9 +789,9 @@ class DirectoryEventConsumptionIT {
     void aTypeThisServiceDoesNotModelCreatesNothing() {
         sendPatient(
             "{\"eventId\":\"evt-x\",\"type\":\"SomethingAddedNextYear\",\"version\":1," +
-            "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
-            EMAIL +
-            "\"},\"data\":{}}"
+                "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+                EMAIL +
+                "\"},\"data\":{}}"
         );
 
         assertThat(patientRepository.count()).isZero();
@@ -827,11 +827,13 @@ class DirectoryEventConsumptionIT {
         assertThat(apply(parser.parseProfessionalEvent(bytes(registrationCreated()))))
             .as("a clinician's first sighting writes a link — deliberately no local row, but not nothing")
             .isEqualTo(DirectoryProjectionService.Outcome.LINKED);
-        assertThat(apply(parser.parseProfessionalEvent(bytes(onboardingState("COMPLETED")))))
-            .isEqualTo(DirectoryProjectionService.Outcome.UPDATED);
+        assertThat(apply(parser.parseProfessionalEvent(bytes(onboardingState("COMPLETED"))))).isEqualTo(
+            DirectoryProjectionService.Outcome.UPDATED
+        );
 
-        assertThat(apply(parser.parsePatientEvent(bytes(accountCreated("2026-09-01T08:00:00Z", false)), EMAIL)))
-            .isEqualTo(DirectoryProjectionService.Outcome.CREATED);
+        assertThat(apply(parser.parsePatientEvent(bytes(accountCreated("2026-09-01T08:00:00Z", false)), EMAIL))).isEqualTo(
+            DirectoryProjectionService.Outcome.CREATED
+        );
         assertThat(apply(parser.parsePatientEvent(bytes(careAngelNominated("2026-09-02T08:00:00Z")), "angel@example.com")))
             .as("a nomination is linked, not ignored — the link is what stops the activation behind it creating one")
             .isEqualTo(DirectoryProjectionService.Outcome.LINKED);
@@ -1163,8 +1165,8 @@ class DirectoryEventConsumptionIT {
     private static List<ILoggingEvent> thisServicesOwnStatements(List<ILoggingEvent> captured) {
         return captured
             .stream()
-            .filter(event ->
-                !(event.getLoggerName().startsWith("net.jojoaddison.config.") && event.getLoggerName().endsWith("TestContainer"))
+            .filter(
+                event -> !(event.getLoggerName().startsWith("net.jojoaddison.config.") && event.getLoggerName().endsWith("TestContainer"))
             )
             .toList();
     }
@@ -1176,8 +1178,7 @@ class DirectoryEventConsumptionIT {
         // the consumer is exercised the way the broker will actually deliver.
         send(
             PATIENT_TOPIC,
-            MessageBuilder
-                .withPayload(json.getBytes(StandardCharsets.UTF_8))
+            MessageBuilder.withPayload(json.getBytes(StandardCharsets.UTF_8))
                 .setHeader(DirectoryEventConsumers.PATIENT_KEY_HEADER, EMAIL)
                 .build()
         );
@@ -1205,10 +1206,10 @@ class DirectoryEventConsumptionIT {
         } catch (NullPointerException e) {
             throw new AssertionError(
                 "nothing is bound to " +
-                topic +
-                " — no consumer function is subscribed to it, so the message cannot be delivered and " +
-                "this service would learn nothing from that stream. Check that the function is named in " +
-                "spring.cloud.function.definition and that the binding declares this destination.",
+                    topic +
+                    " — no consumer function is subscribed to it, so the message cannot be delivered and " +
+                    "this service would learn nothing from that stream. Check that the function is named in " +
+                    "spring.cloud.function.definition and that the binding declares this destination.",
                 e
             );
         }

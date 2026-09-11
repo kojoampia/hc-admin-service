@@ -60,9 +60,9 @@ public class ServicePlanIndexes {
         } catch (RuntimeException e) {
             LOG.error(
                 "Could not create the unique index {} on service_plan. Until it exists, two catalogue syncs racing can " +
-                "both insert the same published tier, and the patients holding it split across two rows of the plan mix. " +
-                "If this is a duplicate-key failure, find the duplicates by grouping on code, move every Patient.plan " +
-                "reference onto the one you are keeping, delete the other, and restart.",
+                    "both insert the same published tier, and the patients holding it split across two rows of the plan mix. " +
+                    "If this is a duplicate-key failure, find the duplicates by grouping on code, move every Patient.plan " +
+                    "reference onto the one you are keeping, delete the other, and restart.",
                 CODE_INDEX,
                 e
             );

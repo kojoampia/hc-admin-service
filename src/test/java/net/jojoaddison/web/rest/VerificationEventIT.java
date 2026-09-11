@@ -75,15 +75,14 @@ class VerificationEventIT {
     void seed() {
         verificationRepository.deleteAll();
         professionalRepository.deleteAll();
-        professional =
-            professionalRepository.save(
-                new Professional()
-                    .role(ProfessionalRole.NURSE)
-                    .licenceNumber("NMC/GH/26-0002")
-                    .verification(VerificationStatus.PENDING)
-                    .status(AccountStatus.ACTIVE)
-                    .joinedOn(LocalDate.of(2026, 2, 2))
-            );
+        professional = professionalRepository.save(
+            new Professional()
+                .role(ProfessionalRole.NURSE)
+                .licenceNumber("NMC/GH/26-0002")
+                .verification(VerificationStatus.PENDING)
+                .status(AccountStatus.ACTIVE)
+                .joinedOn(LocalDate.of(2026, 2, 2))
+        );
         // Anything the container published while starting up, so a stale frame cannot be mistaken
         // for this test's own.
         output.clear();
@@ -147,8 +146,9 @@ class VerificationEventIT {
         output.clear();
 
         assertThat(verificationRepository.findAll()).hasSize(1);
-        assertThat(professionalRepository.findById(professional.getId()).orElseThrow().getVerification())
-            .isEqualTo(VerificationStatus.VERIFIED);
+        assertThat(professionalRepository.findById(professional.getId()).orElseThrow().getVerification()).isEqualTo(
+            VerificationStatus.VERIFIED
+        );
     }
 
     private void recordVerified() throws Exception {
@@ -157,8 +157,8 @@ class VerificationEventIT {
         request.put("status", "VERIFIED");
         request.put("method", "Licence register");
 
-        mvc
-            .perform(post("/api/professional-verifications").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(request)))
-            .andExpect(status().isCreated());
+        mvc.perform(
+            post("/api/professional-verifications").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(request))
+        ).andExpect(status().isCreated());
     }
 }

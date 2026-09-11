@@ -61,8 +61,7 @@ public class TeamResource {
             throw new BadRequestAlertException("A new team cannot already have an ID", ENTITY_NAME, "idexists");
         }
         teamDTO = teamService.save(teamDTO);
-        return ResponseEntity
-            .created(new URI("/api/teams/" + teamDTO.getId()))
+        return ResponseEntity.created(new URI("/api/teams/" + teamDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, teamDTO.getId()))
             .body(teamDTO);
     }
@@ -95,8 +94,7 @@ public class TeamResource {
         }
 
         teamDTO = teamService.update(teamDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, teamDTO.getId()))
             .body(teamDTO);
     }
@@ -171,6 +169,8 @@ public class TeamResource {
     public ResponseEntity<Void> deleteTeam(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Team : {}", id);
         teamService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

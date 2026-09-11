@@ -61,8 +61,7 @@ public class FeatureResource {
             throw new BadRequestAlertException("A new feature cannot already have an ID", ENTITY_NAME, "idexists");
         }
         featureDTO = featureService.save(featureDTO);
-        return ResponseEntity
-            .created(new URI("/api/features/" + featureDTO.getId()))
+        return ResponseEntity.created(new URI("/api/features/" + featureDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, featureDTO.getId()))
             .body(featureDTO);
     }
@@ -95,8 +94,7 @@ public class FeatureResource {
         }
 
         featureDTO = featureService.update(featureDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, featureDTO.getId()))
             .body(featureDTO);
     }
@@ -174,6 +172,8 @@ public class FeatureResource {
     public ResponseEntity<Void> deleteFeature(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Feature : {}", id);
         featureService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

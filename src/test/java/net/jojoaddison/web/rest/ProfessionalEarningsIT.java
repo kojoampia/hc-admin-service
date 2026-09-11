@@ -86,12 +86,11 @@ class ProfessionalEarningsIT {
         wageRateRepository.deleteAll();
 
         wageRateRepository.saveAll(
-            java.util.stream.Stream
-                .of(
-                    ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 500, LocalDate.of(2026, 1, 1)),
-                    ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 550, LocalDate.of(2026, 8, 1)),
-                    ratesAtEveryShiftType(ProfessionalRole.NURSE, 300, LocalDate.of(2026, 1, 1))
-                )
+            java.util.stream.Stream.of(
+                ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 500, LocalDate.of(2026, 1, 1)),
+                ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 550, LocalDate.of(2026, 8, 1)),
+                ratesAtEveryShiftType(ProfessionalRole.NURSE, 300, LocalDate.of(2026, 1, 1))
+            )
                 .flatMap(List::stream)
                 .toList()
         );
@@ -108,13 +107,12 @@ class ProfessionalEarningsIT {
         profile.setIdType(IdType.GHANA_CARD);
         profileRepository.save(profile);
 
-        doctor =
-            new Professional()
-                .role(ProfessionalRole.DOCTOR)
-                .licenceNumber("MDC/RN/23-4471")
-                .verification(VerificationStatus.VERIFIED)
-                .status(AccountStatus.ACTIVE)
-                .joinedOn(LocalDate.of(2021, 6, 11));
+        doctor = new Professional()
+            .role(ProfessionalRole.DOCTOR)
+            .licenceNumber("MDC/RN/23-4471")
+            .verification(VerificationStatus.VERIFIED)
+            .status(AccountStatus.ACTIVE)
+            .joinedOn(LocalDate.of(2021, 6, 11));
         doctor.setProfile(profile);
         professionalRepository.save(doctor);
     }
@@ -130,8 +128,7 @@ class ProfessionalEarningsIT {
      * a night differently from a day and check that the difference reaches the total.
      */
     private static List<WageRate> ratesAtEveryShiftType(ProfessionalRole role, int amount, LocalDate validFrom) {
-        return java.util.Arrays
-            .stream(ShiftType.values())
+        return java.util.Arrays.stream(ShiftType.values())
             .map(shiftType ->
                 new WageRate().role(role).shiftType(shiftType).amount(new BigDecimal(amount)).currency("GHS").validFrom(validFrom)
             )
@@ -139,7 +136,10 @@ class ProfessionalEarningsIT {
     }
 
     private void assign(LocalDate date, ShiftType shift) {
-        ShiftAssignment assignment = new ShiftAssignment().dayIndex(date.getDayOfWeek().getValue() - 1).shiftDate(date).shift(shift);
+        ShiftAssignment assignment = new ShiftAssignment()
+            .dayIndex(date.getDayOfWeek().getValue() - 1)
+            .shiftDate(date)
+            .shift(shift);
         assignment.setProfessional(doctor);
         shiftAssignmentRepository.save(assignment);
     }

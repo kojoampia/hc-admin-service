@@ -63,8 +63,7 @@ public class CategoryResource {
             throw new BadRequestAlertException("A new category cannot already have an ID", ENTITY_NAME, "idexists");
         }
         category = categoryRepository.save(category);
-        return ResponseEntity
-            .created(new URI("/api/categories/" + category.getId()))
+        return ResponseEntity.created(new URI("/api/categories/" + category.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, category.getId()))
             .body(category);
     }
@@ -97,8 +96,7 @@ public class CategoryResource {
         }
 
         category = categoryRepository.save(category);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, category.getId()))
             .body(category);
     }
@@ -208,7 +206,9 @@ public class CategoryResource {
     public ResponseEntity<Void> deleteCategory(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Category : {}", id);
         categoryRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

@@ -67,9 +67,17 @@ class SiblingEventParserTest {
 
     @Test
     void treatsAnActivationAsEvidenceTheAccountCanSignIn() {
-        assertThat(parser.parsePatientEvent(bytes(accountActivated(PATIENT_EMAIL)), null).orElseThrow().activated()).isTrue();
         assertThat(
-            parser.parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)), null).orElseThrow().activated()
+            parser
+                .parsePatientEvent(bytes(accountActivated(PATIENT_EMAIL)), null)
+                .orElseThrow()
+                .activated()
+        ).isTrue();
+        assertThat(
+            parser
+                .parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)), null)
+                .orElseThrow()
+                .activated()
         )
             .as("an account created already activated says so in its data")
             .isTrue();
@@ -99,7 +107,12 @@ class SiblingEventParserTest {
 
         // The second frame the same call site emits. It carries no ROLE_ANGEL and no reason — only
         // an activatedAt — so nothing in it says who it is about. UPDATE_ONLY is what stops it.
-        assertThat(parser.parsePatientEvent(bytes(accountActivated(PATIENT_EMAIL)), null).orElseThrow().disposition())
+        assertThat(
+            parser
+                .parsePatientEvent(bytes(accountActivated(PATIENT_EMAIL)), null)
+                .orElseThrow()
+                .disposition()
+        )
             .as("the nomination's activation frame carries no marker at all, so it must not create either")
             .isEqualTo(Disposition.UPDATE_ONLY);
     }
@@ -107,10 +120,14 @@ class SiblingEventParserTest {
     /** Either marker alone is enough; they are set at one call site and one could outlive the other. */
     @Test
     void recognisesANominationFromEitherMarkerAlone() {
-        String byAuthority = accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)
-            .replace("\"authorities\":\"ROLE_USER\"", "\"authorities\":\"ROLE_USER,ROLE_ANGEL\"");
-        String byReason = accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true)
-            .replace("\"langKey\":\"en\"", "\"reason\":\"careAngelNomination\"");
+        String byAuthority = accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true).replace(
+            "\"authorities\":\"ROLE_USER\"",
+            "\"authorities\":\"ROLE_USER,ROLE_ANGEL\""
+        );
+        String byReason = accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", true).replace(
+            "\"langKey\":\"en\"",
+            "\"reason\":\"careAngelNomination\""
+        );
 
         assertThat(parser.parsePatientEvent(bytes(byAuthority), null).orElseThrow().disposition()).isEqualTo(Disposition.LINK_ONLY);
         assertThat(parser.parsePatientEvent(bytes(byReason), null).orElseThrow().disposition()).isEqualTo(Disposition.LINK_ONLY);
@@ -210,13 +227,25 @@ class SiblingEventParserTest {
     @Test
     void carriesNoPlanChoiceOnAnyOtherEvent() {
         assertThat(
-            parser.parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", false)), null).orElseThrow().planChoice()
+            parser
+                .parsePatientEvent(bytes(accountCreated(PATIENT_EMAIL, "2026-09-01T08:00:00Z", false)), null)
+                .orElseThrow()
+                .planChoice()
+        ).isNull();
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(registrationCreated("acc-1")))
+                .orElseThrow()
+                .planChoice()
         )
-            .isNull();
-        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().planChoice())
             .as("a clinician has no membership tier and nothing on either of their topics carries one")
             .isNull();
-        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true))).orElseThrow().planChoice()).isNull();
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true)))
+                .orElseThrow()
+                .planChoice()
+        ).isNull();
     }
 
     /**
@@ -256,7 +285,12 @@ class SiblingEventParserTest {
 
         // The other three changes are ordinary lifecycle news about somebody who still exists.
         for (String change : new String[] { "RAISED", "CANCELLED", "REJECTED" }) {
-            assertThat(parser.parsePatientEvent(bytes(deletionRequest(PATIENT_EMAIL, change)), null).orElseThrow().erased())
+            assertThat(
+                parser
+                    .parsePatientEvent(bytes(deletionRequest(PATIENT_EMAIL, change)), null)
+                    .orElseThrow()
+                    .erased()
+            )
                 .as("%s is a request, not an erasure", change)
                 .isFalse();
         }
@@ -279,16 +313,31 @@ class SiblingEventParserTest {
     /** Both clinician types are links and nothing more; no {@code Professional} is ever invented. */
     @Test
     void keepsNoLocalRecordForEitherProfessionalType() {
-        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().disposition())
-            .isEqualTo(Disposition.LINK_ONLY);
-        assertThat(parser.parseProfessionalEvent(bytes(onboardingState("acc-1", "COMPLETED"))).orElseThrow().disposition())
-            .isEqualTo(Disposition.LINK_ONLY);
-        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().subjectKind())
-            .isEqualTo(DirectorySubjectKind.PROFESSIONAL);
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(registrationCreated("acc-1")))
+                .orElseThrow()
+                .disposition()
+        ).isEqualTo(Disposition.LINK_ONLY);
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(onboardingState("acc-1", "COMPLETED")))
+                .orElseThrow()
+                .disposition()
+        ).isEqualTo(Disposition.LINK_ONLY);
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(registrationCreated("acc-1")))
+                .orElseThrow()
+                .subjectKind()
+        ).isEqualTo(DirectorySubjectKind.PROFESSIONAL);
     }
 
     private Disposition dispositionOf(String type) {
-        return parser.parsePatientEvent(bytes(typed(type, PATIENT_EMAIL)), null).orElseThrow().disposition();
+        return parser
+            .parsePatientEvent(bytes(typed(type, PATIENT_EMAIL)), null)
+            .orElseThrow()
+            .disposition();
     }
 
     /**
@@ -327,10 +376,10 @@ class SiblingEventParserTest {
         assertThat(event.activated())
             .as(
                 "UNKNOWN, not true. This answered true until 2026-09-07, inferred from the fact that a registration " +
-                "frame had arrived — which backlog item 47 forbids in those terms: activation is the account's own " +
-                "state, and an account deactivated afterwards would never correct the guess. `activated` is on " +
-                "AccountCreated, a different frame on this same topic — see readsThePhaseOneAccountCreated — so " +
-                "this envelope answers null and the other one answers."
+                    "frame had arrived — which backlog item 47 forbids in those terms: activation is the account's own " +
+                    "state, and an account deactivated afterwards would never correct the guess. `activated` is on " +
+                    "AccountCreated, a different frame on this same topic — see readsThePhaseOneAccountCreated — so " +
+                    "this envelope answers null and the other one answers."
             )
             .isNull();
         assertThat(event.accountCreatedDate())
@@ -389,8 +438,18 @@ class SiblingEventParserTest {
      */
     @Test
     void readsTheThreeActivationStatesAndNeverFlattensTheThird() {
-        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", false))).orElseThrow().activated()).isFalse();
-        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", null))).orElseThrow().activated())
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", false)))
+                .orElseThrow()
+                .activated()
+        ).isFalse();
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", null)))
+                .orElseThrow()
+                .activated()
+        )
             .as("nobody has said, which is not the same as saying no")
             .isNull();
     }
@@ -435,8 +494,18 @@ class SiblingEventParserTest {
      */
     @Test
     void readsBothEnvelopesOnTheRegistrationTopicUnderOneKey() {
-        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("acc-1"))).orElseThrow().subjectKey()).isEqualTo("acc-1");
-        assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true))).orElseThrow().subjectKey()).isEqualTo("acc-1");
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(registrationCreated("acc-1")))
+                .orElseThrow()
+                .subjectKey()
+        ).isEqualTo("acc-1");
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true)))
+                .orElseThrow()
+                .subjectKey()
+        ).isEqualTo("acc-1");
         assertThat(parser.parseProfessionalEvent(bytes(accountCreatedEvent("acc-1", true).replace("AccountCreated", "AccountSuspended"))))
             .as("a type this service does not model is ignored rather than guessed at")
             .isEmpty();
@@ -619,9 +688,18 @@ class SiblingEventParserTest {
         assertThat(parser.parseProfessionalProfileEvent(bytes(profileStatus("   ", true, true))))
             .as("whitespace is not an identifier")
             .isEmpty();
-        assertThat(parser.parseProfessionalProfileEvent(bytes(profileStatus("  acc-1  ", true, true))).orElseThrow().accountId())
-            .isEqualTo("acc-1");
-        assertThat(parser.parseProfessionalEvent(bytes(registrationCreated("  acc-1  "))).orElseThrow().subjectKey())
+        assertThat(
+            parser
+                .parseProfessionalProfileEvent(bytes(profileStatus("  acc-1  ", true, true)))
+                .orElseThrow()
+                .accountId()
+        ).isEqualTo("acc-1");
+        assertThat(
+            parser
+                .parseProfessionalEvent(bytes(registrationCreated("  acc-1  ")))
+                .orElseThrow()
+                .subjectKey()
+        )
             .as("and phase 1 trims to the same string, or the two would never pair")
             .isEqualTo("acc-1");
     }
@@ -676,12 +754,16 @@ class SiblingEventParserTest {
     @Test
     void ignoresEverythingItCannotUseInsteadOfThrowing() {
         assertThat(parser.parsePatientEvent(bytes("this is not json at all"), null)).isEmpty();
-        assertThat(parser.parsePatientEvent(bytes("[1,2,3]"), null)).as("a JSON array is not an envelope").isEmpty();
+        assertThat(parser.parsePatientEvent(bytes("[1,2,3]"), null))
+            .as("a JSON array is not an envelope")
+            .isEmpty();
         assertThat(parser.parsePatientEvent(new byte[0], null)).isEmpty();
         assertThat(parser.parsePatientEvent(bytes("{\"type\":\"AccountCreated\",\"subject\":{}}"), null))
             .as("no subject key means nothing to apply it to")
             .isEmpty();
-        assertThat(parser.parsePatientEvent(bytes("{\"subject\":{\"email\":\"a@b.co\"}}"), null)).as("no type").isEmpty();
+        assertThat(parser.parsePatientEvent(bytes("{\"subject\":{\"email\":\"a@b.co\"}}"), null))
+            .as("no type")
+            .isEmpty();
 
         assertThat(parser.parseProfessionalEvent(bytes("{}"))).isEmpty();
         assertThat(parser.parseProfessionalEvent(bytes("{\"eventType\":\"registration.created\",\"payload\":{}}")))
@@ -714,12 +796,11 @@ class SiblingEventParserTest {
         List<ILoggingEvent> logged = capture(SiblingEventParser.class, () -> assertThat(parser.parsePatientEvent(payload, null)).isEmpty());
 
         assertThat(logged).as("an unreadable frame must say so — a silent drop is undiagnosable").isNotEmpty();
-        assertThat(logged)
-            .allSatisfy(event -> {
-                String line = event.getFormattedMessage();
-                assertThat(line).as("no payload content may reach the log, from any argument").doesNotContain(secret);
-                assertThat(line).doesNotContain("ama.mensah@example.com").doesNotContain("0244000000");
-            });
+        assertThat(logged).allSatisfy(event -> {
+            String line = event.getFormattedMessage();
+            assertThat(line).as("no payload content may reach the log, from any argument").doesNotContain(secret);
+            assertThat(line).doesNotContain("ama.mensah@example.com").doesNotContain("0244000000");
+        });
 
         String warn = logged
             .stream()

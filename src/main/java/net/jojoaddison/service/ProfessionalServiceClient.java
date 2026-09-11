@@ -172,9 +172,9 @@ public class ProfessionalServiceClient {
         // getCurrentRequestJwt, never getCurrentUserJWT — see the class javadoc and backlog item 57.
         // The older method reads credentials as a String and this service's chain puts a decoded Jwt
         // there, so it answered empty on every request and this branch was the only one ever taken.
-        String token = SecurityUtils
-            .getCurrentRequestJwt()
-            .orElseThrow(() -> new RosterServiceNotConfiguredException("No caller token available; cannot file a round"));
+        String token = SecurityUtils.getCurrentRequestJwt().orElseThrow(() ->
+            new RosterServiceNotConfiguredException("No caller token available; cannot file a round")
+        );
         try {
             JsonNode created = restClient
                 .post()

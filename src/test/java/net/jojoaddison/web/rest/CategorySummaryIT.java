@@ -119,8 +119,7 @@ class CategorySummaryIT {
      */
     @Test
     void countsAreCountedOnTheActivitySide() throws Exception {
-        mvc
-            .perform(get("/api/categories/summary"))
+        mvc.perform(get("/api/categories/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.categories[?(@.categoryId=='" + clinical.getId() + "')].activities").value(3))
             .andExpect(jsonPath("$.categories[?(@.categoryId=='" + clinical.getId() + "')].live").value(3))
@@ -143,15 +142,13 @@ class CategorySummaryIT {
      */
     @Test
     void activitiesFilterByCategory() throws Exception {
-        mvc
-            .perform(get("/api/service-activities?categoryId.equals=" + clinical.getId()))
+        mvc.perform(get("/api/service-activities?categoryId.equals=" + clinical.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "3"))
             .andExpect(jsonPath("$", hasSize(3)))
             .andExpect(jsonPath("$[*].name", not(hasItem("Hospital bed hire"))));
 
-        mvc
-            .perform(get("/api/service-activities?categoryId.equals=" + empty.getId()))
+        mvc.perform(get("/api/service-activities?categoryId.equals=" + empty.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"))
             .andExpect(jsonPath("$", hasSize(0)));
@@ -187,22 +184,18 @@ class CategorySummaryIT {
             .findFirst()
             .orElseThrow();
 
-        mvc
-            .perform(
-                patch("/api/service-activities/" + live.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"" + live.getId() + "\",\"published\":false}")
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch("/api/service-activities/" + live.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"" + live.getId() + "\",\"published\":false}")
+        ).andExpect(status().isOk());
         assertThat(serviceActivityRepository.findById(live.getId()).orElseThrow().getPublished()).isFalse();
 
-        mvc
-            .perform(
-                patch("/api/service-activities/" + live.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"" + live.getId() + "\",\"published\":true}")
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch("/api/service-activities/" + live.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"" + live.getId() + "\",\"published\":true}")
+        ).andExpect(status().isOk());
         assertThat(serviceActivityRepository.findById(live.getId()).orElseThrow().getPublished()).isTrue();
     }
 
@@ -220,16 +213,13 @@ class CategorySummaryIT {
             .findFirst()
             .orElseThrow();
 
-        mvc
-            .perform(
-                patch("/api/service-activities/" + target.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"" + target.getId() + "\",\"published\":false}")
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch("/api/service-activities/" + target.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"" + target.getId() + "\",\"published\":false}")
+        ).andExpect(status().isOk());
 
-        mvc
-            .perform(get("/api/categories/summary"))
+        mvc.perform(get("/api/categories/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.categories[?(@.categoryId=='" + clinical.getId() + "')].activities").value(3))
             .andExpect(jsonPath("$.categories[?(@.categoryId=='" + clinical.getId() + "')].live").value(2));

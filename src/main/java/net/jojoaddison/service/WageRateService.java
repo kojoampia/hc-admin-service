@@ -108,13 +108,11 @@ public class WageRateService {
     private static void requireKey(WageRate rate) {
         if (rate.getRole() == null || rate.getShiftType() == null) {
             throw new IllegalStateException(
-                ("Stored wage_rate %s has role=%s and shift_type=%s; both are required to price a shift. " +
+                (
+                    "Stored wage_rate %s has role=%s and shift_type=%s; both are required to price a shift. " +
                     "A row written before the shift-type dimension of 2026-09-04 is backfilled by " +
-                    "ShiftTypeMigration on startup — run it, or set the field on this row.").formatted(
-                        rate.getId(),
-                        rate.getRole(),
-                        rate.getShiftType()
-                    )
+                    "ShiftTypeMigration on startup — run it, or set the field on this row."
+                ).formatted(rate.getId(), rate.getRole(), rate.getShiftType())
             );
         }
     }

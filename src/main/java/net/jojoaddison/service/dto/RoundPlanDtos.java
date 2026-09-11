@@ -154,7 +154,10 @@ public final class RoundPlanDtos {
      */
     public record PlanReport(LocalDate date, boolean rosterServiceReachable, List<RoundOutcome> rounds) {
         public long plannedCount() {
-            return rounds.stream().filter(round -> round.outcome() == Outcome.PLANNED).count();
+            return rounds
+                .stream()
+                .filter(round -> round.outcome() == Outcome.PLANNED)
+                .count();
         }
     }
 }

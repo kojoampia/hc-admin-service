@@ -61,8 +61,7 @@ public class ContactResource {
             throw new BadRequestAlertException("A new contact cannot already have an ID", ENTITY_NAME, "idexists");
         }
         contactDTO = contactService.save(contactDTO);
-        return ResponseEntity
-            .created(new URI("/api/contacts/" + contactDTO.getId()))
+        return ResponseEntity.created(new URI("/api/contacts/" + contactDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, contactDTO.getId()))
             .body(contactDTO);
     }
@@ -95,8 +94,7 @@ public class ContactResource {
         }
 
         contactDTO = contactService.update(contactDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, contactDTO.getId()))
             .body(contactDTO);
     }
@@ -174,6 +172,8 @@ public class ContactResource {
     public ResponseEntity<Void> deleteContact(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Contact : {}", id);
         contactService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

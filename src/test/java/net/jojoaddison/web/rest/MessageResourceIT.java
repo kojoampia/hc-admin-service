@@ -166,7 +166,11 @@ class MessageResourceIT {
 
         var returnedMessageDTO = om.readValue(
             restMessageMockMvc
-                .perform(post(ENTITY_API_URL + "/send").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO)))
+                .perform(
+                    post(ENTITY_API_URL + "/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsBytes(messageDTO))
+                )
                 .andExpect(status().isCreated())
                 .andReturn()
                 .getResponse()
@@ -194,7 +198,11 @@ class MessageResourceIT {
         MessageDTO messageDTO = messageMapper.toDto(message);
 
         restMessageMockMvc
-            .perform(post(ENTITY_API_URL + "/send").contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(messageDTO)))
+            .perform(
+                post(ENTITY_API_URL + "/send")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(om.writeValueAsBytes(messageDTO))
+            )
             .andExpect(status().isBadRequest());
 
         assertSameRepositoryCount(databaseSizeBeforeCreate);

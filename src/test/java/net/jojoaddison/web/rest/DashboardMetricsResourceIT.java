@@ -219,7 +219,9 @@ class DashboardMetricsResourceIT {
             // Both readings moved, by this one link: two figures agreeing on a number that neither
             // of them changed is the state every stack that has consumed no registration is in, and
             // it would pass with the endpoint returning a constant.
-            assertThat(listed).as("the list is one longer for the link just written").isEqualTo(listedBefore + 1);
+            assertThat(listed)
+                .as("the list is one longer for the link just written")
+                .isEqualTo(listedBefore + 1);
             restMockMvc
                 .perform(get(ENDPOINT))
                 .andExpect(status().isOk())

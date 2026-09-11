@@ -231,7 +231,11 @@ public class DashboardMetricsService {
 
         long capacity = (long) rosterable.size() * DAYS_IN_WEEK;
         long unassigned = Math.max(0, capacity - planned.size());
-        long worked = planned.values().stream().filter(a -> a.getShift() != ShiftType.OFF).count();
+        long worked = planned
+            .values()
+            .stream()
+            .filter(a -> a.getShift() != ShiftType.OFF)
+            .count();
 
         // 0% for an empty grid. An uncovered roster is not a fully covered one, and dividing by zero
         // should not be resolved by whichever default reads better on a card.
@@ -273,8 +277,7 @@ public class DashboardMetricsService {
         List<DashboardMetricsDTO.MonthCount> volume = new ArrayList<>(VOLUME_MONTHS);
         for (int back = VOLUME_MONTHS - 1; back >= 0; back--) {
             YearMonth month = thisMonth.minusMonths(back);
-            Criteria window = Criteria
-                .where("sent_at")
+            Criteria window = Criteria.where("sent_at")
                 .gte(month.atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant())
                 .lt(month.plusMonths(1).atDay(1).atStartOfDay(ZoneOffset.UTC).toInstant());
             volume.add(new DashboardMetricsDTO.MonthCount(month.toString(), count(Message.class, window)));
@@ -338,11 +341,10 @@ public class DashboardMetricsService {
         List<Integer> series = new ArrayList<>(VOLUME_MONTHS);
         for (int back = VOLUME_MONTHS - 1; back >= 0; back--) {
             Instant monthEnd = thisMonth.minusMonths(back).atEndOfMonth().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
-            Criteria stillOpenThen = new Criteria()
-                .andOperator(
-                    Criteria.where(openedField).lt(monthEnd),
-                    new Criteria().orOperator(Criteria.where(closedField).is(null), Criteria.where(closedField).gte(monthEnd))
-                );
+            Criteria stillOpenThen = new Criteria().andOperator(
+                Criteria.where(openedField).lt(monthEnd),
+                new Criteria().orOperator(Criteria.where(closedField).is(null), Criteria.where(closedField).gte(monthEnd))
+            );
             series.add((int) count(collection, stillOpenThen));
         }
         return series;
@@ -497,7 +499,10 @@ public class DashboardMetricsService {
             "d:5m]) / " +
             PLATFORM_SERVICE_COUNT +
             " * 100";
-        Double percent = observability.instant(promql).map(v -> Math.round(v * 100) / 100.0).orElse(null);
+        Double percent = observability
+            .instant(promql)
+            .map(v -> Math.round(v * 100) / 100.0)
+            .orElse(null);
         return new DashboardMetricsDTO.Uptime(percent, UPTIME_WINDOW_DAYS);
     }
 
@@ -556,6 +561,9 @@ public class DashboardMetricsService {
     }
 
     private String grafanaStatus() {
-        return observability.grafanaReady().map(ready -> ready ? LIVE : OFFLINE).orElse(UNKNOWN);
+        return observability
+            .grafanaReady()
+            .map(ready -> ready ? LIVE : OFFLINE)
+            .orElse(UNKNOWN);
     }
 }

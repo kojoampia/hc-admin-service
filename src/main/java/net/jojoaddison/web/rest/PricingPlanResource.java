@@ -61,8 +61,7 @@ public class PricingPlanResource {
             throw new BadRequestAlertException("A new pricingPlan cannot already have an ID", ENTITY_NAME, "idexists");
         }
         pricingPlanDTO = pricingPlanService.save(pricingPlanDTO);
-        return ResponseEntity
-            .created(new URI("/api/pricing-plans/" + pricingPlanDTO.getId()))
+        return ResponseEntity.created(new URI("/api/pricing-plans/" + pricingPlanDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, pricingPlanDTO.getId()))
             .body(pricingPlanDTO);
     }
@@ -95,8 +94,7 @@ public class PricingPlanResource {
         }
 
         pricingPlanDTO = pricingPlanService.update(pricingPlanDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, pricingPlanDTO.getId()))
             .body(pricingPlanDTO);
     }
@@ -174,6 +172,8 @@ public class PricingPlanResource {
     public ResponseEntity<Void> deletePricingPlan(@PathVariable("id") String id) {
         LOG.debug("REST request to delete PricingPlan : {}", id);
         pricingPlanService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

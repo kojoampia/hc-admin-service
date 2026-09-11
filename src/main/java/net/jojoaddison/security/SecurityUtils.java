@@ -104,8 +104,7 @@ public final class SecurityUtils {
      */
     public static Optional<String> getCurrentUserJWT() {
         SecurityContext securityContext = SecurityContextHolder.getContext();
-        return Optional
-            .ofNullable(securityContext.getAuthentication())
+        return Optional.ofNullable(securityContext.getAuthentication())
             .filter(authentication -> authentication.getCredentials() instanceof String)
             .map(authentication -> (String) authentication.getCredentials());
     }
@@ -160,7 +159,9 @@ public final class SecurityUtils {
             return Optional.of(token);
         }
         if (authentication instanceof JwtAuthenticationToken jwtAuthentication) {
-            return Optional.ofNullable(jwtAuthentication.getToken()).map(Jwt::getTokenValue).filter(token -> !token.isBlank());
+            return Optional.ofNullable(jwtAuthentication.getToken())
+                .map(Jwt::getTokenValue)
+                .filter(token -> !token.isBlank());
         }
         return Optional.empty();
     }

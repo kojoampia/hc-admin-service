@@ -50,7 +50,8 @@ public class OrganisationAsserts {
             .satisfies(a -> assertThat(a.getName()).as("check name").isEqualTo(expected.getName()))
             .satisfies(a -> assertThat(a.getLegalName()).as("check legalName").isEqualTo(expected.getLegalName()))
             .satisfies(a -> assertThat(a.getDescription()).as("check description").isEqualTo(expected.getDescription()))
-            .satisfies(a -> assertThat(a.getRegistrationNumber()).as("check registrationNumber").isEqualTo(expected.getRegistrationNumber())
+            .satisfies(a ->
+                assertThat(a.getRegistrationNumber()).as("check registrationNumber").isEqualTo(expected.getRegistrationNumber())
             )
             .satisfies(a -> assertThat(a.getTin()).as("check tin").isEqualTo(expected.getTin()))
             .satisfies(a -> assertThat(a.getFoundedOn()).as("check foundedOn").isEqualTo(expected.getFoundedOn()))

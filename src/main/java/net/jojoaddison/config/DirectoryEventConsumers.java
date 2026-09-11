@@ -139,9 +139,8 @@ public class DirectoryEventConsumers {
     @Bean
     public Consumer<Message<byte[]>> patientDirectoryConsumer() {
         return message ->
-            handle(
-                "patient-events",
-                () -> parser.parsePatientEvent(message.getPayload(), headerText(message, PATIENT_KEY_HEADER)).map(projection::apply)
+            handle("patient-events", () ->
+                parser.parsePatientEvent(message.getPayload(), headerText(message, PATIENT_KEY_HEADER)).map(projection::apply)
             );
     }
 
@@ -209,9 +208,8 @@ public class DirectoryEventConsumers {
     @Bean
     public Consumer<Message<byte[]>> professionalProfileConsumer() {
         return message ->
-            handle(
-                "hc.professional.entity",
-                () -> parser.parseProfessionalProfileEvent(message.getPayload()).map(projection::applyProfileStatus)
+            handle("hc.professional.entity", () ->
+                parser.parseProfessionalProfileEvent(message.getPayload()).map(projection::applyProfileStatus)
             );
     }
 

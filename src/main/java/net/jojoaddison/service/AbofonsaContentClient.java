@@ -114,7 +114,11 @@ public class AbofonsaContentClient {
             return Optional.empty();
         }
         try {
-            JsonNode body = restClient.get().uri(PLANS + locale).retrieve().body(JsonNode.class);
+            JsonNode body = restClient
+                .get()
+                .uri(PLANS + locale)
+                .retrieve()
+                .body(JsonNode.class);
             if (body == null || !body.isArray()) {
                 LOG.warn("Abofonsa's plan catalogue answered something that is not an array; the local copy is unchanged");
                 return Optional.empty();
@@ -141,7 +145,9 @@ public class AbofonsaContentClient {
                         // catalogue over an ordering — but it is a silent flattening, so a board
                         // that suddenly orders wrongly is worth checking against this line before
                         // anything else.
-                        node.path("displayOrder").asInt(0)
+                        node
+                            .path("displayOrder")
+                            .asInt(0)
                     )
                 );
             }

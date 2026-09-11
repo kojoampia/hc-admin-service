@@ -502,17 +502,16 @@ class ProfessionalResourceIT {
      */
     @Test
     void putWithAnEmptyUnavailabilityListClearsTheStoredOne() throws Exception {
-        insertedProfessional =
-            professionalRepository.save(
-                professional.unavailabilityPeriods(
-                    List.of(
-                        new UnavailabilityPeriod()
-                            .reason(UnavailabilityReason.SICK_LEAVE)
-                            .fromDate(LocalDate.of(2026, 9, 1))
-                            .toDate(LocalDate.of(2026, 9, 30))
-                    )
+        insertedProfessional = professionalRepository.save(
+            professional.unavailabilityPeriods(
+                List.of(
+                    new UnavailabilityPeriod()
+                        .reason(UnavailabilityReason.SICK_LEAVE)
+                        .fromDate(LocalDate.of(2026, 9, 1))
+                        .toDate(LocalDate.of(2026, 9, 30))
                 )
-            );
+            )
+        );
 
         Professional backAtWork = professionalRepository.findById(professional.getId()).orElseThrow();
         backAtWork.setUnavailabilityPeriods(new ArrayList<>());

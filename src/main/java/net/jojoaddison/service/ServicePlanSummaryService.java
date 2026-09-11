@@ -53,7 +53,10 @@ public class ServicePlanSummaryService {
     public ServicePlanSummaryDTO summary() {
         List<ServicePlan> plans = mongoTemplate.findAll(ServicePlan.class).stream().sorted(byDisplayOrder()).toList();
 
-        List<Long> counts = plans.stream().map(plan -> subscribers(plan.getId())).toList();
+        List<Long> counts = plans
+            .stream()
+            .map(plan -> subscribers(plan.getId()))
+            .toList();
         long total = counts.stream().mapToLong(Long::longValue).sum();
         List<BigDecimal> shares = shares(counts, total);
 
@@ -123,7 +126,10 @@ public class ServicePlanSummaryService {
      */
     private static List<BigDecimal> shares(List<Long> counts, long total) {
         if (total == 0) {
-            return counts.stream().<BigDecimal>map(count -> null).toList();
+            return counts
+                .stream()
+                .<BigDecimal>map(count -> null)
+                .toList();
         }
         BigDecimal scale = BigDecimal.TEN.pow(SHARE_SCALE);
         BigDecimal totalValue = BigDecimal.valueOf(total);
@@ -134,15 +140,17 @@ public class ServicePlanSummaryService {
             .stream()
             .map(count -> BigDecimal.valueOf(count).multiply(HUNDRED).multiply(scale).divide(totalValue, 10, RoundingMode.HALF_UP))
             .toList();
-        List<BigDecimal> floor = exact.stream().map(value -> value.setScale(0, RoundingMode.FLOOR)).toList();
+        List<BigDecimal> floor = exact
+            .stream()
+            .map(value -> value.setScale(0, RoundingMode.FLOOR))
+            .toList();
 
         long leftover = scale.multiply(HUNDRED).longValueExact() - floor.stream().mapToLong(BigDecimal::longValueExact).sum();
 
         // The rows with the largest discarded fraction have the strongest claim on the leftover units.
         // There are always fewer leftovers than rows — the floors give away under one unit each — so
         // this walks the order once and no row is awarded twice.
-        List<Integer> order = IntStream
-            .range(0, counts.size())
+        List<Integer> order = IntStream.range(0, counts.size())
             .boxed()
             .sorted(Comparator.comparing((Integer i) -> exact.get(i).subtract(floor.get(i))).reversed())
             .toList();
@@ -152,7 +160,9 @@ public class ServicePlanSummaryService {
             int target = order.get(i);
             result[target] = result[target].add(BigDecimal.ONE);
         }
-        return Arrays.stream(result).map(value -> value.movePointLeft(SHARE_SCALE)).toList();
+        return Arrays.stream(result)
+            .map(value -> value.movePointLeft(SHARE_SCALE))
+            .toList();
     }
 
     /**

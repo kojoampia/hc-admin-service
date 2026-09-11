@@ -328,10 +328,16 @@ class NamedFilterIT {
     @Test
     void shouldFilterShiftAssignmentsByWeekAndProfessional() throws Exception {
         RosterWeek thisWeek = rosterWeekRepository.save(
-            new RosterWeek().label("2026-W33").startDate(LocalDate.of(2026, 8, 10)).published(true)
+            new RosterWeek()
+                .label("2026-W33")
+                .startDate(LocalDate.of(2026, 8, 10))
+                .published(true)
         );
         RosterWeek nextWeek = rosterWeekRepository.save(
-            new RosterWeek().label("2026-W34").startDate(LocalDate.of(2026, 8, 17)).published(true)
+            new RosterWeek()
+                .label("2026-W34")
+                .startDate(LocalDate.of(2026, 8, 17))
+                .published(true)
         );
         Professional nurse = professional(ProfessionalRole.NURSE, AccountStatus.ACTIVE);
         Professional doctor = professional(ProfessionalRole.DOCTOR, AccountStatus.ACTIVE);

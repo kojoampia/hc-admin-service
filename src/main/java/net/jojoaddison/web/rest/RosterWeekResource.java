@@ -63,8 +63,7 @@ public class RosterWeekResource {
         }
         stripServerOwnedFields(rosterWeek);
         rosterWeek = rosterWeekRepository.save(rosterWeek);
-        return ResponseEntity
-            .created(new URI("/api/roster-weeks/" + rosterWeek.getId()))
+        return ResponseEntity.created(new URI("/api/roster-weeks/" + rosterWeek.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, rosterWeek.getId()))
             .body(rosterWeek);
     }
@@ -98,8 +97,7 @@ public class RosterWeekResource {
 
         stripServerOwnedFields(rosterWeek);
         rosterWeek = rosterWeekRepository.save(rosterWeek);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, rosterWeek.getId()))
             .body(rosterWeek);
     }
@@ -233,7 +231,9 @@ public class RosterWeekResource {
     public ResponseEntity<Void> deleteRosterWeek(@PathVariable("id") String id) {
         LOG.debug("REST request to delete RosterWeek : {}", id);
         rosterWeekRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

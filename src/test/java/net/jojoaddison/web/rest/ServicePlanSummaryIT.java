@@ -109,8 +109,7 @@ class ServicePlanSummaryIT {
      */
     @Test
     void subscribersAreCountedFromThePatientDirectory() throws Exception {
-        mvc
-            .perform(get("/api/service-plans/summary"))
+        mvc.perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalSubscribers").value(6))
             // Ordered by displayOrder — the order Abofonsa publishes the tiers in, and so the order
@@ -132,8 +131,7 @@ class ServicePlanSummaryIT {
      */
     @Test
     void revenueIsPriceTimesSubscribers() throws Exception {
-        mvc
-            .perform(get("/api/service-plans/summary"))
+        mvc.perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.mix[0].monthlyRevenue").value(new BigDecimal("6000").doubleValue()))
             .andExpect(jsonPath("$.mix[1].monthlyRevenue").value(new BigDecimal("15000").doubleValue()))
@@ -159,8 +157,7 @@ class ServicePlanSummaryIT {
     void anUnpricedPlanHasNoRevenueRatherThanZeroRevenue() throws Exception {
         servicePlanRepository.save(melon.monthlyPrice(null));
 
-        mvc
-            .perform(get("/api/service-plans/summary"))
+        mvc.perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.mix[2].planId").value(melon.getId()))
             .andExpect(jsonPath("$.mix[2].monthlyPrice").doesNotExist())
@@ -181,8 +178,7 @@ class ServicePlanSummaryIT {
      */
     @Test
     void sharesSumToExactlyOneHundred() throws Exception {
-        mvc
-            .perform(get("/api/service-plans/summary"))
+        mvc.perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.mix[0].share").value(33.3))
             .andExpect(jsonPath("$.mix[1].share").value(50.0))
@@ -201,8 +197,7 @@ class ServicePlanSummaryIT {
     void anEmptyDirectoryHasNoShareRatherThanZeroShare() throws Exception {
         patientRepository.deleteAll();
 
-        mvc
-            .perform(get("/api/service-plans/summary"))
+        mvc.perform(get("/api/service-plans/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.totalSubscribers").value(0))
             .andExpect(jsonPath("$.mix[0].share").doesNotExist())
@@ -231,14 +226,12 @@ class ServicePlanSummaryIT {
             List.of(feature("5 weekly visits", 0, pear), feature("Nursing support", 1, pear), feature("7 weekly visits", 0, pawpaw))
         );
 
-        mvc
-            .perform(get("/api/plan-features?planId.equals=" + pear.getId()))
+        mvc.perform(get("/api/plan-features?planId.equals=" + pear.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "2"))
             .andExpect(jsonPath("$[*].label", org.hamcrest.Matchers.not(org.hamcrest.Matchers.hasItem("7 weekly visits"))));
 
-        mvc
-            .perform(get("/api/plan-features?planId.equals=" + melon.getId()))
+        mvc.perform(get("/api/plan-features?planId.equals=" + melon.getId()))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"));
 
@@ -274,6 +267,10 @@ class ServicePlanSummaryIT {
     }
 
     private static Patient patient(ServicePlan plan, boolean archived) {
-        return new Patient().status(AccountStatus.ACTIVE).joinedOn(LocalDate.of(2026, 1, 1)).plan(plan).isArchived(archived);
+        return new Patient()
+            .status(AccountStatus.ACTIVE)
+            .joinedOn(LocalDate.of(2026, 1, 1))
+            .plan(plan)
+            .isArchived(archived);
     }
 }

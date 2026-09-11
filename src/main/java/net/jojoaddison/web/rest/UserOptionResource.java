@@ -58,8 +58,7 @@ public class UserOptionResource {
             throw new BadRequestAlertException("A new userOption cannot already have an ID", ENTITY_NAME, "idexists");
         }
         userOption = userOptionRepository.save(userOption);
-        return ResponseEntity
-            .created(new URI("/api/user-options/" + userOption.getId()))
+        return ResponseEntity.created(new URI("/api/user-options/" + userOption.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, userOption.getId()))
             .body(userOption);
     }
@@ -92,8 +91,7 @@ public class UserOptionResource {
         }
 
         userOption = userOptionRepository.save(userOption);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, userOption.getId()))
             .body(userOption);
     }
@@ -179,7 +177,9 @@ public class UserOptionResource {
     public ResponseEntity<Void> deleteUserOption(@PathVariable("id") String id) {
         LOG.debug("REST request to delete UserOption : {}", id);
         userOptionRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

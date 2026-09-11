@@ -716,7 +716,7 @@ public class SiblingEventParser {
         if (accountId == null) {
             LOG.warn(
                 "Ignoring an hc.professional.entity {} for a profile with no accountId — there is nothing to join it to, " +
-                "and a profile status that can never be paired with an account is invisible on the console rather than wrong",
+                    "and a profile status that can never be paired with an account is invisible on the console rather than wrong",
                 type
             );
             return Optional.empty();
@@ -764,7 +764,8 @@ public class SiblingEventParser {
             // care angel who later registers as a patient in their own right become one here: their
             // account already exists, so hc-patient publishes no second AccountCreated for them.
             case PATIENT_ONBOARDING_STARTED -> Disposition.CREATE;
-            case PATIENT_ACCOUNT_ACTIVATED,
+            case
+                PATIENT_ACCOUNT_ACTIVATED,
                 PATIENT_ONBOARDING_STEP_COMPLETED,
                 PATIENT_ONBOARDING_COMPLETED,
                 PATIENT_CARE_DELEGATION_CHANGED,

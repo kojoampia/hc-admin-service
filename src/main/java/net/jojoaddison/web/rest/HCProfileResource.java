@@ -61,8 +61,7 @@ public class HCProfileResource {
             throw new BadRequestAlertException("A new profile cannot already have an ID", ENTITY_NAME, "idexists");
         }
         profileDTO = profileService.save(profileDTO);
-        return ResponseEntity
-            .created(new URI("/api/hc-profiles/" + profileDTO.getId()))
+        return ResponseEntity.created(new URI("/api/hc-profiles/" + profileDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, profileDTO.getId()))
             .body(profileDTO);
     }
@@ -95,8 +94,7 @@ public class HCProfileResource {
         }
 
         profileDTO = profileService.update(profileDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, profileDTO.getId()))
             .body(profileDTO);
     }
@@ -174,6 +172,8 @@ public class HCProfileResource {
     public ResponseEntity<Void> deleteProfile(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Profile : {}", id);
         profileService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

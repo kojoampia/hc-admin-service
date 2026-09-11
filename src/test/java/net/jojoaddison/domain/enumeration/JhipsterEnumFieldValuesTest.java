@@ -113,21 +113,21 @@ class JhipsterEnumFieldValuesTest {
             if (actual == null) {
                 disagreements.add(
                     "%s %s has type %s, which is not an enum in %s".formatted(
-                            declaration.file(),
-                            declaration.where(),
-                            declaration.enumType(),
-                            ENUMERATION_PACKAGE
-                        )
+                        declaration.file(),
+                        declaration.where(),
+                        declaration.enumType(),
+                        ENUMERATION_PACKAGE
+                    )
                 );
             } else if (!actual.equals(declaration.declaredValues())) {
                 disagreements.add(
                     "%s %s declares %s but %s has %s".formatted(
-                            declaration.file(),
-                            declaration.where(),
-                            declaration.declaredValues(),
-                            declaration.enumType(),
-                            actual
-                        )
+                        declaration.file(),
+                        declaration.where(),
+                        declaration.declaredValues(),
+                        declaration.enumType(),
+                        actual
+                    )
                 );
             }
         }
@@ -135,8 +135,8 @@ class JhipsterEnumFieldValuesTest {
         assertThat(disagreements)
             .as(
                 "Generator inputs under %s must declare exactly the values of the enum they name — " +
-                "regenerating the entity emits the enum from these, so a disagreement here " +
-                "reintroduces or drops values in code",
+                    "regenerating the entity emits the enum from these, so a disagreement here " +
+                    "reintroduces or drops values in code",
                 source
             )
             .isEmpty();
@@ -153,7 +153,10 @@ class JhipsterEnumFieldValuesTest {
     private static List<Path> filesUnder(Path directory, String suffix) {
         assertThat(directory).as("run from the module directory: %s holds generator inputs", directory.toAbsolutePath()).isDirectory();
         try (Stream<Path> entries = Files.list(directory)) {
-            return entries.filter(path -> path.getFileName().toString().endsWith(suffix)).sorted(Comparator.naturalOrder()).toList();
+            return entries
+                .filter(path -> path.getFileName().toString().endsWith(suffix))
+                .sorted(Comparator.naturalOrder())
+                .toList();
         } catch (IOException e) {
             throw new IllegalStateException("Could not read " + directory.toAbsolutePath(), e);
         }
@@ -217,7 +220,10 @@ class JhipsterEnumFieldValuesTest {
     }
 
     private static List<String> split(String values) {
-        return Arrays.stream(values.split(",")).map(String::trim).filter(value -> !value.isEmpty()).toList();
+        return Arrays.stream(values.split(","))
+            .map(String::trim)
+            .filter(value -> !value.isEmpty())
+            .toList();
     }
 
     /** The enum's constants in declaration order, or {@code null} if the name is no enum. */
@@ -229,6 +235,10 @@ class JhipsterEnumFieldValuesTest {
             return null;
         }
         Object[] constants = type.getEnumConstants();
-        return constants == null ? null : Arrays.stream(constants).map(constant -> ((Enum<?>) constant).name()).toList();
+        return constants == null
+            ? null
+            : Arrays.stream(constants)
+                  .map(constant -> ((Enum<?>) constant).name())
+                  .toList();
     }
 }

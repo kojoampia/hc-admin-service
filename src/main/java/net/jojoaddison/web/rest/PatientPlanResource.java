@@ -61,8 +61,7 @@ public class PatientPlanResource {
             throw new BadRequestAlertException("A new patientPlan cannot already have an ID", ENTITY_NAME, "idexists");
         }
         patientPlanDTO = patientPlanService.save(patientPlanDTO);
-        return ResponseEntity
-            .created(new URI("/api/patient-plans/" + patientPlanDTO.getId()))
+        return ResponseEntity.created(new URI("/api/patient-plans/" + patientPlanDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, patientPlanDTO.getId()))
             .body(patientPlanDTO);
     }
@@ -95,8 +94,7 @@ public class PatientPlanResource {
         }
 
         patientPlanDTO = patientPlanService.update(patientPlanDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, patientPlanDTO.getId()))
             .body(patientPlanDTO);
     }
@@ -174,6 +172,8 @@ public class PatientPlanResource {
     public ResponseEntity<Void> deletePatientPlan(@PathVariable("id") String id) {
         LOG.debug("REST request to delete PatientPlan : {}", id);
         patientPlanService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

@@ -77,8 +77,7 @@ public class PatientResource {
             throw new BadRequestAlertException("A new patient cannot already have an ID", ENTITY_NAME, "idexists");
         }
         patient = patientRepository.save(patient);
-        return ResponseEntity
-            .created(new URI("/api/patients/" + patient.getId()))
+        return ResponseEntity.created(new URI("/api/patients/" + patient.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, patient.getId()))
             .body(patient);
     }
@@ -111,8 +110,7 @@ public class PatientResource {
         }
 
         patient = patientRepository.save(patient);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, patient.getId()))
             .body(patient);
     }
@@ -246,8 +244,7 @@ public class PatientResource {
             }
         };
 
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .contentType(new MediaType("text", "csv", StandardCharsets.UTF_8))
             .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"patients-" + LocalDate.now() + ".csv\"")
             .body(body);
@@ -276,7 +273,9 @@ public class PatientResource {
     public ResponseEntity<Void> deletePatient(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Patient : {}", id);
         patientRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

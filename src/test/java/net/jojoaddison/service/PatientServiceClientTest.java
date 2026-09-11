@@ -45,30 +45,29 @@ import org.springframework.web.client.RestClient;
  */
 class PatientServiceClientTest {
 
-    private static final String CAPTURED =
-        """
-        {
-          "id": "patient-kojo",
-          "patientId": "patient-kojo",
-          "firstName": "Kojo",
-          "middleNames": "Kwame",
-          "lastName": "Ampia-Addison",
-          "membership": "PEAR",
-          "birthDate": "1979-04-11",
-          "sex": "MALE",
-          "bloodGroup": "O+",
-          "mobilePhone": "+233201110000",
-          "phoneNumber": "+233302110000",
-          "email": "kojo@jac.net",
-          "cardType": "NHIS",
-          "cardNumber": "GHA-000111222-3",
-          "careAngelName": "Ama Ampia-Addison",
-          "careAngelPhone": "+233209990000",
-          "careAngelEmail": "ama@jac.net",
-          "onboardingStatus": "COMPLETED",
-          "onboardingStep": 6
-        }
-        """;
+    private static final String CAPTURED = """
+    {
+      "id": "patient-kojo",
+      "patientId": "patient-kojo",
+      "firstName": "Kojo",
+      "middleNames": "Kwame",
+      "lastName": "Ampia-Addison",
+      "membership": "PEAR",
+      "birthDate": "1979-04-11",
+      "sex": "MALE",
+      "bloodGroup": "O+",
+      "mobilePhone": "+233201110000",
+      "phoneNumber": "+233302110000",
+      "email": "kojo@jac.net",
+      "cardType": "NHIS",
+      "cardNumber": "GHA-000111222-3",
+      "careAngelName": "Ama Ampia-Addison",
+      "careAngelPhone": "+233209990000",
+      "careAngelEmail": "ama@jac.net",
+      "onboardingStatus": "COMPLETED",
+      "onboardingStep": 6
+    }
+    """;
 
     private HttpServer server;
     private final AtomicReference<String> body = new AtomicReference<>(CAPTURED);
@@ -80,19 +79,16 @@ class PatientServiceClientTest {
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext(
-            "/",
-            exchange -> {
-                requests.incrementAndGet();
-                requestedPath.set(URLDecoder.decode(exchange.getRequestURI().toString(), StandardCharsets.UTF_8));
-                authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
-                byte[] payload = body.get().getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().add("Content-Type", "application/json");
-                exchange.sendResponseHeaders(status.get(), payload.length);
-                exchange.getResponseBody().write(payload);
-                exchange.close();
-            }
-        );
+        server.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            requestedPath.set(URLDecoder.decode(exchange.getRequestURI().toString(), StandardCharsets.UTF_8));
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            byte[] payload = body.get().getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(status.get(), payload.length);
+            exchange.getResponseBody().write(payload);
+            exchange.close();
+        });
         server.start();
     }
 
@@ -190,8 +186,9 @@ class PatientServiceClientTest {
         status.set(404);
         body.set("{}");
 
-        assertThat(clientAt(server.getAddress().getPort(), true).resolveName("nobody@nowhere.test").outcome())
-            .isEqualTo(NameResolution.NOT_FOUND);
+        assertThat(clientAt(server.getAddress().getPort(), true).resolveName("nobody@nowhere.test").outcome()).isEqualTo(
+            NameResolution.NOT_FOUND
+        );
     }
 
     /**
@@ -216,8 +213,9 @@ class PatientServiceClientTest {
         status.set(503);
         body.set("{}");
 
-        assertThat(clientAt(server.getAddress().getPort(), true).resolveName("kojo@jac.net").outcome())
-            .isEqualTo(NameResolution.UNAVAILABLE);
+        assertThat(clientAt(server.getAddress().getPort(), true).resolveName("kojo@jac.net").outcome()).isEqualTo(
+            NameResolution.UNAVAILABLE
+        );
     }
 
     /**
@@ -289,9 +287,9 @@ class PatientServiceClientTest {
      * {@link ProfessionalServiceClientTest} uses, and for the same reason.
      */
     private static void authenticateWithAToken() {
-        SecurityContextHolder
-            .getContext()
-            .setAuthentication(new UsernamePasswordAuthenticationToken("admin", "a.relayed.token", List.of()));
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken("admin", "a.relayed.token", List.of())
+        );
     }
 
     /**
@@ -305,17 +303,16 @@ class PatientServiceClientTest {
      * case is which field the relay reads.
      */
     private static void authenticateAsTheResourceServerDoes() {
-        Jwt jwt = Jwt
-            .withTokenValue("a.real.bearer.token")
+        Jwt jwt = Jwt.withTokenValue("a.real.bearer.token")
             .header("alg", "HS512")
             .subject("admin")
             .claim("auth", "ROLE_ADMIN")
             .issuedAt(Instant.now())
             .expiresAt(Instant.now().plusSeconds(300))
             .build();
-        SecurityContextHolder
-            .getContext()
-            .setAuthentication(new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        SecurityContextHolder.getContext().setAuthentication(
+            new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+        );
     }
 
     /** Bound and released, so the number is one the kernel says is free rather than one guessed. */

@@ -55,8 +55,7 @@ public class DashboardResource {
             throw new BadRequestAlertException("A new dashboard cannot already have an ID", ENTITY_NAME, "idexists");
         }
         Dashboard result = dashboardRepository.save(dashboard);
-        return ResponseEntity
-            .created(new URI("/api/dashboards/" + result.getId()))
+        return ResponseEntity.created(new URI("/api/dashboards/" + result.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, result.getId()))
             .body(result);
     }
@@ -89,8 +88,7 @@ public class DashboardResource {
         }
 
         Dashboard result = dashboardRepository.save(dashboard);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, dashboard.getId()))
             .body(result);
     }
@@ -183,6 +181,8 @@ public class DashboardResource {
     public ResponseEntity<Void> deleteDashboard(@PathVariable("id") String id) {
         log.debug("REST request to delete Dashboard : {}", id);
         dashboardRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

@@ -192,9 +192,10 @@ public final class TestUtil {
         try {
             @SuppressWarnings("unchecked")
             T merged = (T) original.getClass().getDeclaredConstructor().newInstance();
-            for (PropertyDescriptor propertyDescriptor : Introspector
-                .getBeanInfo(original.getClass(), Object.class)
-                .getPropertyDescriptors()) {
+            for (PropertyDescriptor propertyDescriptor : Introspector.getBeanInfo(
+                original.getClass(),
+                Object.class
+            ).getPropertyDescriptors()) {
                 if (propertyDescriptor.getReadMethod() == null || propertyDescriptor.getWriteMethod() == null) {
                     continue;
                 }
@@ -204,7 +205,11 @@ public final class TestUtil {
             }
             return merged;
         } catch (
-            IntrospectionException | InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e
+            IntrospectionException
+            | InstantiationException
+            | IllegalAccessException
+            | InvocationTargetException
+            | NoSuchMethodException e
         ) {
             throw new IllegalStateException("Unable to create update proxy for bean " + original.getClass().getName(), e);
         }

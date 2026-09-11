@@ -25,5 +25,4 @@ import tech.jhipster.config.JHipsterProperties;
     }
 )
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-public @interface AuthenticationIntegrationTest {
-}
+public @interface AuthenticationIntegrationTest {}

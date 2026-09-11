@@ -58,8 +58,7 @@ public class AngelResource {
             throw new BadRequestAlertException("A new angel cannot already have an ID", ENTITY_NAME, "idexists");
         }
         angel = angelRepository.save(angel);
-        return ResponseEntity
-            .created(new URI("/api/angels/" + angel.getId()))
+        return ResponseEntity.created(new URI("/api/angels/" + angel.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, angel.getId()))
             .body(angel);
     }
@@ -75,10 +74,8 @@ public class AngelResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PutMapping("/{id}")
-    public ResponseEntity<Angel> updateAngel(
-        @PathVariable(value = "id", required = false) final String id,
-        @Valid @RequestBody Angel angel
-    ) throws URISyntaxException {
+    public ResponseEntity<Angel> updateAngel(@PathVariable(value = "id", required = false) final String id, @Valid @RequestBody Angel angel)
+        throws URISyntaxException {
         LOG.debug("REST request to update Angel : {}, {}", id, angel);
         if (angel.getId() == null) {
             throw new BadRequestAlertException("Invalid id", ENTITY_NAME, "idnull");
@@ -92,8 +89,7 @@ public class AngelResource {
         }
 
         angel = angelRepository.save(angel);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, angel.getId()))
             .body(angel);
     }
@@ -188,7 +184,9 @@ public class AngelResource {
     public ResponseEntity<Void> deleteAngel(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Angel : {}", id);
         angelRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

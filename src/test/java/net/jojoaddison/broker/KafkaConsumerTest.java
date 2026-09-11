@@ -120,8 +120,9 @@ class KafkaConsumerTest {
     void shouldRouteASentEventToItsRecipient() {
         KafkaConsumer consumer = new KafkaConsumer(new ObjectMapper());
 
-        assertThat(consumer.recipientOf("{\"eventType\":\"messageSentEvent\",\"id\":\"m99\",\"toAddress\":\"desk@abofonsa.care\"}"))
-            .isEqualTo("desk@abofonsa.care");
+        assertThat(
+            consumer.recipientOf("{\"eventType\":\"messageSentEvent\",\"id\":\"m99\",\"toAddress\":\"desk@abofonsa.care\"}")
+        ).isEqualTo("desk@abofonsa.care");
     }
 
     /**

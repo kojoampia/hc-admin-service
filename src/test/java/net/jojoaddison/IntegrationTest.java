@@ -82,5 +82,4 @@ import org.springframework.test.annotation.DirtiesContext;
 @EmbeddedMongo
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @ImportAutoConfiguration(TestChannelBinderConfiguration.class)
-public @interface IntegrationTest {
-}
+public @interface IntegrationTest {}

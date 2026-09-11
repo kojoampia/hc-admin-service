@@ -81,16 +81,14 @@ class RosterPlanResourceIT {
         // nothing to do with what is being tested here.
         team = teamRepository.save(TeamResourceIT.createEntity().geographicSpaceIds(List.of(SPACE)));
         profile = profileRepository.save(ProfileResourceIT.createEntity().firstName("Ama").lastName("Boateng"));
-        professional =
-            professionalRepository.save(
-                ProfessionalResourceIT
-                    .createEntity()
-                    .role(ProfessionalRole.NURSE)
-                    .status(AccountStatus.ACTIVE)
-                    .profile(profile)
-                    .team(team)
-                    .homeSpaceId(SPACE)
-            );
+        professional = professionalRepository.save(
+            ProfessionalResourceIT.createEntity()
+                .role(ProfessionalRole.NURSE)
+                .status(AccountStatus.ACTIVE)
+                .profile(profile)
+                .team(team)
+                .homeSpaceId(SPACE)
+        );
     }
 
     @AfterEach
@@ -125,8 +123,7 @@ class RosterPlanResourceIT {
      */
     @Test
     void aWriteThisDeploymentCannotMakeIsReportedAsMisconfiguredWithA200() throws Exception {
-        mvc
-            .perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content(plan(SPACE)))
+        mvc.perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content(plan(SPACE)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.rosterServiceReachable").value(true))
             .andExpect(jsonPath("$.rounds[0].outcome").value("FAILED"))
@@ -152,8 +149,7 @@ class RosterPlanResourceIT {
      */
     @Test
     void anUnstaffableRoundIsUnplannedAndDoesNotClaimAnOutage() throws Exception {
-        mvc
-            .perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content(plan("space-nobody-covers")))
+        mvc.perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content(plan("space-nobody-covers")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.rosterServiceReachable").value(true))
             .andExpect(jsonPath("$.rounds[0].outcome").value("UNPLANNED"))
@@ -163,20 +159,18 @@ class RosterPlanResourceIT {
     /** A body with no rounds is refused rather than answered with an empty report. */
     @Test
     void refusesARequestWithNoRounds() throws Exception {
-        mvc
-            .perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content("{\"date\":\"2026-08-12\",\"rounds\":[]}"))
-            .andExpect(status().isBadRequest());
+        mvc.perform(post(API_URL).contentType(MediaType.APPLICATION_JSON).content("{\"date\":\"2026-08-12\",\"rounds\":[]}")).andExpect(
+            status().isBadRequest()
+        );
     }
 
     /** A round with no date, role, shift or space is refused before anything is planned. */
     @Test
     void refusesAMalformedRound() throws Exception {
-        mvc
-            .perform(
-                post(API_URL)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"date\":\"2026-08-12\",\"rounds\":[{\"name\":\"No role, no shift, no space\"}]}")
-            )
-            .andExpect(status().isBadRequest());
+        mvc.perform(
+            post(API_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\":\"2026-08-12\",\"rounds\":[{\"name\":\"No role, no shift, no space\"}]}")
+        ).andExpect(status().isBadRequest());
     }
 }

@@ -133,11 +133,11 @@ class JdlEntityFieldsTest {
                 if (!declared.contains(field)) {
                     disagreements.add(
                         "%s.%s is a value field of the domain class and %s does not declare it — regenerating %s drops it".formatted(
-                                name,
-                                field,
-                                MODEL,
-                                name
-                            )
+                            name,
+                            field,
+                            MODEL,
+                            name
+                        )
                     );
                 }
             }
@@ -145,11 +145,11 @@ class JdlEntityFieldsTest {
                 if (!carried.contains(field)) {
                     disagreements.add(
                         "%s declares %s.%s and the domain class has no such value field — regenerating %s adds it".formatted(
-                                MODEL,
-                                name,
-                                field,
-                                name
-                            )
+                            MODEL,
+                            name,
+                            field,
+                            name
+                        )
                     );
                 }
             }
@@ -177,7 +177,10 @@ class JdlEntityFieldsTest {
     void everyJdlBesideTheLiveModelDeclaresItselfHistorical() {
         List<Path> models;
         try (var files = Files.list(MODEL.getParent())) {
-            models = files.filter(path -> path.getFileName().toString().endsWith(".jdl")).sorted().toList();
+            models = files
+                .filter(path -> path.getFileName().toString().endsWith(".jdl"))
+                .sorted()
+                .toList();
         } catch (IOException e) {
             throw new IllegalStateException("Could not list " + MODEL.getParent().toAbsolutePath(), e);
         }
@@ -196,12 +199,10 @@ class JdlEntityFieldsTest {
                 }
             } else if (!historical) {
                 unclassified.add(
-                    ("%s carries neither `%s` nor `%s` — a .jdl in this directory must say which it is, " +
-                        "because nothing else distinguishes a generator input from a record of one").formatted(
-                            model,
-                            LIVE_MARKER,
-                            HISTORICAL_MARKER
-                        )
+                    (
+                        "%s carries neither `%s` nor `%s` — a .jdl in this directory must say which it is, " +
+                        "because nothing else distinguishes a generator input from a record of one"
+                    ).formatted(model, LIVE_MARKER, HISTORICAL_MARKER)
                 );
             } else if (live) {
                 unclassified.add("%s claims to be both live and historical".formatted(model));
@@ -249,8 +250,7 @@ class JdlEntityFieldsTest {
      * {@code entity} block, and nothing it declares in a {@code relationship} block.
      */
     private static List<String> valueFields(Class<?> type) {
-        return Arrays
-            .stream(type.getDeclaredFields())
+        return Arrays.stream(type.getDeclaredFields())
             .filter(field -> !Modifier.isStatic(field.getModifiers()) && !field.isSynthetic())
             .filter(field -> !isAssociation(field))
             .map(Field::getName)

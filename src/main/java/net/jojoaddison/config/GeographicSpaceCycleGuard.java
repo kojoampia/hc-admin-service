@@ -134,12 +134,11 @@ public class GeographicSpaceCycleGuard implements BeforeConvertCallback<Geograph
                     "cyclicancestry"
                 );
             }
-            ancestorId =
-                geographicSpaceRepository
-                    .findById(ancestorId)
-                    .map(GeographicSpace::getParentId)
-                    .flatMap(GeographicSpaceCycleGuard::presentAndNonBlank)
-                    .orElse(null);
+            ancestorId = geographicSpaceRepository
+                .findById(ancestorId)
+                .map(GeographicSpace::getParentId)
+                .flatMap(GeographicSpaceCycleGuard::presentAndNonBlank)
+                .orElse(null);
         }
         return space;
     }

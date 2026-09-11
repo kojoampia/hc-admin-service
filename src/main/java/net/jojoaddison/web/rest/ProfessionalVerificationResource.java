@@ -82,11 +82,12 @@ public class ProfessionalVerificationResource {
     ) throws URISyntaxException {
         LOG.debug("REST request to record ProfessionalVerification : {}", request);
 
-        Professional professional = professionalRepository
-            .findById(request.professionalId())
-            // 400 rather than 404: the professional is a field of the thing being created, not the
-            // resource being addressed, so this is a bad body and not a missing endpoint.
-            .orElseThrow(() -> new BadRequestAlertException("No such professional", ENTITY_NAME, "professionalnotfound"));
+        Professional professional =
+            professionalRepository
+                .findById(request.professionalId())
+                // 400 rather than 404: the professional is a field of the thing being created, not the
+                // resource being addressed, so this is a bad body and not a missing endpoint.
+                .orElseThrow(() -> new BadRequestAlertException("No such professional", ENTITY_NAME, "professionalnotfound"));
 
         ProfessionalVerification verification = new ProfessionalVerification()
             .status(request.status())
@@ -97,8 +98,7 @@ public class ProfessionalVerificationResource {
         verification.setProfessional(professional);
 
         ProfessionalVerification saved = verificationService.record(verification);
-        return ResponseEntity
-            .created(new URI("/api/professional-verifications/" + saved.getId()))
+        return ResponseEntity.created(new URI("/api/professional-verifications/" + saved.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, saved.getId()))
             .body(saved);
     }

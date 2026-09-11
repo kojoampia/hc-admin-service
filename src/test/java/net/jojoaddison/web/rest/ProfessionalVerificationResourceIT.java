@@ -74,15 +74,14 @@ class ProfessionalVerificationResourceIT {
         verificationRepository.deleteAll();
         professionalRepository.deleteAll();
 
-        professional =
-            professionalRepository.save(
-                new Professional()
-                    .role(ProfessionalRole.NURSE)
-                    .licenceNumber("NMC/GH/26-0001")
-                    .verification(VerificationStatus.PENDING)
-                    .status(AccountStatus.ACTIVE)
-                    .joinedOn(LocalDate.of(2026, 1, 5))
-            );
+        professional = professionalRepository.save(
+            new Professional()
+                .role(ProfessionalRole.NURSE)
+                .licenceNumber("NMC/GH/26-0001")
+                .verification(VerificationStatus.PENDING)
+                .status(AccountStatus.ACTIVE)
+                .joinedOn(LocalDate.of(2026, 1, 5))
+        );
     }
 
     @AfterEach
@@ -95,12 +94,11 @@ class ProfessionalVerificationResourceIT {
 
     @Test
     void recordsADecisionAndReturnsIt() throws Exception {
-        mvc
-            .perform(
-                post(ENTITY_API_URL)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(om.writeValueAsBytes(verification(VerificationStatus.VERIFIED)))
-            )
+        mvc.perform(
+            post(ENTITY_API_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsBytes(verification(VerificationStatus.VERIFIED)))
+        )
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.status").value("VERIFIED"))
             .andExpect(jsonPath("$.method").value("Licence register"));
@@ -119,8 +117,9 @@ class ProfessionalVerificationResourceIT {
     void projectsTheDecisionOntoTheProfessional() throws Exception {
         record(VerificationStatus.VERIFIED);
 
-        assertThat(professionalRepository.findById(professional.getId()).orElseThrow().getVerification())
-            .isEqualTo(VerificationStatus.VERIFIED);
+        assertThat(professionalRepository.findById(professional.getId()).orElseThrow().getVerification()).isEqualTo(
+            VerificationStatus.VERIFIED
+        );
     }
 
     /** And a later decision supersedes the earlier one, rather than the first one sticking. */
@@ -129,8 +128,9 @@ class ProfessionalVerificationResourceIT {
         record(VerificationStatus.VERIFIED);
         record(VerificationStatus.REVOKED);
 
-        assertThat(professionalRepository.findById(professional.getId()).orElseThrow().getVerification())
-            .isEqualTo(VerificationStatus.REVOKED);
+        assertThat(professionalRepository.findById(professional.getId()).orElseThrow().getVerification()).isEqualTo(
+            VerificationStatus.REVOKED
+        );
         // Both rows survive. Superseding is not overwriting — the revocation does not erase the
         // fact that this person was once verified, which is the whole reason for a history.
         assertThat(verificationRepository.findAll()).hasSize(2);
@@ -150,9 +150,9 @@ class ProfessionalVerificationResourceIT {
         forged.put("recordedBy", "somebody-else");
 
         Instant before = Instant.now().truncatedTo(ChronoUnit.MILLIS).minusSeconds(5);
-        mvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(forged)))
-            .andExpect(status().isCreated());
+        mvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(forged))).andExpect(
+            status().isCreated()
+        );
 
         ProfessionalVerification stored = verificationRepository.findAll().getFirst();
         assertThat(stored.getRecordedBy()).isEqualTo("admin");
@@ -171,9 +171,9 @@ class ProfessionalVerificationResourceIT {
         Map<String, Object> withId = verification(VerificationStatus.VERIFIED);
         withId.put("id", "given-by-the-client");
 
-        mvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(withId)))
-            .andExpect(status().isCreated());
+        mvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(withId))).andExpect(
+            status().isCreated()
+        );
 
         assertThat(verificationRepository.findById("given-by-the-client")).isEmpty();
         assertThat(verificationRepository.findAll()).hasSize(1);
@@ -185,9 +185,9 @@ class ProfessionalVerificationResourceIT {
         Map<String, Object> orphan = new LinkedHashMap<>();
         orphan.put("status", "VERIFIED");
 
-        mvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(orphan)))
-            .andExpect(status().isBadRequest());
+        mvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(orphan))).andExpect(
+            status().isBadRequest()
+        );
     }
 
     /** And a decision about a professional who does not exist is a bad body, not a missing page. */
@@ -196,9 +196,9 @@ class ProfessionalVerificationResourceIT {
         Map<String, Object> unknown = verification(VerificationStatus.VERIFIED);
         unknown.put("professionalId", "no-such-professional");
 
-        mvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(unknown)))
-            .andExpect(status().isBadRequest());
+        mvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(unknown))).andExpect(
+            status().isBadRequest()
+        );
     }
 
     // --- append-only -------------------------------------------------------------------------------
@@ -214,12 +214,16 @@ class ProfessionalVerificationResourceIT {
         String id = record(VerificationStatus.VERIFIED);
         String body = om.writeValueAsString(verification(VerificationStatus.REJECTED));
 
-        mvc
-            .perform(put(ENTITY_API_URL + "/" + id).contentType(MediaType.APPLICATION_JSON).content(body))
-            .andExpect(status().isMethodNotAllowed());
-        mvc
-            .perform(patch(ENTITY_API_URL + "/" + id).contentType(MediaType.APPLICATION_JSON).content(body))
-            .andExpect(status().isMethodNotAllowed());
+        mvc.perform(
+            put(ENTITY_API_URL + "/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+        ).andExpect(status().isMethodNotAllowed());
+        mvc.perform(
+            patch(ENTITY_API_URL + "/" + id)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+        ).andExpect(status().isMethodNotAllowed());
         mvc.perform(delete(ENTITY_API_URL + "/" + id)).andExpect(status().isMethodNotAllowed());
 
         assertThat(verificationRepository.findById(id))
@@ -234,8 +238,7 @@ class ProfessionalVerificationResourceIT {
     void listsThePagedHistory() throws Exception {
         record(VerificationStatus.VERIFIED);
 
-        mvc
-            .perform(get(ENTITY_API_URL + "?page=0&size=1"))
+        mvc.perform(get(ENTITY_API_URL + "?page=0&size=1"))
             .andExpect(status().isOk())
             .andExpect(header().exists("X-Total-Count"))
             .andExpect(jsonPath("$").isArray());
@@ -248,8 +251,7 @@ class ProfessionalVerificationResourceIT {
         record(VerificationStatus.REVOKED);
         record(VerificationStatus.VERIFIED);
 
-        mvc
-            .perform(get("/api/professionals/" + professional.getId() + "/verifications"))
+        mvc.perform(get("/api/professionals/" + professional.getId() + "/verifications"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(3)))
             .andExpect(jsonPath("$[0].status").value("VERIFIED"))
@@ -264,8 +266,7 @@ class ProfessionalVerificationResourceIT {
      */
     @Test
     void anUnverifiedProfessionalHasAnEmptyHistoryRatherThanA404() throws Exception {
-        mvc
-            .perform(get("/api/professionals/" + professional.getId() + "/verifications"))
+        mvc.perform(get("/api/professionals/" + professional.getId() + "/verifications"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
     }
@@ -287,9 +288,11 @@ class ProfessionalVerificationResourceIT {
         String body = om.writeValueAsString(
             new Professional().id(professional.getId()).verification(VerificationStatus.REJECTED).speciality("Palliative")
         );
-        mvc
-            .perform(patch("/api/professionals/" + professional.getId()).contentType("application/merge-patch+json").content(body))
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch("/api/professionals/" + professional.getId())
+                .contentType("application/merge-patch+json")
+                .content(body)
+        ).andExpect(status().isOk());
 
         Professional stored = professionalRepository.findById(professional.getId()).orElseThrow();
         assertThat(stored.getVerification()).isEqualTo(VerificationStatus.VERIFIED);
@@ -311,13 +314,11 @@ class ProfessionalVerificationResourceIT {
         whole.setVerification(VerificationStatus.REJECTED);
         whole.setSpeciality("Palliative");
 
-        mvc
-            .perform(
-                put("/api/professionals/" + professional.getId())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(om.writeValueAsBytes(whole))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            put("/api/professionals/" + professional.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsBytes(whole))
+        ).andExpect(status().isOk());
 
         Professional stored = professionalRepository.findById(professional.getId()).orElseThrow();
         assertThat(stored.getVerification()).isEqualTo(VerificationStatus.VERIFIED);
@@ -369,7 +370,11 @@ class ProfessionalVerificationResourceIT {
     /** Records a decision through the API and returns its id. */
     private String record(VerificationStatus status) throws Exception {
         String response = mvc
-            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(verification(status))))
+            .perform(
+                post(ENTITY_API_URL)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(om.writeValueAsBytes(verification(status)))
+            )
             .andExpect(status().isCreated())
             .andReturn()
             .getResponse()

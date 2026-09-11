@@ -62,8 +62,7 @@ public class DocumentItemResource {
             throw new BadRequestAlertException("A new documentItem cannot already have an ID", ENTITY_NAME, "idexists");
         }
         documentItemDTO = documentItemService.save(documentItemDTO);
-        return ResponseEntity
-            .created(new URI("/api/document-items/" + documentItemDTO.getId()))
+        return ResponseEntity.created(new URI("/api/document-items/" + documentItemDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, documentItemDTO.getId()))
             .body(documentItemDTO);
     }
@@ -96,8 +95,7 @@ public class DocumentItemResource {
         }
 
         documentItemDTO = documentItemService.update(documentItemDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, documentItemDTO.getId()))
             .body(documentItemDTO);
     }
@@ -175,6 +173,8 @@ public class DocumentItemResource {
     public ResponseEntity<Void> deleteDocumentItem(@PathVariable("id") String id) {
         LOG.debug("REST request to delete DocumentItem : {}", id);
         documentItemService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

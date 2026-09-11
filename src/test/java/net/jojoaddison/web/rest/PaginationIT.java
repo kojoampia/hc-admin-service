@@ -72,7 +72,14 @@ class PaginationIT {
             .entrySet()
             .stream()
             .filter(entry -> entry.getValue().getBeanType().getName().startsWith("net.jojoaddison.web.rest."))
-            .filter(entry -> entry.getKey().getMethodsCondition().getMethods().stream().anyMatch(m -> m.name().equals("GET")))
+            .filter(entry ->
+                entry
+                    .getKey()
+                    .getMethodsCondition()
+                    .getMethods()
+                    .stream()
+                    .anyMatch(m -> m.name().equals("GET"))
+            )
             .flatMap(entry -> patternsOf(entry).stream())
             .filter(path -> path.matches("/api/[a-z0-9-]+"))
             .distinct()
@@ -87,8 +94,7 @@ class PaginationIT {
     @ParameterizedTest(name = "{0}")
     @MethodSource("listEndpoints")
     void listEndpointsArePaginated(String path) throws Exception {
-        mvc
-            .perform(get(path).param("page", "0").param("size", "1"))
+        mvc.perform(get(path).param("page", "0").param("size", "1"))
             .andExpect(status().isOk())
             .andExpect(header().exists("X-Total-Count"))
             .andExpect(header().exists("Link"))
@@ -109,16 +115,15 @@ class PaginationIT {
         assertThat(found).hasSizeGreaterThanOrEqualTo(37);
         // The eight that the hand-written list missed. Named explicitly: they are the reason this
         // test discovers rather than enumerates, and pinning them keeps that concrete.
-        assertThat(found)
-            .contains(
-                "/api/angels",
-                "/api/categories",
-                "/api/hubs",
-                "/api/plan-features",
-                "/api/platform-services",
-                "/api/roster-weeks",
-                "/api/service-plans",
-                "/api/user-options"
-            );
+        assertThat(found).contains(
+            "/api/angels",
+            "/api/categories",
+            "/api/hubs",
+            "/api/plan-features",
+            "/api/platform-services",
+            "/api/roster-weeks",
+            "/api/service-plans",
+            "/api/user-options"
+        );
     }
 }

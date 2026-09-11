@@ -81,8 +81,7 @@ public class ProfessionalResource {
         // next to it, and creating a record is the easiest doorway to walk through.
         professional.setVerification(VerificationStatus.PENDING);
         professional = professionalRepository.save(professional);
-        return ResponseEntity
-            .created(new URI("/api/professionals/" + professional.getId()))
+        return ResponseEntity.created(new URI("/api/professionals/" + professional.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, professional.getId()))
             .body(professional);
     }
@@ -146,8 +145,7 @@ public class ProfessionalResource {
         }
 
         professional = professionalRepository.save(professional);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, professional.getId()))
             .body(professional);
     }
@@ -236,8 +234,7 @@ public class ProfessionalResource {
 
         // eagerload is not a distinction MongoDB makes here — findAllWithEagerRelationships is
         // literally @Query("{}") — so the filtered queries serve both branches.
-        NamedFilters.Builder filters = NamedFilters
-            .builder()
+        NamedFilters.Builder filters = NamedFilters.builder()
             .equals("status", statusEquals)
             .equals("role", roleEquals)
             .equals("verification", verificationEquals);
@@ -304,7 +301,9 @@ public class ProfessionalResource {
     public ResponseEntity<Void> deleteProfessional(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Professional : {}", id);
         professionalRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

@@ -45,8 +45,9 @@ public class ObservabilityClient {
         @Value("${observability.mimir.url:}") String mimirUrl,
         @Value("${observability.grafana.url:}") String grafanaUrl
     ) {
-        this.mimirBaseUrl =
-            mimirUrl.stripTrailing().endsWith("/") ? mimirUrl.strip().substring(0, mimirUrl.strip().length() - 1) : mimirUrl.strip();
+        this.mimirBaseUrl = mimirUrl.stripTrailing().endsWith("/")
+            ? mimirUrl.strip().substring(0, mimirUrl.strip().length() - 1)
+            : mimirUrl.strip();
         this.mimir = mimirUrl.isBlank() ? null : client(mimirUrl);
         this.grafana = grafanaUrl.isBlank() ? null : client(grafanaUrl);
         if (this.mimir == null) {

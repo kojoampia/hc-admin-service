@@ -115,8 +115,7 @@ class SeedNamelessRecordCoverageTest {
             if (!(parameterized.getActualTypeArguments()[0] instanceof Class<?> element)) {
                 continue;
             }
-            Arrays
-                .stream(element.getDeclaredFields())
+            Arrays.stream(element.getDeclaredFields())
                 .filter(field -> field.getType() == Profile.class)
                 // A required reference cannot be absent, so no screen has to name the record without
                 // one. Nothing declares this today; the filter is what keeps the rule true if
@@ -131,13 +130,11 @@ class SeedNamelessRecordCoverageTest {
         try (InputStream inputStream = new ClassPathResource(SEED_DATA_LOCATION).getInputStream()) {
             JsonNode test = mapper.readTree(inputStream).path("test");
             Map<String, List<JsonNode>> collections = new LinkedHashMap<>();
-            test
-                .properties()
-                .forEach(entry -> {
-                    List<JsonNode> records = new ArrayList<>();
-                    entry.getValue().forEach(records::add);
-                    collections.put(entry.getKey(), records);
-                });
+            test.properties().forEach(entry -> {
+                List<JsonNode> records = new ArrayList<>();
+                entry.getValue().forEach(records::add);
+                collections.put(entry.getKey(), records);
+            });
             return collections;
         }
     }
@@ -188,7 +185,7 @@ class SeedNamelessRecordCoverageTest {
             assertThat(withNobodyOnThem)
                 .as(
                     "%s is optional, so some screen has to name a record in `%s` with nobody on it — seed one, or that " +
-                    "rendering is reachable on no stack short of production (backlog item 52)",
+                        "rendering is reachable on no stack short of production (backlog item 52)",
                     bearer,
                     bearer.collection()
                 )

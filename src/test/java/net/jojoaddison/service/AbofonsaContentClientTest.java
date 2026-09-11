@@ -44,34 +44,33 @@ import org.springframework.web.client.RestClient;
  */
 class AbofonsaContentClientTest {
 
-    private static final String CAPTURED =
-        """
-        [
-          {
-            "id": "6a65d3cec28dba1c0750efe9",
-            "code": "PEAR",
-            "name": "PEAR Plan",
-            "forWho": "A dependable weekday routine for a relative who is broadly well but should not be alone.",
-            "priceAmount": "3,000",
-            "priceCurrency": "GHS",
-            "priceNote": "Minimum three-month term · 30 days' notice",
-            "featured": false,
-            "features": [{ "label": "5 weekly visits", "included": true, "emphasised": true }],
-            "comparison": { "visitsPerWeek": "5 weekly visits" },
-            "displayOrder": 1
-          },
-          {
-            "id": "6a65d3cec28dba1c0750efeb",
-            "code": "MELON",
-            "name": "MELON Plan",
-            "forWho": "Continuous cover for complex, palliative or high-dependency care needs.",
-            "priceAmount": "8,000",
-            "priceCurrency": "GHS",
-            "featured": true,
-            "displayOrder": 3
-          }
-        ]
-        """;
+    private static final String CAPTURED = """
+    [
+      {
+        "id": "6a65d3cec28dba1c0750efe9",
+        "code": "PEAR",
+        "name": "PEAR Plan",
+        "forWho": "A dependable weekday routine for a relative who is broadly well but should not be alone.",
+        "priceAmount": "3,000",
+        "priceCurrency": "GHS",
+        "priceNote": "Minimum three-month term · 30 days' notice",
+        "featured": false,
+        "features": [{ "label": "5 weekly visits", "included": true, "emphasised": true }],
+        "comparison": { "visitsPerWeek": "5 weekly visits" },
+        "displayOrder": 1
+      },
+      {
+        "id": "6a65d3cec28dba1c0750efeb",
+        "code": "MELON",
+        "name": "MELON Plan",
+        "forWho": "Continuous cover for complex, palliative or high-dependency care needs.",
+        "priceAmount": "8,000",
+        "priceCurrency": "GHS",
+        "featured": true,
+        "displayOrder": 3
+      }
+    ]
+    """;
 
     private HttpServer server;
     private final AtomicReference<String> body = new AtomicReference<>(CAPTURED);
@@ -82,18 +81,15 @@ class AbofonsaContentClientTest {
     @BeforeEach
     void startServer() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext(
-            "/",
-            exchange -> {
-                requests.incrementAndGet();
-                requestedPath.set(exchange.getRequestURI().toString());
-                byte[] payload = body.get().getBytes(StandardCharsets.UTF_8);
-                exchange.getResponseHeaders().add("Content-Type", contentType.get());
-                exchange.sendResponseHeaders(200, payload.length);
-                exchange.getResponseBody().write(payload);
-                exchange.close();
-            }
-        );
+        server.createContext("/", exchange -> {
+            requests.incrementAndGet();
+            requestedPath.set(exchange.getRequestURI().toString());
+            byte[] payload = body.get().getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", contentType.get());
+            exchange.sendResponseHeaders(200, payload.length);
+            exchange.getResponseBody().write(payload);
+            exchange.close();
+        });
         server.start();
     }
 

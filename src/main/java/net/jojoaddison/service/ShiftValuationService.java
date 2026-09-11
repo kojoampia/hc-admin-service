@@ -296,10 +296,11 @@ public class ShiftValuationService {
         if (profile == null) {
             return professional.getLicenceNumber();
         }
-        String name =
-            ((profile.getFirstName() == null ? "" : profile.getFirstName()) +
-                " " +
-                (profile.getLastName() == null ? "" : profile.getLastName())).trim();
+        String name = (
+            (profile.getFirstName() == null ? "" : profile.getFirstName()) +
+            " " +
+            (profile.getLastName() == null ? "" : profile.getLastName())
+        ).trim();
         return name.isEmpty() ? professional.getLicenceNumber() : name;
     }
 

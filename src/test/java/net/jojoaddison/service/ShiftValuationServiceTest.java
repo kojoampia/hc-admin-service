@@ -136,7 +136,9 @@ class ShiftValuationServiceTest {
      */
     @Test
     void lastPayableDateIsYesterdayNotToday() {
-        assertThat(service.lastPayableDate()).isEqualTo(TODAY.minusDays(1)).isEqualTo(LocalDate.of(2026, 8, 31));
+        assertThat(service.lastPayableDate())
+            .isEqualTo(TODAY.minusDays(1))
+            .isEqualTo(LocalDate.of(2026, 8, 31));
     }
 
     /**
@@ -373,11 +375,13 @@ class ShiftValuationServiceTest {
         // 2026-08-12 is a Wednesday.
         LocalDate wednesday = LocalDate.of(2026, 8, 12);
 
-        assertThat(service.earningsFor(professional(), EarningsGranularity.WEEKLY, wednesday, TODAY).from())
-            .isEqualTo(LocalDate.of(2026, 8, 10)); // the Monday of that week
+        assertThat(service.earningsFor(professional(), EarningsGranularity.WEEKLY, wednesday, TODAY).from()).isEqualTo(
+            LocalDate.of(2026, 8, 10)
+        ); // the Monday of that week
 
-        assertThat(service.earningsFor(professional(), EarningsGranularity.MONTHLY, wednesday, TODAY).from())
-            .isEqualTo(LocalDate.of(2026, 8, 1));
+        assertThat(service.earningsFor(professional(), EarningsGranularity.MONTHLY, wednesday, TODAY).from()).isEqualTo(
+            LocalDate.of(2026, 8, 1)
+        );
 
         assertThat(service.earningsFor(professional(), EarningsGranularity.DAILY, wednesday, TODAY).from()).isEqualTo(wednesday);
     }
@@ -417,10 +421,9 @@ class ShiftValuationServiceTest {
 
         LocalDate wednesday = LocalDate.of(2026, 8, 12);
 
-        assertThat(service.earningsFor(professional(), EarningsGranularity.WEEKLY, null, wednesday).from())
-            .isEqualTo(
-                LocalDate.of(2026, 5, 25) // Monday; 2026-05-27 would be the unsnapped answer
-            );
+        assertThat(service.earningsFor(professional(), EarningsGranularity.WEEKLY, null, wednesday).from()).isEqualTo(
+            LocalDate.of(2026, 5, 25) // Monday; 2026-05-27 would be the unsnapped answer
+        );
     }
 
     /**
@@ -436,14 +439,14 @@ class ShiftValuationServiceTest {
         ratedAt("100");
         rosterReturns();
 
-        assertThat(service.earningsFor(professional(), EarningsGranularity.DAILY, TODAY.minusDays(4), TODAY.minusDays(2)).buckets())
-            .hasSize(3);
+        assertThat(
+            service.earningsFor(professional(), EarningsGranularity.DAILY, TODAY.minusDays(4), TODAY.minusDays(2)).buckets()
+        ).hasSize(3);
 
         // Mon 2026-08-10 through Sun 2026-08-23 — two whole weeks.
         assertThat(
             service.earningsFor(professional(), EarningsGranularity.WEEKLY, LocalDate.of(2026, 8, 10), LocalDate.of(2026, 8, 23)).buckets()
-        )
-            .hasSize(2);
+        ).hasSize(2);
     }
 
     /** A null granularity means monthly, rather than a null-pointer or an empty result. */
@@ -452,8 +455,9 @@ class ShiftValuationServiceTest {
         ratedAt("100");
         rosterReturns();
 
-        assertThat(service.earningsFor(professional(), null, TODAY.minusMonths(2), TODAY).granularity())
-            .isEqualTo(EarningsGranularity.MONTHLY);
+        assertThat(service.earningsFor(professional(), null, TODAY.minusMonths(2), TODAY).granularity()).isEqualTo(
+            EarningsGranularity.MONTHLY
+        );
     }
 
     /**
@@ -474,7 +478,9 @@ class ShiftValuationServiceTest {
         );
 
         assertThat(earnings.buckets()).hasSize(3); // June, July, August
-        assertThat(earnings.buckets()).extracting(b -> b.periodStart().getMonthValue()).containsExactly(6, 7, 8);
+        assertThat(earnings.buckets())
+            .extracting(b -> b.periodStart().getMonthValue())
+            .containsExactly(6, 7, 8);
         assertThat(earnings.buckets().get(0).shifts()).isZero();
         assertThat(earnings.buckets().get(2).shifts()).isEqualTo(1);
     }
@@ -502,8 +508,9 @@ class ShiftValuationServiceTest {
         ratedAt("100");
         rosterReturns();
 
-        assertThat(service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY).professionalName())
-            .isEqualTo("LIC-1");
+        assertThat(
+            service.earningsFor(professional(), EarningsGranularity.MONTHLY, TODAY.minusMonths(1), TODAY).professionalName()
+        ).isEqualTo("LIC-1");
     }
 
     // --- the shift dimension (2026-09-04) --------------------------------------------------------
