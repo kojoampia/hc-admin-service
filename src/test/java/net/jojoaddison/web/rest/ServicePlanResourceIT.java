@@ -242,8 +242,12 @@ class ServicePlanResourceIT {
             .andExpect(status().isCreated());
 
         assertThat(getRepositoryCount()).isEqualTo(databaseSizeBeforeTest + 1);
-        insertedServicePlan =
-            servicePlanRepository.findAll().stream().filter(plan -> plan.getMonthlyPrice() == null).findFirst().orElseThrow();
+        insertedServicePlan = servicePlanRepository
+            .findAll()
+            .stream()
+            .filter(plan -> plan.getMonthlyPrice() == null)
+            .findFirst()
+            .orElseThrow();
     }
 
     @Test

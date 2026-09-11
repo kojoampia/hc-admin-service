@@ -92,6 +92,5 @@ class BrokerOptInArchTest {
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
     @EmbeddedKafka
-    private @interface ComposedWithEmbeddedKafka {
-    }
+    private @interface ComposedWithEmbeddedKafka {}
 }

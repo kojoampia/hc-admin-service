@@ -55,8 +55,7 @@ public class HCServiceResource {
             throw new BadRequestAlertException("A new hCService cannot already have an ID", ENTITY_NAME, "idexists");
         }
         HCService result = hCServiceRepository.save(hCService);
-        return ResponseEntity
-            .created(new URI("/api/hc-services/" + result.getId()))
+        return ResponseEntity.created(new URI("/api/hc-services/" + result.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, result.getId()))
             .body(result);
     }
@@ -89,8 +88,7 @@ public class HCServiceResource {
         }
 
         HCService result = hCServiceRepository.save(hCService);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, hCService.getId()))
             .body(result);
     }
@@ -198,6 +196,8 @@ public class HCServiceResource {
     public ResponseEntity<Void> deleteHCService(@PathVariable("id") String id) {
         log.debug("REST request to delete HCService : {}", id);
         hCServiceRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

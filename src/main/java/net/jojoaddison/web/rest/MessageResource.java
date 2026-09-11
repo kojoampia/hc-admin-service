@@ -64,8 +64,7 @@ public class MessageResource {
             throw new BadRequestAlertException("A new message cannot already have an ID", ENTITY_NAME, "idexists");
         }
         messageDTO = messageService.save(messageDTO);
-        return ResponseEntity
-            .created(new URI("/api/messages/" + messageDTO.getId()))
+        return ResponseEntity.created(new URI("/api/messages/" + messageDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, messageDTO.getId()))
             .body(messageDTO);
     }
@@ -102,8 +101,7 @@ public class MessageResource {
             throw new BadRequestAlertException("A sent message must name a recipient", ENTITY_NAME, "torequired");
         }
         MessageDTO sent = messageService.send(messageDTO);
-        return ResponseEntity
-            .created(new URI("/api/messages/" + sent.getId()))
+        return ResponseEntity.created(new URI("/api/messages/" + sent.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, sent.getId()))
             .body(sent);
     }
@@ -126,8 +124,7 @@ public class MessageResource {
         }
 
         messageDTO = messageService.update(messageDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, messageDTO.getId()))
             .body(messageDTO);
     }
@@ -218,6 +215,8 @@ public class MessageResource {
     public ResponseEntity<Void> deleteMessage(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Message : {}", id);
         messageService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

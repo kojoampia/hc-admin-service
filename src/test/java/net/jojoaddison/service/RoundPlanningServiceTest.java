@@ -138,14 +138,14 @@ class RoundPlanningServiceTest {
      * stores the entity unconverted, so it comes back out of {@code getQueryObject()} as itself.
      */
     private void gridStubs() {
-        when(mongoTemplate.exists(any(Query.class), eq(ShiftAssignment.class)))
-            .thenAnswer(invocation -> rosteredOff.getOrDefault(queriedProfessional(invocation.getArgument(0)), Boolean.FALSE));
-        when(mongoTemplate.count(any(Query.class), eq(ShiftAssignment.class)))
-            .thenAnswer(invocation -> {
-                String id = queriedProfessional(invocation.getArgument(0));
-                fairnessQueries.add(id);
-                return (long) load.getOrDefault(id, 0);
-            });
+        when(mongoTemplate.exists(any(Query.class), eq(ShiftAssignment.class))).thenAnswer(invocation ->
+            rosteredOff.getOrDefault(queriedProfessional(invocation.getArgument(0)), Boolean.FALSE)
+        );
+        when(mongoTemplate.count(any(Query.class), eq(ShiftAssignment.class))).thenAnswer(invocation -> {
+            String id = queriedProfessional(invocation.getArgument(0));
+            fairnessQueries.add(id);
+            return (long) load.getOrDefault(id, 0);
+        });
     }
 
     private static String queriedProfessional(Query query) {
@@ -329,8 +329,9 @@ class RoundPlanningServiceTest {
     @Test
     void excludesACandidateInsideAnUnavailabilityPeriod() {
         oneTeamCoversTheSpace();
-        Professional onLeave = candidate("prof-away")
-            .unavailabilityPeriods(List.of(new UnavailabilityPeriod().fromDate(WEDNESDAY.minusDays(2)).toDate(WEDNESDAY.plusDays(2))));
+        Professional onLeave = candidate("prof-away").unavailabilityPeriods(
+            List.of(new UnavailabilityPeriod().fromDate(WEDNESDAY.minusDays(2)).toDate(WEDNESDAY.plusDays(2)))
+        );
         candidatesAre(onLeave, candidate("prof-free"));
         // The excluded candidate is also the one fairness would prefer, so this cannot pass merely
         // because the sort is stable and it happened to be listed first.
@@ -346,8 +347,9 @@ class RoundPlanningServiceTest {
     @Test
     void treatsAnOpenEndedUnavailabilityPeriodAsIndefinite() {
         oneTeamCoversTheSpace();
-        Professional gone = candidate("prof-gone")
-            .unavailabilityPeriods(List.of(new UnavailabilityPeriod().fromDate(WEDNESDAY.minusMonths(1))));
+        Professional gone = candidate("prof-gone").unavailabilityPeriods(
+            List.of(new UnavailabilityPeriod().fromDate(WEDNESDAY.minusMonths(1)))
+        );
         candidatesAre(gone, candidate("prof-here"));
         gridStubs();
         filedAs("round-1");
@@ -642,10 +644,9 @@ class RoundPlanningServiceTest {
         oneTeamCoversTheSpace();
         candidatesAre(candidate("prof-1"));
         gridStubs();
-        when(client.fileRound(any()))
-            .thenThrow(
-                new ProfessionalServiceClient.RosterServiceUnavailableException("down", new ResourceAccessException("connect timed out"))
-            );
+        when(client.fileRound(any())).thenThrow(
+            new ProfessionalServiceClient.RosterServiceUnavailableException("down", new ResourceAccessException("connect timed out"))
+        );
 
         PlanReport report = service.plan(planFor(round(ProfessionalRole.NURSE)));
 
@@ -671,13 +672,12 @@ class RoundPlanningServiceTest {
         oneTeamCoversTheSpace();
         candidatesAre(candidate("prof-1"));
         gridStubs();
-        when(client.fileRound(any()))
-            .thenThrow(
-                new ProfessionalServiceClient.RosterServiceUnavailableException(
-                    "refused",
-                    HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request", null, null, null)
-                )
-            );
+        when(client.fileRound(any())).thenThrow(
+            new ProfessionalServiceClient.RosterServiceUnavailableException(
+                "refused",
+                HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request", null, null, null)
+            )
+        );
 
         PlanReport report = service.plan(planFor(round(ProfessionalRole.NURSE)));
 
@@ -705,8 +705,9 @@ class RoundPlanningServiceTest {
         oneTeamCoversTheSpace();
         candidatesAre(candidate("prof-1"));
         gridStubs();
-        when(client.fileRound(any()))
-            .thenThrow(new ProfessionalServiceClient.RosterServiceNotConfiguredException("professionalservice is disabled"));
+        when(client.fileRound(any())).thenThrow(
+            new ProfessionalServiceClient.RosterServiceNotConfiguredException("professionalservice is disabled")
+        );
 
         PlanReport report = service.plan(planFor(round(ProfessionalRole.NURSE)));
 
@@ -756,12 +757,15 @@ class RoundPlanningServiceTest {
      */
     private void tree() {
         when(spaces.findById(SPACE)).thenReturn(Optional.of(new GeographicSpace().id(SPACE).parentId("space-accra")));
-        when(spaces.findById("space-cantonments"))
-            .thenReturn(Optional.of(new GeographicSpace().id("space-cantonments").parentId("space-accra")));
-        when(spaces.findById("space-accra"))
-            .thenReturn(Optional.of(new GeographicSpace().id("space-accra").parentId("space-greater-accra")));
-        when(spaces.findById("space-labadi"))
-            .thenReturn(Optional.of(new GeographicSpace().id("space-labadi").parentId("space-greater-accra")));
+        when(spaces.findById("space-cantonments")).thenReturn(
+            Optional.of(new GeographicSpace().id("space-cantonments").parentId("space-accra"))
+        );
+        when(spaces.findById("space-accra")).thenReturn(
+            Optional.of(new GeographicSpace().id("space-accra").parentId("space-greater-accra"))
+        );
+        when(spaces.findById("space-labadi")).thenReturn(
+            Optional.of(new GeographicSpace().id("space-labadi").parentId("space-greater-accra"))
+        );
         when(spaces.findById("space-greater-accra")).thenReturn(Optional.of(new GeographicSpace().id("space-greater-accra")));
         when(spaces.findById("space-far-region")).thenReturn(Optional.of(new GeographicSpace().id("space-far-region")));
         when(spaces.findById("space-elsewhere")).thenReturn(Optional.of(new GeographicSpace().id("space-elsewhere")));

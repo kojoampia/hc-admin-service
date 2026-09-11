@@ -85,8 +85,7 @@ public record DashboardMetricsDTO(
     Map<String, Long> deltas,
     List<PlatformCapability> capabilities,
     Uptime uptime
-)
-    implements Serializable {
+) implements Serializable {
     /**
      * {@code network} counts every document; {@code loaded} counts the ones not archived.
      *
@@ -123,8 +122,7 @@ public record DashboardMetricsDTO(
         long shiftsThisWeek,
         String weekLabel,
         LocalDate weekStartDate
-    )
-        implements Serializable {}
+    ) implements Serializable {}
 
     /** A platform service whose recorded health is not {@code HEALTHY}. */
     public record DegradedService(String id, String name, String host, Integer port) implements Serializable {}

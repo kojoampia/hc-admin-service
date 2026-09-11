@@ -79,9 +79,9 @@ public class DirectoryLinkIndexes {
         } catch (RuntimeException e) {
             LOG.error(
                 "Could not create the unique index {} on directory_link. Until it exists, every event costs a " +
-                "collection scan and two concurrent first sightings of one subject can both insert. If this is a " +
-                "duplicate-key failure, find the duplicates with an aggregation grouping on (source, external_key), " +
-                "merge them onto the one whose local_id names a live record, and restart.",
+                    "collection scan and two concurrent first sightings of one subject can both insert. If this is a " +
+                    "duplicate-key failure, find the duplicates with an aggregation grouping on (source, external_key), " +
+                    "merge them onto the one whose local_id names a live record, and restart.",
                 SUBJECT_INDEX,
                 e
             );

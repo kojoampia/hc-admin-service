@@ -136,9 +136,9 @@ class ApplicationPropertiesSingleSourceTest {
                 assertThat(context)
                     .as(
                         "ignoreUnknownFields = false must reject an application.* key that no field declares. " +
-                        "If this ever passes, the nested classes in ApplicationProperties stop being mandatory " +
-                        "and item 58's rejected 'delete it' option becomes available again — which is a decision, " +
-                        "not a refactor."
+                            "If this ever passes, the nested classes in ApplicationProperties stop being mandatory " +
+                            "and item 58's rejected 'delete it' option becomes available again — which is a decision, " +
+                            "not a refactor."
                     )
                     .hasFailed()
             );
@@ -260,12 +260,12 @@ class ApplicationPropertiesSingleSourceTest {
             if (places != 1) {
                 written.add(
                     key +
-                    " has its default written in " +
-                    places +
-                    " place(s) — field initializer: " +
-                    entry.getValue() +
-                    ", placeholder defaults: " +
-                    placeholders.getOrDefault(key, Set.of())
+                        " has its default written in " +
+                        places +
+                        " place(s) — field initializer: " +
+                        entry.getValue() +
+                        ", placeholder defaults: " +
+                        placeholders.getOrDefault(key, Set.of())
                 );
             }
         }
@@ -273,9 +273,9 @@ class ApplicationPropertiesSingleSourceTest {
         assertThat(written)
             .as(
                 "Every application.* default must be written exactly once (backlog item 58). Two copies drift " +
-                "silently: editing the properties class changes nothing at runtime and nothing fails. Zero copies " +
-                "means the value is a JVM default nobody chose. Fix by deleting the placeholder default and " +
-                "injecting ApplicationProperties, which is what every reader but @Scheduled does."
+                    "silently: editing the properties class changes nothing at runtime and nothing fails. Zero copies " +
+                    "means the value is a JVM default nobody chose. Fix by deleting the placeholder default and " +
+                    "injecting ApplicationProperties, which is what every reader but @Scheduled does."
             )
             .isEmpty();
     }
@@ -305,8 +305,8 @@ class ApplicationPropertiesSingleSourceTest {
         assertThat(offenders)
             .as(
                 "Inject ApplicationProperties instead. All four of these clients did it this way until " +
-                "2026-09-09 and every value they read was declared twice as a result (backlog item 58). " +
-                "@Scheduled is the one mechanism that genuinely cannot inject; @Value always can."
+                    "2026-09-09 and every value they read was declared twice as a result (backlog item 58). " +
+                    "@Scheduled is the one mechanism that genuinely cannot inject; @Value always can."
             )
             .isEmpty();
     }
@@ -332,11 +332,11 @@ class ApplicationPropertiesSingleSourceTest {
         assertThat(withoutAFieldDefault)
             .as(
                 "@Scheduled's initialDelayString and fixedDelayString are annotation attributes, so the " +
-                "language requires a compile-time constant there and injection has no path into them — " +
-                "ServicePlanCatalogueSyncService's placeholders carry these two defaults and the fields " +
-                "deliberately do not. Anything else appearing here is either a new " +
-                "reader that should be injecting, or a field whose intended default is false/0/null — which " +
-                "this file's javadoc names as its blind spot and which needs a decision, not a green build."
+                    "language requires a compile-time constant there and injection has no path into them — " +
+                    "ServicePlanCatalogueSyncService's placeholders carry these two defaults and the fields " +
+                    "deliberately do not. Anything else appearing here is either a new " +
+                    "reader that should be injecting, or a field whose intended default is false/0/null — which " +
+                    "this file's javadoc names as its blind spot and which needs a decision, not a green build."
             )
             .containsExactlyInAnyOrder("application.abofonsa-content.initial-delay-ms", "application.abofonsa-content.refresh-ms");
     }
@@ -516,8 +516,7 @@ class ApplicationPropertiesSingleSourceTest {
         List<Class<?>> classes = new ArrayList<>();
         try (Stream<Path> files = Files.walk(root)) {
             for (Path file : files.filter(path -> path.toString().endsWith(".class")).toList()) {
-                String name = Path
-                    .of(codeSource)
+                String name = Path.of(codeSource)
                     .relativize(file)
                     .toString()
                     .replace(java.io.File.separatorChar, '.')

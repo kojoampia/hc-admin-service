@@ -62,8 +62,7 @@ public class SystemCatalogResource {
             throw new BadRequestAlertException("A new systemCatalog cannot already have an ID", ENTITY_NAME, "idexists");
         }
         systemCatalogDTO = systemCatalogService.save(systemCatalogDTO);
-        return ResponseEntity
-            .created(new URI("/api/system-catalogs/" + systemCatalogDTO.getId()))
+        return ResponseEntity.created(new URI("/api/system-catalogs/" + systemCatalogDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, systemCatalogDTO.getId()))
             .body(systemCatalogDTO);
     }
@@ -96,8 +95,7 @@ public class SystemCatalogResource {
         }
 
         systemCatalogDTO = systemCatalogService.update(systemCatalogDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, systemCatalogDTO.getId()))
             .body(systemCatalogDTO);
     }
@@ -175,6 +173,8 @@ public class SystemCatalogResource {
     public ResponseEntity<Void> deleteSystemCatalog(@PathVariable("id") String id) {
         LOG.debug("REST request to delete SystemCatalog : {}", id);
         systemCatalogService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

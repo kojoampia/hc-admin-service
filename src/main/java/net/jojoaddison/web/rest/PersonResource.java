@@ -61,8 +61,7 @@ public class PersonResource {
             throw new BadRequestAlertException("A new person cannot already have an ID", ENTITY_NAME, "idexists");
         }
         person = personService.save(person);
-        return ResponseEntity
-            .created(new URI("/api/people/" + person.getId()))
+        return ResponseEntity.created(new URI("/api/people/" + person.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, person.getId()))
             .body(person);
     }
@@ -95,8 +94,7 @@ public class PersonResource {
         }
 
         person = personService.update(person);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, person.getId()))
             .body(person);
     }
@@ -171,6 +169,8 @@ public class PersonResource {
     public ResponseEntity<Void> deletePerson(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Person : {}", id);
         personService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

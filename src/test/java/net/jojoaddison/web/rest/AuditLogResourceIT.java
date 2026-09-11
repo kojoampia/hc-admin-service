@@ -178,13 +178,12 @@ class AuditLogResourceIT {
         insertedAuditLog = auditLogRepository.save(auditLog);
         long before = getRepositoryCount();
 
-        MockHttpServletRequestBuilder request =
-            switch (verb) {
-                case "POST" -> post(ENTITY_API_URL);
-                case "PUT" -> put(ENTITY_API_URL_ID, auditLog.getId());
-                case "PATCH" -> patch(ENTITY_API_URL_ID, auditLog.getId());
-                default -> delete(ENTITY_API_URL_ID, auditLog.getId());
-            };
+        MockHttpServletRequestBuilder request = switch (verb) {
+            case "POST" -> post(ENTITY_API_URL);
+            case "PUT" -> put(ENTITY_API_URL_ID, auditLog.getId());
+            case "PATCH" -> patch(ENTITY_API_URL_ID, auditLog.getId());
+            default -> delete(ENTITY_API_URL_ID, auditLog.getId());
+        };
 
         restAuditLogMockMvc
             .perform(request.contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(auditLog)))

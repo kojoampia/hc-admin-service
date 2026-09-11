@@ -156,8 +156,20 @@ class DevelopmentDataInitializerTest {
         // vendor's array is the owning one, so a seed that sets `vendor` on the facility and
         // nothing on the vendor writes two documents that agree in the file and disagree in Mongo:
         // the facility knows its vendor, the vendor lists no sites, and the record renders empty.
-        assertThat(test.getVendors().stream().filter(vendor -> !vendor.getFacilities().isEmpty()).count()).isEqualTo(3);
-        assertThat(test.getFacilities().stream().filter(facility -> facility.getVendor() != null).count()).isEqualTo(5);
+        assertThat(
+            test
+                .getVendors()
+                .stream()
+                .filter(vendor -> !vendor.getFacilities().isEmpty())
+                .count()
+        ).isEqualTo(3);
+        assertThat(
+            test
+                .getFacilities()
+                .stream()
+                .filter(facility -> facility.getVendor() != null)
+                .count()
+        ).isEqualTo(5);
         assertThat(test.getAngels()).hasSize(12);
         assertThat(test.getMessages()).hasSize(43);
         assertThat(test.getTasks()).hasSize(34);
@@ -190,10 +202,20 @@ class DevelopmentDataInitializerTest {
     void shouldSeedEnoughCorrespondenceToDrawABacklogSeries() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getMessages().stream().map(message -> YearMonth.from(message.getSentAt().atZone(ZoneOffset.UTC))).distinct())
-            .hasSizeGreaterThanOrEqualTo(6);
-        assertThat(test.getTasks().stream().map(task -> YearMonth.from(task.getCreatedAt().atZone(ZoneOffset.UTC))).distinct())
-            .hasSizeGreaterThanOrEqualTo(6);
+        assertThat(
+            test
+                .getMessages()
+                .stream()
+                .map(message -> YearMonth.from(message.getSentAt().atZone(ZoneOffset.UTC)))
+                .distinct()
+        ).hasSizeGreaterThanOrEqualTo(6);
+        assertThat(
+            test
+                .getTasks()
+                .stream()
+                .map(task -> YearMonth.from(task.getCreatedAt().atZone(ZoneOffset.UTC)))
+                .distinct()
+        ).hasSizeGreaterThanOrEqualTo(6);
     }
 
     /**
@@ -209,10 +231,18 @@ class DevelopmentDataInitializerTest {
     void shouldSeedHistoricalCorrespondenceWithItsOwnReadAndCloseTimes() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getMessages().stream().filter(message -> message.getStatus() != MessageStatus.NEW))
-            .allSatisfy(message -> assertThat(message.getReadAt()).as("read time for %s", message.getId()).isNotNull());
-        assertThat(test.getTasks().stream().filter(task -> task.getState() == TaskState.DONE))
-            .allSatisfy(task -> assertThat(task.getClosedAt()).as("close time for %s", task.getId()).isNotNull());
+        assertThat(
+            test
+                .getMessages()
+                .stream()
+                .filter(message -> message.getStatus() != MessageStatus.NEW)
+        ).allSatisfy(message -> assertThat(message.getReadAt()).as("read time for %s", message.getId()).isNotNull());
+        assertThat(
+            test
+                .getTasks()
+                .stream()
+                .filter(task -> task.getState() == TaskState.DONE)
+        ).allSatisfy(task -> assertThat(task.getClosedAt()).as("close time for %s", task.getId()).isNotNull());
     }
 
     /**
@@ -286,7 +316,11 @@ class DevelopmentDataInitializerTest {
         // should — see shouldCarryAProfessionalWithNobodyOnIt. It is named here rather than
         // subtracted, because `hasSize(getProfessionals().size() - 1)` goes on passing if a
         // *different* professional quietly loses its link and p10 quietly gains one.
-        List<Professional> withAProfile = test.getProfessionals().stream().filter(p -> p.getProfile() != null).toList();
+        List<Professional> withAProfile = test
+            .getProfessionals()
+            .stream()
+            .filter(p -> p.getProfile() != null)
+            .toList();
         assertThat(withAProfile).extracting(Professional::getId).doesNotContain("p10");
         assertThat(loginToRole).hasSameSizeAs(withAProfile);
 
@@ -485,7 +519,13 @@ class DevelopmentDataInitializerTest {
     void shouldPriceEveryRoleAndShiftTypeCombinationUnderDev() throws Exception {
         DevelopmentDataInitializer.ProfileData dev = readSeedData().get("dev");
 
-        assertThat(dev.getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct())
+        assertThat(
+            dev
+                .getWageRates()
+                .stream()
+                .map(rate -> rate.getRole() + "/" + rate.getShiftType())
+                .distinct()
+        )
             .as("dev prices every (role, shiftType) cell")
             .hasSize(ProfessionalRole.values().length * ShiftType.values().length);
     }
@@ -514,7 +554,12 @@ class DevelopmentDataInitializerTest {
     void shouldLeaveTwoNamedCellsUnpricedUnderTest() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        List<String> priced = test.getWageRates().stream().map(rate -> rate.getRole() + "/" + rate.getShiftType()).distinct().toList();
+        List<String> priced = test
+            .getWageRates()
+            .stream()
+            .map(rate -> rate.getRole() + "/" + rate.getShiftType())
+            .distinct()
+            .toList();
 
         assertThat(priced).doesNotContain("CAREGIVER/EVENING", "CAREGIVER/FLEXIBLE");
         assertThat(priced).hasSize(ProfessionalRole.values().length * ShiftType.values().length - 2);
@@ -684,8 +729,12 @@ class DevelopmentDataInitializerTest {
             .collect(Collectors.groupingBy(verification -> verification.getProfessional().getId(), Collectors.counting()));
 
         assertThat(perProfessional).containsEntry("p3", 2L).containsEntry("p6", 3L).containsEntry("p9", 3L);
-        assertThat(test.getProfessionalVerifications().stream().map(ProfessionalVerification::getStatus).distinct())
-            .contains(VerificationStatus.REVOKED, VerificationStatus.EXPIRED, VerificationStatus.PENDING, VerificationStatus.VERIFIED);
+        assertThat(test.getProfessionalVerifications().stream().map(ProfessionalVerification::getStatus).distinct()).contains(
+            VerificationStatus.REVOKED,
+            VerificationStatus.EXPIRED,
+            VerificationStatus.PENDING,
+            VerificationStatus.VERIFIED
+        );
     }
 
     /**
@@ -697,9 +746,19 @@ class DevelopmentDataInitializerTest {
     void shouldSeedEnoughRosterToDrawAMonthlySeries() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getShiftAssignments().stream().map(shift -> YearMonth.from(shift.getShiftDate())).distinct())
-            .hasSizeGreaterThanOrEqualTo(4);
-        assertThat(test.getShiftAssignments().stream().filter(shift -> shift.getShift() != ShiftType.OFF)).hasSize(654);
+        assertThat(
+            test
+                .getShiftAssignments()
+                .stream()
+                .map(shift -> YearMonth.from(shift.getShiftDate()))
+                .distinct()
+        ).hasSizeGreaterThanOrEqualTo(4);
+        assertThat(
+            test
+                .getShiftAssignments()
+                .stream()
+                .filter(shift -> shift.getShift() != ShiftType.OFF)
+        ).hasSize(654);
     }
 
     /**
@@ -726,7 +785,13 @@ class DevelopmentDataInitializerTest {
             .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
 
         assertThat(parentOf).hasSameSizeAs(test.getGeographicSpaces());
-        assertThat(parentOf.entrySet().stream().filter(entry -> entry.getValue() == null).map(Map.Entry::getKey))
+        assertThat(
+            parentOf
+                .entrySet()
+                .stream()
+                .filter(entry -> entry.getValue() == null)
+                .map(Map.Entry::getKey)
+        )
             .as("exactly one root")
             .containsExactly("gs-ghana");
         assertThat(parentOf.values())
@@ -772,7 +837,11 @@ class DevelopmentDataInitializerTest {
     void shouldGiveEveryProfessionalAHomeSpaceThatMakesProximityMeaningful() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        List<Professional> candidates = test.getProfessionals().stream().filter(professional -> professional.getTeam() != null).toList();
+        List<Professional> candidates = test
+            .getProfessionals()
+            .stream()
+            .filter(professional -> professional.getTeam() != null)
+            .toList();
         // Who the filter removes, by name rather than by count: a rule over nothing passes, and
         // "one fewer than all of them" goes on passing when the one is a different one.
         assertThat(test.getProfessionals())
@@ -792,25 +861,29 @@ class DevelopmentDataInitializerTest {
             .collect(HashMap::new, (map, space) -> map.put(space.getId(), space.getParentId()), HashMap::putAll);
 
         assertThat(homeOf).hasSameSizeAs(candidates).doesNotContainValue(null);
-        assertThat(homeOf.values())
-            .allSatisfy(spaceId -> assertThat(parentOf).as("home space %s is a seeded space", spaceId).containsKey(spaceId));
+        assertThat(homeOf.values()).allSatisfy(spaceId ->
+            assertThat(parentOf).as("home space %s is a seeded space", spaceId).containsKey(spaceId)
+        );
 
         // Same space, same parent, and same ancestor only — the three tiers, each reachable.
         assertThat(homeOf.get("p2")).as("same space as p1").isEqualTo(homeOf.get("p1"));
         assertThat(homeOf.get("p3")).as("a different space from p1").isNotEqualTo(homeOf.get("p1"));
-        assertThat(parentOf.get(homeOf.get("p3"))).as("but the same parent as p1").isEqualTo(parentOf.get(homeOf.get("p1")));
-        assertThat(parentOf.get(homeOf.get("p5"))).as("p5 shares no parent with p1").isNotEqualTo(parentOf.get(homeOf.get("p1")));
+        assertThat(parentOf.get(homeOf.get("p3")))
+            .as("but the same parent as p1")
+            .isEqualTo(parentOf.get(homeOf.get("p1")));
+        assertThat(parentOf.get(homeOf.get("p5")))
+            .as("p5 shares no parent with p1")
+            .isNotEqualTo(parentOf.get(homeOf.get("p1")));
 
         // And a home space that agrees with the hub the person is attached to. The two are separate
         // fields and nothing joins them, so a fixture can put an Accra clinician in Kumasi and read
         // as complete — which would make every proximity result look like a bug in the ranking.
         Map<String, String> regionOf = Map.of("hub-1", "gs-greater-accra", "hub-2", "gs-ashanti");
-        assertThat(candidates)
-            .allSatisfy(professional ->
-                assertThat(regionOf.get(professional.getHub().getId()))
-                    .as("home region of %s", professional.getId())
-                    .isEqualTo(parentOf.get(parentOf.get(professional.getHomeSpaceId())))
-            );
+        assertThat(candidates).allSatisfy(professional ->
+            assertThat(regionOf.get(professional.getHub().getId()))
+                .as("home region of %s", professional.getId())
+                .isEqualTo(parentOf.get(parentOf.get(professional.getHomeSpaceId())))
+        );
     }
 
     /**
@@ -1322,8 +1395,13 @@ class DevelopmentDataInitializerTest {
     void shouldSeedDirectoryLinksWithADistinctNaturalKey() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getDirectoryLinks().stream().map(link -> link.getSource() + "/" + link.getExternalKey()).distinct())
-            .hasSameSizeAs(test.getDirectoryLinks());
+        assertThat(
+            test
+                .getDirectoryLinks()
+                .stream()
+                .map(link -> link.getSource() + "/" + link.getExternalKey())
+                .distinct()
+        ).hasSameSizeAs(test.getDirectoryLinks());
     }
 
     /**

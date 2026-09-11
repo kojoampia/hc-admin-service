@@ -58,8 +58,7 @@ public class HubResource {
             throw new BadRequestAlertException("A new hub cannot already have an ID", ENTITY_NAME, "idexists");
         }
         hub = hubRepository.save(hub);
-        return ResponseEntity
-            .created(new URI("/api/hubs/" + hub.getId()))
+        return ResponseEntity.created(new URI("/api/hubs/" + hub.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, hub.getId()))
             .body(hub);
     }
@@ -90,7 +89,9 @@ public class HubResource {
         }
 
         hub = hubRepository.save(hub);
-        return ResponseEntity.ok().headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, hub.getId())).body(hub);
+        return ResponseEntity.ok()
+            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, hub.getId()))
+            .body(hub);
     }
 
     /**
@@ -170,7 +171,9 @@ public class HubResource {
     public ResponseEntity<Void> deleteHub(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Hub : {}", id);
         hubRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

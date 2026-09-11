@@ -61,8 +61,7 @@ public class FacilityResource {
             throw new BadRequestAlertException("A new facility cannot already have an ID", ENTITY_NAME, "idexists");
         }
         facilityDTO = facilityService.save(facilityDTO);
-        return ResponseEntity
-            .created(new URI("/api/facilities/" + facilityDTO.getId()))
+        return ResponseEntity.created(new URI("/api/facilities/" + facilityDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, facilityDTO.getId()))
             .body(facilityDTO);
     }
@@ -95,8 +94,7 @@ public class FacilityResource {
         }
 
         facilityDTO = facilityService.update(facilityDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, facilityDTO.getId()))
             .body(facilityDTO);
     }
@@ -174,6 +172,8 @@ public class FacilityResource {
     public ResponseEntity<Void> deleteFacility(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Facility : {}", id);
         facilityService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

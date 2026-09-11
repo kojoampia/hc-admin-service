@@ -26,8 +26,7 @@ public class TestContainersSpringContextCustomizerFactory implements ContextCust
                 // ((DefaultListableBeanFactory)beanFactory).registerDisposableBean(MongoDbTestContainer.class.getName(), mongoDbBean);
             }
             String replicaSetUrl = mongoDbBean.getMongoDBContainer().getReplicaSetUrl();
-            TestPropertyValues testValues = TestPropertyValues
-                .empty()
+            TestPropertyValues testValues = TestPropertyValues.empty()
                 .and("spring.data.mongodb.uri=" + replicaSetUrl)
                 .and("spring.mongodb.uri=" + replicaSetUrl);
             testValues.applyTo(context);

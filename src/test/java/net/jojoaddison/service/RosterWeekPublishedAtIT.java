@@ -68,7 +68,10 @@ class RosterWeekPublishedAtIT {
 
     private RosterWeek storedWeek(boolean published) {
         return rosterWeekRepository.save(
-            new RosterWeek().label("Week of 10 August 2026").startDate(LocalDate.of(2026, 8, 10)).published(published)
+            new RosterWeek()
+                .label("Week of 10 August 2026")
+                .startDate(LocalDate.of(2026, 8, 10))
+                .published(published)
         );
     }
 
@@ -81,13 +84,11 @@ class RosterWeekPublishedAtIT {
         RosterWeek week = storedWeek(false);
         assertThat(week.getPublishedAt()).isNull();
 
-        mvc
-            .perform(
-                patch(ENTITY_API_URL_ID, week.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"%s\",\"published\":true}".formatted(week.getId()))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch(ENTITY_API_URL_ID, week.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"%s\",\"published\":true}".formatted(week.getId()))
+        ).andExpect(status().isOk());
 
         assertThat(reread(week).getPublishedAt()).isNotNull();
     }
@@ -108,20 +109,16 @@ class RosterWeekPublishedAtIT {
         Instant publishedAt = reread(week).getPublishedAt();
         assertThat(publishedAt).isNotNull();
 
-        mvc
-            .perform(
-                patch(ENTITY_API_URL_ID, week.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"%s\",\"label\":\"Renamed once\"}".formatted(week.getId()))
-            )
-            .andExpect(status().isOk());
-        mvc
-            .perform(
-                patch(ENTITY_API_URL_ID, week.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"%s\",\"label\":\"Renamed twice\"}".formatted(week.getId()))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch(ENTITY_API_URL_ID, week.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"%s\",\"label\":\"Renamed once\"}".formatted(week.getId()))
+        ).andExpect(status().isOk());
+        mvc.perform(
+            patch(ENTITY_API_URL_ID, week.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"%s\",\"label\":\"Renamed twice\"}".formatted(week.getId()))
+        ).andExpect(status().isOk());
 
         RosterWeek after = reread(week);
         assertThat(after.getLabel()).isEqualTo("Renamed twice");
@@ -134,22 +131,18 @@ class RosterWeekPublishedAtIT {
         RosterWeek week = storedWeek(true);
         Instant first = reread(week).getPublishedAt();
 
-        mvc
-            .perform(
-                patch(ENTITY_API_URL_ID, week.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"%s\",\"published\":false}".formatted(week.getId()))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch(ENTITY_API_URL_ID, week.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"%s\",\"published\":false}".formatted(week.getId()))
+        ).andExpect(status().isOk());
         assertThat(reread(week).getPublishedAt()).isNull();
 
-        mvc
-            .perform(
-                patch(ENTITY_API_URL_ID, week.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"%s\",\"published\":true}".formatted(week.getId()))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch(ENTITY_API_URL_ID, week.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"%s\",\"published\":true}".formatted(week.getId()))
+        ).andExpect(status().isOk());
         assertThat(reread(week).getPublishedAt()).isNotNull().isNotEqualTo(first);
     }
 
@@ -161,13 +154,11 @@ class RosterWeekPublishedAtIT {
     void aPatchCannotSetTheStamp() throws Exception {
         RosterWeek week = storedWeek(false);
 
-        mvc
-            .perform(
-                patch(ENTITY_API_URL_ID, week.getId())
-                    .contentType("application/merge-patch+json")
-                    .content("{\"id\":\"%s\",\"published\":true,\"publishedAt\":\"%s\"}".formatted(week.getId(), CLIENT_CLAIM))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch(ENTITY_API_URL_ID, week.getId())
+                .contentType("application/merge-patch+json")
+                .content("{\"id\":\"%s\",\"published\":true,\"publishedAt\":\"%s\"}".formatted(week.getId(), CLIENT_CLAIM))
+        ).andExpect(status().isOk());
 
         assertThat(reread(week).getPublishedAt()).isNotNull().isNotEqualTo(CLIENT_CLAIM);
     }
@@ -187,16 +178,16 @@ class RosterWeekPublishedAtIT {
         RosterWeek week = storedWeek(true);
         Instant publishedAt = reread(week).getPublishedAt();
 
-        mvc
-            .perform(
-                put(ENTITY_API_URL_ID, week.getId())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(
-                        ("{\"id\":\"%s\",\"label\":\"Week of 10 August 2026\",\"startDate\":\"2026-08-10\"," +
-                            "\"published\":true,\"publishedAt\":\"%s\"}").formatted(week.getId(), CLIENT_CLAIM)
-                    )
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            put(ENTITY_API_URL_ID, week.getId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    (
+                        "{\"id\":\"%s\",\"label\":\"Week of 10 August 2026\",\"startDate\":\"2026-08-10\"," +
+                        "\"published\":true,\"publishedAt\":\"%s\"}"
+                    ).formatted(week.getId(), CLIENT_CLAIM)
+                )
+        ).andExpect(status().isOk());
 
         assertThat(reread(week).getPublishedAt()).isEqualTo(publishedAt);
     }

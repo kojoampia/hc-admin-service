@@ -106,11 +106,10 @@ class ProfessionalSelfIT {
         wageRateRepository.deleteAll();
 
         wageRateRepository.saveAll(
-            java.util.stream.Stream
-                .of(
-                    ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 500, LocalDate.of(2026, 1, 1)),
-                    ratesAtEveryShiftType(ProfessionalRole.NURSE, 300, LocalDate.of(2026, 1, 1))
-                )
+            java.util.stream.Stream.of(
+                ratesAtEveryShiftType(ProfessionalRole.DOCTOR, 500, LocalDate.of(2026, 1, 1)),
+                ratesAtEveryShiftType(ProfessionalRole.NURSE, 300, LocalDate.of(2026, 1, 1))
+            )
                 .flatMap(List::stream)
                 .toList()
         );
@@ -174,8 +173,7 @@ class ProfessionalSelfIT {
      * a night differently from a day and check that the difference reaches the total.
      */
     private static List<WageRate> ratesAtEveryShiftType(ProfessionalRole role, int amount, LocalDate validFrom) {
-        return java.util.Arrays
-            .stream(ShiftType.values())
+        return java.util.Arrays.stream(ShiftType.values())
             .map(shiftType ->
                 new WageRate().role(role).shiftType(shiftType).amount(new BigDecimal(amount)).currency("GHS").validFrom(validFrom)
             )
@@ -183,7 +181,10 @@ class ProfessionalSelfIT {
     }
 
     private void assign(Professional professional, LocalDate date, ShiftType shift) {
-        ShiftAssignment assignment = new ShiftAssignment().dayIndex(date.getDayOfWeek().getValue() - 1).shiftDate(date).shift(shift);
+        ShiftAssignment assignment = new ShiftAssignment()
+            .dayIndex(date.getDayOfWeek().getValue() - 1)
+            .shiftDate(date)
+            .shift(shift);
         assignment.setProfessional(professional);
         shiftAssignmentRepository.save(assignment);
     }
@@ -193,7 +194,9 @@ class ProfessionalSelfIT {
      * role as an authority.
      */
     private static RequestPostProcessor clinician(String login, String role) {
-        return jwt().jwt(builder -> builder.subject(login)).authorities(new SimpleGrantedAuthority(role));
+        return jwt()
+            .jwt(builder -> builder.subject(login))
+            .authorities(new SimpleGrantedAuthority(role));
     }
 
     /** The ordinary case: a clinician sees their own figures, resolved from the token. */

@@ -72,8 +72,7 @@ public class WageRateResource {
             throw new BadRequestAlertException("A new wageRate cannot already have an ID", ENTITY_NAME, "idexists");
         }
         wageRateDTO = wageRateService.save(wageRateDTO);
-        return ResponseEntity
-            .created(new URI("/api/wage-rates/" + wageRateDTO.getId()))
+        return ResponseEntity.created(new URI("/api/wage-rates/" + wageRateDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, wageRateDTO.getId()))
             .body(wageRateDTO);
     }
@@ -109,8 +108,7 @@ public class WageRateResource {
         }
 
         wageRateDTO = wageRateService.update(wageRateDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, wageRateDTO.getId()))
             .body(wageRateDTO);
     }
@@ -232,6 +230,8 @@ public class WageRateResource {
     public ResponseEntity<Void> deleteWageRate(@PathVariable("id") String id) {
         LOG.debug("REST request to delete WageRate : {}", id);
         wageRateService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

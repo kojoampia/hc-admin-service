@@ -34,5 +34,9 @@ import java.math.BigDecimal;
  * @param activeContracts vendors whose status is {@code ACTIVE}
  * @param underReview vendors whose status is {@code UNDER_REVIEW} or {@code PENDING}
  */
-public record VendorSummaryDTO(BigDecimal spendToDate, long categoryCount, long activeContracts, long underReview)
-    implements Serializable {}
+public record VendorSummaryDTO(
+    BigDecimal spendToDate,
+    long categoryCount,
+    long activeContracts,
+    long underReview
+) implements Serializable {}

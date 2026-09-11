@@ -65,8 +65,7 @@ public class TaskResource {
             throw new BadRequestAlertException("A new task cannot already have an ID", ENTITY_NAME, "idexists");
         }
         task = taskRepository.save(task);
-        return ResponseEntity
-            .created(new URI("/api/tasks/" + task.getId()))
+        return ResponseEntity.created(new URI("/api/tasks/" + task.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, task.getId()))
             .body(task);
     }
@@ -97,7 +96,9 @@ public class TaskResource {
         }
 
         task = taskRepository.save(task);
-        return ResponseEntity.ok().headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, task.getId())).body(task);
+        return ResponseEntity.ok()
+            .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, task.getId()))
+            .body(task);
     }
 
     /**
@@ -197,7 +198,9 @@ public class TaskResource {
     public ResponseEntity<Void> deleteTask(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Task : {}", id);
         taskRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

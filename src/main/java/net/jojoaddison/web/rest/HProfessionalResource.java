@@ -55,8 +55,7 @@ public class HProfessionalResource {
             throw new BadRequestAlertException("A new hProfessional cannot already have an ID", ENTITY_NAME, "idexists");
         }
         HProfessional result = hProfessionalRepository.save(hProfessional);
-        return ResponseEntity
-            .created(new URI("/api/h-professionals/" + result.getId()))
+        return ResponseEntity.created(new URI("/api/h-professionals/" + result.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, result.getId()))
             .body(result);
     }
@@ -89,8 +88,7 @@ public class HProfessionalResource {
         }
 
         HProfessional result = hProfessionalRepository.save(hProfessional);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, hProfessional.getId()))
             .body(result);
     }
@@ -198,6 +196,8 @@ public class HProfessionalResource {
     public ResponseEntity<Void> deleteHProfessional(@PathVariable("id") String id) {
         log.debug("REST request to delete HProfessional : {}", id);
         hProfessionalRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

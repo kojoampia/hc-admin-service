@@ -73,8 +73,7 @@ public class ServicePlanResource {
         }
         rejectDuplicateCode(servicePlan);
         servicePlan = servicePlanRepository.save(servicePlan);
-        return ResponseEntity
-            .created(new URI("/api/service-plans/" + servicePlan.getId()))
+        return ResponseEntity.created(new URI("/api/service-plans/" + servicePlan.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, servicePlan.getId()))
             .body(servicePlan);
     }
@@ -108,8 +107,7 @@ public class ServicePlanResource {
         rejectDuplicateCode(servicePlan);
 
         servicePlan = servicePlanRepository.save(servicePlan);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, servicePlan.getId()))
             .body(servicePlan);
     }
@@ -286,7 +284,9 @@ public class ServicePlanResource {
     public ResponseEntity<Void> deleteServicePlan(@PathVariable("id") String id) {
         LOG.debug("REST request to delete ServicePlan : {}", id);
         servicePlanRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

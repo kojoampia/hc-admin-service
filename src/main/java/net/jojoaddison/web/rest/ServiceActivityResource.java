@@ -64,8 +64,7 @@ public class ServiceActivityResource {
             throw new BadRequestAlertException("A new serviceActivity cannot already have an ID", ENTITY_NAME, "idexists");
         }
         serviceActivity = serviceActivityRepository.save(serviceActivity);
-        return ResponseEntity
-            .created(new URI("/api/service-activities/" + serviceActivity.getId()))
+        return ResponseEntity.created(new URI("/api/service-activities/" + serviceActivity.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, serviceActivity.getId()))
             .body(serviceActivity);
     }
@@ -98,8 +97,7 @@ public class ServiceActivityResource {
         }
 
         serviceActivity = serviceActivityRepository.save(serviceActivity);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, serviceActivity.getId()))
             .body(serviceActivity);
     }
@@ -211,7 +209,9 @@ public class ServiceActivityResource {
     public ResponseEntity<Void> deleteServiceActivity(@PathVariable("id") String id) {
         LOG.debug("REST request to delete ServiceActivity : {}", id);
         serviceActivityRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

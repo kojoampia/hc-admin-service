@@ -67,8 +67,7 @@ class VendorSummaryIT {
 
     @Test
     void summaryTotalsTheWholeCollection() throws Exception {
-        mvc
-            .perform(get("/api/vendors/summary"))
+        mvc.perform(get("/api/vendors/summary"))
             .andExpect(status().isOk())
             // 1000.50 + 2000.25 + 500.25 + 99.00 + 10.00. The archived 9999.99 is excluded, and the
             // null contributes nothing — asserted as a number so 3610.00 and 3610 both pass.
@@ -94,8 +93,7 @@ class VendorSummaryIT {
     void summaryOfAnEmptyDirectoryIsZero() throws Exception {
         vendorRepository.deleteAll();
 
-        mvc
-            .perform(get("/api/vendors/summary"))
+        mvc.perform(get("/api/vendors/summary"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.spendToDate").value(0))
             .andExpect(jsonPath("$.categoryCount").value(0))

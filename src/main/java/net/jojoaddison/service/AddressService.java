@@ -96,8 +96,7 @@ public class AddressService {
 
     public List<AddressDTO> findAllWhereProfileIsNull() {
         LOG.debug("Request to get all addresses where Profile is null");
-        return StreamSupport
-            .stream(addressRepository.findAll().spliterator(), false)
+        return StreamSupport.stream(addressRepository.findAll().spliterator(), false)
             .filter(address -> address.getProfile() == null)
             .map(addressMapper::toDto)
             .collect(Collectors.toCollection(LinkedList::new));
@@ -110,8 +109,7 @@ public class AddressService {
 
     public List<AddressDTO> findAllWhereHubIsNull() {
         LOG.debug("Request to get all addresses where Hub is null");
-        return StreamSupport
-            .stream(addressRepository.findAll().spliterator(), false)
+        return StreamSupport.stream(addressRepository.findAll().spliterator(), false)
             .filter(address -> address.getHub() == null)
             .map(addressMapper::toDto)
             .collect(Collectors.toCollection(LinkedList::new));
@@ -124,8 +122,7 @@ public class AddressService {
 
     public List<AddressDTO> findAllWhereOrganisationIsNull() {
         LOG.debug("Request to get all addresses where Organisation is null");
-        return StreamSupport
-            .stream(addressRepository.findAll().spliterator(), false)
+        return StreamSupport.stream(addressRepository.findAll().spliterator(), false)
             .filter(address -> address.getOrganisation() == null)
             .map(addressMapper::toDto)
             .collect(Collectors.toCollection(LinkedList::new));

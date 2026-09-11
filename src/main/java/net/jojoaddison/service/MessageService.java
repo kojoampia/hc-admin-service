@@ -120,8 +120,7 @@ public class MessageService {
         String subjectContains,
         MessageChannel channel
     ) {
-        NamedFilters.Builder filters = NamedFilters
-            .builder()
+        NamedFilters.Builder filters = NamedFilters.builder()
             .equals("status", status)
             .equals("priority", priority)
             .equals("channel", channel)

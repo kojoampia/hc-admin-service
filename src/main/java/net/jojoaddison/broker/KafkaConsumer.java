@@ -159,13 +159,10 @@ public class KafkaConsumer implements Consumer<String> {
     }
 
     private void remove(String key, SseEmitter emitter) {
-        emitters.computeIfPresent(
-            key,
-            (ignored, registered) -> {
-                registered.remove(emitter);
-                // Returning null drops the key, so a principal who disconnects leaves nothing behind.
-                return registered.isEmpty() ? null : registered;
-            }
-        );
+        emitters.computeIfPresent(key, (ignored, registered) -> {
+            registered.remove(emitter);
+            // Returning null drops the key, so a principal who disconnects leaves nothing behind.
+            return registered.isEmpty() ? null : registered;
+        });
     }
 }

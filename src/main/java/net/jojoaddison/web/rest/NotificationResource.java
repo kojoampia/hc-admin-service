@@ -57,8 +57,7 @@ public class NotificationResource {
             throw new BadRequestAlertException("A new notification cannot already have an ID", ENTITY_NAME, "idexists");
         }
         notification = notificationRepository.save(notification);
-        return ResponseEntity
-            .created(new URI("/api/notifications/" + notification.getId()))
+        return ResponseEntity.created(new URI("/api/notifications/" + notification.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, notification.getId()))
             .body(notification);
     }
@@ -91,8 +90,7 @@ public class NotificationResource {
         }
 
         notification = notificationRepository.save(notification);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, notification.getId()))
             .body(notification);
     }
@@ -191,6 +189,8 @@ public class NotificationResource {
     public ResponseEntity<Void> deleteNotification(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Notification : {}", id);
         notificationRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

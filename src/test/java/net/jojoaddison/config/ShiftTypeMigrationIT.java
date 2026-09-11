@@ -65,8 +65,11 @@ class ShiftTypeMigrationIT {
 
         List<Document> stored = mongoTemplate.findAll(Document.class, COLLECTION);
         assertThat(stored).hasSize(ShiftType.values().length);
-        assertThat(stored.stream().map(document -> document.getString("shift")))
-            .containsExactlyInAnyOrder(java.util.Arrays.stream(ShiftType.values()).map(Enum::name).toArray(String[]::new));
+        assertThat(stored.stream().map(document -> document.getString("shift"))).containsExactlyInAnyOrder(
+            java.util.Arrays.stream(ShiftType.values())
+                .map(Enum::name)
+                .toArray(String[]::new)
+        );
     }
 
     /**

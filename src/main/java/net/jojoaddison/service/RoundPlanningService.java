@@ -391,8 +391,7 @@ public class RoundPlanningService {
         return eligible
             .stream()
             .min(
-                Comparator
-                    .comparingInt((Professional candidate) -> proximity.get(candidate.getId()))
+                Comparator.comparingInt((Professional candidate) -> proximity.get(candidate.getId()))
                     .thenComparingInt(candidate -> load.get(candidate.getId()))
                     .thenComparing(Professional::getId, Comparator.nullsLast(Comparator.naturalOrder()))
             )
@@ -484,10 +483,11 @@ public class RoundPlanningService {
         if (chosen.getProfile() == null) {
             return chosen.getId();
         }
-        String name =
-            ((chosen.getProfile().getFirstName() == null ? "" : chosen.getProfile().getFirstName()) +
-                " " +
-                (chosen.getProfile().getLastName() == null ? "" : chosen.getProfile().getLastName())).trim();
+        String name = (
+            (chosen.getProfile().getFirstName() == null ? "" : chosen.getProfile().getFirstName()) +
+            " " +
+            (chosen.getProfile().getLastName() == null ? "" : chosen.getProfile().getLastName())
+        ).trim();
         return name.isEmpty() ? chosen.getId() : name;
     }
 }

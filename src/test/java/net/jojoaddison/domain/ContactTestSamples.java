@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ContactTestSamples {
 
     private static final Random random = new Random();
-    private static final AtomicInteger intCount = new AtomicInteger(random.nextInt() + (2 * Short.MAX_VALUE));
+    private static final AtomicInteger intCount = new AtomicInteger(random.nextInt() + 2 * Short.MAX_VALUE);
 
     public static Contact getContactSample1() {
         return new Contact().id("id1").personId("personId1").email("email1").phoneNumber("phoneNumber1").countryCode(1);

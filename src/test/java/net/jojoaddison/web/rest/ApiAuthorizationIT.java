@@ -69,7 +69,11 @@ class ApiAuthorizationIT {
     private RequestMappingHandlerMapping handlerMapping;
 
     private static JwtRequestPostProcessor as(String... authorities) {
-        return jwt().authorities(Arrays.stream(authorities).map(SimpleGrantedAuthority::new).toArray(GrantedAuthority[]::new));
+        return jwt().authorities(
+            Arrays.stream(authorities)
+                .map(SimpleGrantedAuthority::new)
+                .toArray(GrantedAuthority[]::new)
+        );
     }
 
     // --- anonymous -------------------------------------------------------------------------------
@@ -114,9 +118,9 @@ class ApiAuthorizationIT {
 
     @Test
     void plainUserCannotWrite() throws Exception {
-        mvc
-            .perform(post(ENTITY_PATH).with(as(AuthoritiesConstants.USER)).contentType(MediaType.APPLICATION_JSON).content("{}"))
-            .andExpect(status().isForbidden());
+        mvc.perform(post(ENTITY_PATH).with(as(AuthoritiesConstants.USER)).contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(
+            status().isForbidden()
+        );
         mvc.perform(delete(ENTITY_PATH + "/any-id").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
     }
 
@@ -129,9 +133,9 @@ class ApiAuthorizationIT {
 
     @Test
     void operatorCannotWrite() throws Exception {
-        mvc
-            .perform(post(ENTITY_PATH).with(as(AuthoritiesConstants.OPERATOR)).contentType(MediaType.APPLICATION_JSON).content("{}"))
-            .andExpect(status().isForbidden());
+        mvc.perform(
+            post(ENTITY_PATH).with(as(AuthoritiesConstants.OPERATOR)).contentType(MediaType.APPLICATION_JSON).content("{}")
+        ).andExpect(status().isForbidden());
         mvc.perform(delete(ENTITY_PATH + "/any-id").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isForbidden());
     }
 
@@ -196,14 +200,14 @@ class ApiAuthorizationIT {
      */
     @Test
     void adminReachesTheWriteHandlers() throws Exception {
-        mvc
-            .perform(post(ENTITY_PATH).with(as(AuthoritiesConstants.ADMIN)).contentType(MediaType.APPLICATION_JSON).content("{}"))
-            .andExpect(result -> {
+        mvc.perform(post(ENTITY_PATH).with(as(AuthoritiesConstants.ADMIN)).contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(
+            result -> {
                 int status = result.getResponse().getStatus();
                 if (status == 401 || status == 403) {
                     throw new AssertionError("admin was refused at the filter chain, status " + status);
                 }
-            });
+            }
+        );
     }
 
     // --- bulk export: the one place an operator's read stops ---------------------------------------
@@ -330,14 +334,12 @@ class ApiAuthorizationIT {
      */
     @Test
     void operatorCannotRecordAVerification() throws Exception {
-        mvc
-            .perform(
-                post("/api/professional-verifications")
-                    .with(as(AuthoritiesConstants.OPERATOR))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{}")
-            )
-            .andExpect(status().isForbidden());
+        mvc.perform(
+            post("/api/professional-verifications")
+                .with(as(AuthoritiesConstants.OPERATOR))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+        ).andExpect(status().isForbidden());
     }
 
     /** They can still read the history, like everything else under GET. */
@@ -380,11 +382,9 @@ class ApiAuthorizationIT {
      */
     @Test
     void theGeographicSpaceCarveOutDoesNotExtendToWrites() throws Exception {
-        mvc
-            .perform(
-                post("/api/geographic-spaces").with(as(AuthoritiesConstants.USER)).contentType(MediaType.APPLICATION_JSON).content("{}")
-            )
-            .andExpect(status().isForbidden());
+        mvc.perform(
+            post("/api/geographic-spaces").with(as(AuthoritiesConstants.USER)).contentType(MediaType.APPLICATION_JSON).content("{}")
+        ).andExpect(status().isForbidden());
         mvc.perform(delete("/api/geographic-spaces/any-id").with(as(AuthoritiesConstants.USER))).andExpect(status().isForbidden());
     }
 
@@ -432,9 +432,9 @@ class ApiAuthorizationIT {
      */
     @Test
     void theGeographicSpaceCarveOutDoesNotExtendToSubPaths() throws Exception {
-        mvc
-            .perform(get("/api/geographic-spaces/any-id/professionals").with(as(AuthoritiesConstants.USER)))
-            .andExpect(status().isForbidden());
+        mvc.perform(get("/api/geographic-spaces/any-id/professionals").with(as(AuthoritiesConstants.USER))).andExpect(
+            status().isForbidden()
+        );
     }
 
     /**
@@ -472,9 +472,9 @@ class ApiAuthorizationIT {
         assertThat(mapped)
             .as(
                 "A new path under /api/geographic-spaces/ needs its own matcher ABOVE the two in " +
-                "SecurityConfiguration, gated on what it discloses — one segment deep it matches " +
-                "{id} and is open to every authenticated caller on three stacks. Add the matcher, " +
-                "then add the pattern here."
+                    "SecurityConfiguration, gated on what it discloses — one segment deep it matches " +
+                    "{id} and is open to every authenticated caller on three stacks. Add the matcher, " +
+                    "then add the pattern here."
             )
             .containsExactlyInAnyOrder("/api/geographic-spaces", "/api/geographic-spaces/{id}");
     }
@@ -499,9 +499,9 @@ class ApiAuthorizationIT {
     void patientReachesNothingAtAll() throws Exception {
         mvc.perform(get(ENTITY_PATH).with(as(AuthoritiesConstants.PATIENT))).andExpect(status().isForbidden());
         mvc.perform(get("/api/duty-rosters").with(as(AuthoritiesConstants.PATIENT))).andExpect(status().isForbidden());
-        mvc
-            .perform(get("/api/duty-rosters/patient/some-profile-id").param("date", "2026-08-05").with(as(AuthoritiesConstants.PATIENT)))
-            .andExpect(status().isForbidden());
+        mvc.perform(
+            get("/api/duty-rosters/patient/some-profile-id").param("date", "2026-08-05").with(as(AuthoritiesConstants.PATIENT))
+        ).andExpect(status().isForbidden());
     }
 
     /**
@@ -517,22 +517,20 @@ class ApiAuthorizationIT {
     void theDutyRosterSurfaceNoLongerExists() throws Exception {
         mvc.perform(get("/api/duty-rosters").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isNotFound());
         mvc.perform(get("/api/duty-rosters/anything").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isNotFound());
-        mvc
-            .perform(post("/api/duty-rosters/auto-schedule").param("date", "2026-08-05").with(as(AuthoritiesConstants.ADMIN)))
-            .andExpect(status().isNotFound());
+        mvc.perform(post("/api/duty-rosters/auto-schedule").param("date", "2026-08-05").with(as(AuthoritiesConstants.ADMIN))).andExpect(
+            status().isNotFound()
+        );
     }
 
     /** Planning is a write, so it is admin-only and an operator's read authority is not enough. */
     @Test
     void planningIsAdminOnly() throws Exception {
-        mvc
-            .perform(
-                post("/api/roster-plans")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"date\":\"2026-08-12\",\"rounds\":[]}")
-                    .with(as(AuthoritiesConstants.OPERATOR))
-            )
-            .andExpect(status().isForbidden());
+        mvc.perform(
+            post("/api/roster-plans")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"date\":\"2026-08-12\",\"rounds\":[]}")
+                .with(as(AuthoritiesConstants.OPERATOR))
+        ).andExpect(status().isForbidden());
         mvc.perform(post("/api/roster-plans").contentType(MediaType.APPLICATION_JSON).content("{}")).andExpect(status().isUnauthorized());
     }
 }

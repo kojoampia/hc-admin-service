@@ -47,5 +47,4 @@ public record ProfessionalEarningsDTO(
     String currency,
     boolean archived,
     List<EarningsBucketDTO> buckets
-)
-    implements Serializable {}
+) implements Serializable {}

@@ -52,8 +52,9 @@ class DirectoryEventConsumersTest {
      */
     @Test
     void aFailedWriteIsRethrownSoTheBinderCanRetryAndDeadLetterIt() {
-        when(projection.apply(any(SiblingDomainEvent.class)))
-            .thenThrow(new DataAccessResourceFailureException("Timed out while waiting for a server that matches ReadPreference"));
+        when(projection.apply(any(SiblingDomainEvent.class))).thenThrow(
+            new DataAccessResourceFailureException("Timed out while waiting for a server that matches ReadPreference")
+        );
 
         assertThatExceptionOfType(DataAccessResourceFailureException.class)
             .as("swallowing this commits the offset over an event nothing can then recover")
@@ -70,8 +71,9 @@ class DirectoryEventConsumersTest {
             "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"hc-professional-gateway\",\"actor\":\"anonymous\"," +
             "\"payload\":{\"accountId\":\"acc-1\",\"login\":\"kboateng\",\"email\":\"k.boateng@example.com\"}}";
 
-        assertThatExceptionOfType(DataAccessResourceFailureException.class)
-            .isThrownBy(() -> consumers.professionalDirectoryConsumer().accept(MessageBuilder.withPayload(bytes(frame)).build()));
+        assertThatExceptionOfType(DataAccessResourceFailureException.class).isThrownBy(() ->
+            consumers.professionalDirectoryConsumer().accept(MessageBuilder.withPayload(bytes(frame)).build())
+        );
     }
 
     /**
@@ -87,10 +89,10 @@ class DirectoryEventConsumersTest {
     @Test
     void aFrameThisServiceCannotUseNeverReachesTheProjection() {
         assertThatCode(() -> {
-                consumers.patientDirectoryConsumer().accept(patientFrame("this is not an envelope"));
-                consumers.patientDirectoryConsumer().accept(patientFrame("{\"type\":\"SomethingAddedNextYear\",\"subject\":{}}"));
-                consumers.professionalDirectoryConsumer().accept(MessageBuilder.withPayload(bytes("{}")).build());
-            })
+            consumers.patientDirectoryConsumer().accept(patientFrame("this is not an envelope"));
+            consumers.patientDirectoryConsumer().accept(patientFrame("{\"type\":\"SomethingAddedNextYear\",\"subject\":{}}"));
+            consumers.professionalDirectoryConsumer().accept(MessageBuilder.withPayload(bytes("{}")).build());
+        })
             .as("an unusable frame is refused by the parser and throws nothing")
             .doesNotThrowAnyException();
 
@@ -98,8 +100,7 @@ class DirectoryEventConsumersTest {
     }
 
     private Message<byte[]> patientFrame(String json) {
-        return MessageBuilder
-            .withPayload(bytes(json))
+        return MessageBuilder.withPayload(bytes(json))
             .setHeader(DirectoryEventConsumers.PATIENT_KEY_HEADER, "ama.mensah@example.com")
             .build();
     }

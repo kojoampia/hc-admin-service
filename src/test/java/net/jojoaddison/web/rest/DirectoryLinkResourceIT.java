@@ -60,8 +60,7 @@ class DirectoryLinkResourceIT {
     void listsTheLinksWithPaginationHeaders() throws Exception {
         directoryLinkRepository.save(link(EMAIL, null));
 
-        mvc
-            .perform(get("/api/directory-links").param("page", "0").param("size", "20"))
+        mvc.perform(get("/api/directory-links").param("page", "0").param("size", "20"))
             .andExpect(status().isOk())
             .andExpect(header().exists("X-Total-Count"))
             .andExpect(jsonPath("$[0].externalKey").value(EMAIL))
@@ -72,12 +71,10 @@ class DirectoryLinkResourceIT {
     void filtersBySource() throws Exception {
         directoryLinkRepository.save(link(EMAIL, null));
 
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PATIENT"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PATIENT"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isNotEmpty());
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isEmpty());
     }
@@ -94,8 +91,7 @@ class DirectoryLinkResourceIT {
         DirectoryLink wanted = directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
         directoryLinkRepository.save(link("someone.else@" + EMAIL, "patient-on-another-page"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "patient-on-screen", "an-id-with-no-link"))
+        mvc.perform(get("/api/directory-links").param("localId.in", "patient-on-screen", "an-id-with-no-link"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$.length()").value(1))
@@ -111,12 +107,10 @@ class DirectoryLinkResourceIT {
     void combinesTheSourceAndLocalIdFilters() throws Exception {
         directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
 
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PATIENT").param("localId.in", "patient-on-screen"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PATIENT").param("localId.in", "patient-on-screen"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1));
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("localId.in", "patient-on-screen"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("localId.in", "patient-on-screen"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isEmpty());
     }
@@ -138,15 +132,13 @@ class DirectoryLinkResourceIT {
         directoryLinkRepository.save(link(EMAIL, "a-patient-with-a-record"));
         directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
 
-        mvc
-            .perform(get("/api/directory-links").param("unlinked", "true"))
+        mvc.perform(get("/api/directory-links").param("unlinked", "true"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].externalKey").value("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"))
             .andExpect(jsonPath("$[0].source").value("HC_PROFESSIONAL"));
 
-        mvc
-            .perform(get("/api/directory-links").param("unlinked", "false"))
+        mvc.perform(get("/api/directory-links").param("unlinked", "false"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].localId").value("a-patient-with-a-record"));
@@ -186,8 +178,7 @@ class DirectoryLinkResourceIT {
             "directory_link"
         );
 
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].externalKey").value("written-by-the-projection"));
@@ -243,18 +234,16 @@ class DirectoryLinkResourceIT {
         directoryLinkRepository.save(withRecord);
 
         // The control: two links of this source, one of which the panel must never list.
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "2"));
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"));
 
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", ""))
-            .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "")).andExpect(
+            status().isBadRequest()
+        );
         // Whitespace binds null too, and " " is not blank to every String check in this codebase.
         mvc.perform(get("/api/directory-links").param("unlinked", " ")).andExpect(status().isBadRequest());
     }
@@ -295,8 +284,7 @@ class DirectoryLinkResourceIT {
         // The ordinary row: a patient with a record and no membership on hc-patient at all.
         directoryLinkRepository.save(link(EMAIL, "a-patient-who-chose-nothing"));
 
-        mvc
-            .perform(get("/api/directory-links").param("planStatus", "PENDING"))
+        mvc.perform(get("/api/directory-links").param("planStatus", "PENDING"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].planCode").value("PAWPAW"))
@@ -304,16 +292,14 @@ class DirectoryLinkResourceIT {
             .andExpect(jsonPath("$[0].planMembershipId").value("mem-991"))
             .andExpect(jsonPath("$[0].localId").value("a-pending-patient"));
 
-        mvc
-            .perform(get("/api/directory-links").param("planStatus", "ACTIVE"))
+        mvc.perform(get("/api/directory-links").param("planStatus", "ACTIVE"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].planCode").value("PEAR"));
 
         // Their vocabulary, matched exactly. A value this service has never heard of is a legitimate
         // question with an empty answer, not a 400 — the set is hc-patient's to extend.
-        mvc
-            .perform(get("/api/directory-links").param("planStatus", "SOMETHING_THEY_ADD_NEXT"))
+        mvc.perform(get("/api/directory-links").param("planStatus", "SOMETHING_THEY_ADD_NEXT"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"));
     }
@@ -347,8 +333,7 @@ class DirectoryLinkResourceIT {
         directoryLinkRepository.save(older);
         directoryLinkRepository.save(newest);
 
-        mvc
-            .perform(get("/api/directory-links").param("planStatus", "PENDING").param("sort", "lastEventAt,desc"))
+        mvc.perform(get("/api/directory-links").param("planStatus", "PENDING").param("sort", "lastEventAt,desc"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "2"))
             .andExpect(jsonPath("$[0].planCode").value("MELON"))
@@ -398,8 +383,7 @@ class DirectoryLinkResourceIT {
         directoryLinkRepository.save(angel);
         directoryLinkRepository.save(clinician("9f1c3e77-52aa-4a0b-9a5c-6b3f1d7e0a11"));
 
-        mvc
-            .perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
+        mvc.perform(get("/api/directory-links").param("source", "HC_PROFESSIONAL").param("unlinked", "true"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].source").value("HC_PROFESSIONAL"));
@@ -437,8 +421,7 @@ class DirectoryLinkResourceIT {
     void anEmptyLocalIdFilterMatchesNothingRatherThanEverything() throws Exception {
         directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", ""))
+        mvc.perform(get("/api/directory-links").param("localId.in", ""))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"))
             .andExpect(jsonPath("$").isEmpty());
@@ -454,8 +437,7 @@ class DirectoryLinkResourceIT {
     void aFilterOfNothingButBlanksMatchesNothingEither() throws Exception {
         directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "", " "))
+        mvc.perform(get("/api/directory-links").param("localId.in", "", " "))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "0"))
             .andExpect(jsonPath("$").isEmpty());
@@ -473,8 +455,7 @@ class DirectoryLinkResourceIT {
         directoryLinkRepository.save(link(EMAIL, "patient-on-screen"));
         directoryLinkRepository.save(link("someone.else@" + EMAIL, "patient-on-another-page"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "", "patient-on-screen"))
+        mvc.perform(get("/api/directory-links").param("localId.in", "", "patient-on-screen"))
             .andExpect(status().isOk())
             .andExpect(header().string("X-Total-Count", "1"))
             .andExpect(jsonPath("$[0].localId").value("patient-on-screen"));
@@ -506,8 +487,7 @@ class DirectoryLinkResourceIT {
     void reconcileRebuildsAMissingRecord() throws Exception {
         directoryLinkRepository.save(link(EMAIL, "an-id-that-no-longer-exists"));
 
-        mvc
-            .perform(post("/api/directory-links/reconcile"))
+        mvc.perform(post("/api/directory-links/reconcile"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.examined").value(1))
             .andExpect(jsonPath("$.created").value(1))
@@ -593,8 +573,7 @@ class DirectoryLinkResourceIT {
         directoryLinkRepository.save(link(EMAIL, null));
 
         mvc.perform(post("/api/directory-links/reconcile")).andExpect(status().isOk()).andExpect(jsonPath("$.created").value(1));
-        mvc
-            .perform(post("/api/directory-links/reconcile"))
+        mvc.perform(post("/api/directory-links/reconcile"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.created").value(0))
             .andExpect(jsonPath("$.alreadyPresent").value(1));
@@ -609,7 +588,10 @@ class DirectoryLinkResourceIT {
     @Test
     void reconcileDoesNotTouchAnExistingRecord() throws Exception {
         Patient patient = patientRepository.save(
-            new Patient().status(AccountStatus.SUSPENDED).joinedOn(LocalDate.of(2026, 1, 1)).caseCount(4)
+            new Patient()
+                .status(AccountStatus.SUSPENDED)
+                .joinedOn(LocalDate.of(2026, 1, 1))
+                .caseCount(4)
         );
         directoryLinkRepository.save(link(EMAIL, patient.getId()));
 
@@ -639,8 +621,7 @@ class DirectoryLinkResourceIT {
         erased.setErasedAt(Instant.parse("2026-08-21T10:00:00Z"));
         directoryLinkRepository.save(erased);
 
-        mvc
-            .perform(post("/api/directory-links/reconcile"))
+        mvc.perform(post("/api/directory-links/reconcile"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.examined").value(2))
             .andExpect(jsonPath("$.created").value(0))

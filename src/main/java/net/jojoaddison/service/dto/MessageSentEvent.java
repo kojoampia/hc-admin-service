@@ -28,8 +28,7 @@ public record MessageSentEvent(
     String channel,
     String priority,
     String parentId
-)
-    implements Serializable {
+) implements Serializable {
     @Serial
     private static final long serialVersionUID = 1L;
 

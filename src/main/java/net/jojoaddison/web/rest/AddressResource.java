@@ -61,8 +61,7 @@ public class AddressResource {
             throw new BadRequestAlertException("A new address cannot already have an ID", ENTITY_NAME, "idexists");
         }
         addressDTO = addressService.save(addressDTO);
-        return ResponseEntity
-            .created(new URI("/api/addresses/" + addressDTO.getId()))
+        return ResponseEntity.created(new URI("/api/addresses/" + addressDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, addressDTO.getId()))
             .body(addressDTO);
     }
@@ -95,8 +94,7 @@ public class AddressResource {
         }
 
         addressDTO = addressService.update(addressDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, addressDTO.getId()))
             .body(addressDTO);
     }
@@ -174,6 +172,8 @@ public class AddressResource {
     public ResponseEntity<Void> deleteAddress(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Address : {}", id);
         addressService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

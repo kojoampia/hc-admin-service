@@ -66,8 +66,7 @@ public class PhotoResource {
             throw new BadRequestAlertException("A new photo cannot already have an ID", ENTITY_NAME, "idexists");
         }
         photoDTO = photoService.save(photoDTO);
-        return ResponseEntity
-            .created(new URI("/api/photos/" + photoDTO.getId()))
+        return ResponseEntity.created(new URI("/api/photos/" + photoDTO.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, photoDTO.getId()))
             .body(photoDTO);
     }
@@ -100,8 +99,7 @@ public class PhotoResource {
         }
 
         photoDTO = photoService.update(photoDTO);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, photoDTO.getId()))
             .body(photoDTO);
     }
@@ -179,6 +177,8 @@ public class PhotoResource {
     public ResponseEntity<Void> deletePhoto(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Photo : {}", id);
         photoService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

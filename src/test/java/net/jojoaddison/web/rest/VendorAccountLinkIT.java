@@ -71,8 +71,7 @@ class VendorAccountLinkIT {
 
     @Test
     void resolvesALoginToItsVendor() throws Exception {
-        mvc
-            .perform(get("/api/vendors").param("accountId.equals", "kaneshie").param("size", "100"))
+        mvc.perform(get("/api/vendors").param("accountId.equals", "kaneshie").param("size", "100"))
             .andExpect(status().isOk())
             // Exactly one is the whole contract, so assert the count and not merely that the right
             // vendor is somewhere in the page: a regression that OR-combined the criteria, or a
@@ -90,8 +89,7 @@ class VendorAccountLinkIT {
      */
     @Test
     void resolutionIsNormalisedOnTheWayIn() throws Exception {
-        mvc
-            .perform(get("/api/vendors").param("accountId.equals", "  KaneShie ").param("size", "100"))
+        mvc.perform(get("/api/vendors").param("accountId.equals", "  KaneShie ").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(linked.getId())).exists());
@@ -105,8 +103,7 @@ class VendorAccountLinkIT {
      */
     @Test
     void anUnknownLoginIsAnEmptyPageAndNotAnError() throws Exception {
-        mvc
-            .perform(get("/api/vendors").param("accountId.equals", "nobody").param("size", "100"))
+        mvc.perform(get("/api/vendors").param("accountId.equals", "nobody").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$").isEmpty());
@@ -130,8 +127,7 @@ class VendorAccountLinkIT {
 
     @Test
     void anAbsentFilterStillListsTheDirectory() throws Exception {
-        mvc
-            .perform(get("/api/vendors").param("size", "100"))
+        mvc.perform(get("/api/vendors").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(linked.getId())).exists())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(unlinked.getId())).exists());
@@ -197,13 +193,11 @@ class VendorAccountLinkIT {
      */
     @Test
     void aLoginCannotBeGivenToASecondVendorOnCreate() throws Exception {
-        mvc
-            .perform(
-                post("/api/vendors")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsBytes(VendorResourceIT.createEntity().accountId("kaneshie")))
-            )
-            .andExpect(status().isBadRequest());
+        mvc.perform(
+            post("/api/vendors")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsBytes(VendorResourceIT.createEntity().accountId("kaneshie")))
+        ).andExpect(status().isBadRequest());
 
         assertThat(vendorRepository.count()).as("nothing was written").isEqualTo(2);
     }
@@ -214,13 +208,11 @@ class VendorAccountLinkIT {
         patch.setId(unlinked.getId());
         patch.setAccountId("kaneshie");
 
-        mvc
-            .perform(
-                patch("/api/vendors/{id}", unlinked.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(objectMapper.writeValueAsBytes(patch))
-            )
-            .andExpect(status().isBadRequest());
+        mvc.perform(
+            patch("/api/vendors/{id}", unlinked.getId())
+                .contentType("application/merge-patch+json")
+                .content(objectMapper.writeValueAsBytes(patch))
+        ).andExpect(status().isBadRequest());
 
         assertThat(vendorRepository.findById(unlinked.getId()).orElseThrow().getAccountId()).isNull();
     }
@@ -232,13 +224,11 @@ class VendorAccountLinkIT {
         patch.setId(linked.getId());
         patch.setAccountId("kaneshie");
 
-        mvc
-            .perform(
-                patch("/api/vendors/{id}", linked.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(objectMapper.writeValueAsBytes(patch))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch("/api/vendors/{id}", linked.getId())
+                .contentType("application/merge-patch+json")
+                .content(objectMapper.writeValueAsBytes(patch))
+        ).andExpect(status().isOk());
     }
 
     /**
@@ -252,12 +242,11 @@ class VendorAccountLinkIT {
         patch.setId(unlinked.getId());
         patch.setAccountId("  RiDGe  ");
 
-        mvc
-            .perform(
-                patch("/api/vendors/{id}", unlinked.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(objectMapper.writeValueAsBytes(patch))
-            )
+        mvc.perform(
+            patch("/api/vendors/{id}", unlinked.getId())
+                .contentType("application/merge-patch+json")
+                .content(objectMapper.writeValueAsBytes(patch))
+        )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.accountId").value("ridge"));
 
@@ -270,13 +259,11 @@ class VendorAccountLinkIT {
         patch.setId(linked.getId());
         patch.setAccountId("   ");
 
-        mvc
-            .perform(
-                patch("/api/vendors/{id}", linked.getId())
-                    .contentType("application/merge-patch+json")
-                    .content(objectMapper.writeValueAsBytes(patch))
-            )
-            .andExpect(status().isOk());
+        mvc.perform(
+            patch("/api/vendors/{id}", linked.getId())
+                .contentType("application/merge-patch+json")
+                .content(objectMapper.writeValueAsBytes(patch))
+        ).andExpect(status().isOk());
 
         // The merge ignores nulls, so a blank does not clear an existing link - it is simply not a
         // value. What matters is that "" never reaches the database.

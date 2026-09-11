@@ -99,8 +99,9 @@ class BacklogStampingIT {
         dto.setSubject("Edited later");
         messageService.update(dto);
 
-        assertThat(messageRepository.findById(read.getId()).orElseThrow().getReadAt())
-            .isEqualTo(Instant.parse("2026-07-04T10:30:00Z").truncatedTo(ChronoUnit.MILLIS));
+        assertThat(messageRepository.findById(read.getId()).orElseThrow().getReadAt()).isEqualTo(
+            Instant.parse("2026-07-04T10:30:00Z").truncatedTo(ChronoUnit.MILLIS)
+        );
     }
 
     /** Marked unread again, it is in the backlog again — and a backlog entry has no read time. */

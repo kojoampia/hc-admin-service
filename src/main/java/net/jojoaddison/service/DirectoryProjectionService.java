@@ -407,7 +407,7 @@ public class DirectoryProjectionService {
         if (outcome == Outcome.LINKED) {
             LOG.info(
                 "Directory learned a PROFILE from HC_PROFESSIONAL ({}): {} — phase 2 arrived before phase 1, so this account " +
-                "has a profile status and no registration yet, and no local record is created for a clinician either way",
+                    "has a profile status and no registration yet, and no local record is created for a clinician either way",
                 event.type(),
                 subject
             );
@@ -485,9 +485,9 @@ public class DirectoryProjectionService {
         if (registrationOnly > 0 && profileOnly > 0) {
             LOG.warn(
                 "No hc-professional account has both phases: {} registrations have no profile status and {} profile statuses " +
-                "have no registration, including {}. The two phases join on accountId and must match exactly — compare the " +
-                "accountId hc-professional's gateway publishes on hc.professional.registration with the one its api publishes " +
-                "on hc.professional.entity. Both streams being healthy is what this failure looks like.",
+                    "have no registration, including {}. The two phases join on accountId and must match exactly — compare the " +
+                    "accountId hc-professional's gateway publishes on hc.professional.registration with the one its api publishes " +
+                    "on hc.professional.entity. Both streams being healthy is what this failure looks like.",
                 registrationOnly,
                 profileOnly,
                 LogPseudonym.subject(accountId)
@@ -733,8 +733,8 @@ public class DirectoryProjectionService {
         } else {
             LOG.warn(
                 "Directory learned a plan choice from HC_PATIENT ({}): {} chose '{}' ({}), which is not a code in this catalogue — " +
-                "the choice is stored and shown, but no ServicePlan matches it, so no price is resolvable. Either Abofonsa has " +
-                "published a tier ServicePlanCatalogueSyncService has not brought across yet, or the two vocabularies have parted.",
+                    "the choice is stored and shown, but no ServicePlan matches it, so no price is resolvable. Either Abofonsa has " +
+                    "published a tier ServicePlanCatalogueSyncService has not brought across yet, or the two vocabularies have parted.",
                 event.type(),
                 subject,
                 plan.code(),
@@ -811,8 +811,7 @@ public class DirectoryProjectionService {
                     Boolean.TRUE.equals(link.getActivated()),
                     link.getFirstSeenAt() == null ? Instant.now() : link.getFirstSeenAt(),
                     link.getLocalId()
-                ) !=
-                null
+                ) != null
             ) {
                 created++;
             }
@@ -853,14 +852,15 @@ public class DirectoryProjectionService {
      */
     private DirectoryLink upsertLink(SiblingDomainEvent event) {
         Query query = Query.query(Criteria.where("source").is(event.source().name()).and("external_key").is(event.subjectKey()));
-        Update onInsert = new Update()
-            .setOnInsert("source", event.source())
-            .setOnInsert("external_key", event.subjectKey())
-            .setOnInsert("first_seen_at", event.occurredAt())
-            // On insert only. A CREATE event promotes an existing CARE_ANGEL link to PATIENT in
-            // recordEvent below — an angel who later registers in their own right is a patient — and
-            // the reverse must never happen, so LINK_ONLY writes its kind here and not there.
-            .setOnInsert("subject_kind", event.subjectKind());
+        Update onInsert =
+            new Update()
+                .setOnInsert("source", event.source())
+                .setOnInsert("external_key", event.subjectKey())
+                .setOnInsert("first_seen_at", event.occurredAt())
+                // On insert only. A CREATE event promotes an existing CARE_ANGEL link to PATIENT in
+                // recordEvent below — an angel who later registers in their own right is a patient — and
+                // the reverse must never happen, so LINK_ONLY writes its kind here and not there.
+                .setOnInsert("subject_kind", event.subjectKind());
 
         return mongoTemplate.findAndModify(
             query,
@@ -1100,7 +1100,11 @@ public class DirectoryProjectionService {
     private String createAndClaim(DirectorySource source, String subjectKey, boolean activated, Instant at, String staleLocalId) {
         LocalDate day = LocalDate.ofInstant(at, ZoneOffset.UTC);
         Patient patient = patientRepository.save(
-            new Patient().status(activated ? AccountStatus.ACTIVE : AccountStatus.PENDING).joinedOn(day).lastActiveOn(day).caseCount(0)
+            new Patient()
+                .status(activated ? AccountStatus.ACTIVE : AccountStatus.PENDING)
+                .joinedOn(day)
+                .lastActiveOn(day)
+                .caseCount(0)
         );
 
         long claimed = mongoTemplate

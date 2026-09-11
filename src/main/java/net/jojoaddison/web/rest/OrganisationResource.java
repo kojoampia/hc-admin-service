@@ -61,8 +61,7 @@ public class OrganisationResource {
             throw new BadRequestAlertException("A new organisation cannot already have an ID", ENTITY_NAME, "idexists");
         }
         Organisation result = organisationService.save(organisation);
-        return ResponseEntity
-            .created(new URI("/api/organisations/" + result.getId()))
+        return ResponseEntity.created(new URI("/api/organisations/" + result.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, result.getId()))
             .body(result);
     }
@@ -95,8 +94,7 @@ public class OrganisationResource {
         }
 
         Organisation result = organisationService.update(organisation);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, organisation.getId()))
             .body(result);
     }
@@ -174,6 +172,8 @@ public class OrganisationResource {
     public ResponseEntity<Void> deleteOrganisation(@PathVariable("id") String id) {
         log.debug("REST request to delete Organisation : {}", id);
         organisationService.delete(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

@@ -110,6 +110,9 @@ class ProfileByAccountIT {
         // The id route still works for a real id...
         restMockMvc.perform(get("/api/profiles/" + stored.getId())).andExpect(status().isOk());
         // ...and the account route is not being read as an id.
-        restMockMvc.perform(get(ENDPOINT + LOGIN)).andExpect(status().isOk()).andExpect(jsonPath("$.id").value(stored.getId()));
+        restMockMvc
+            .perform(get(ENDPOINT + LOGIN))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(stored.getId()));
     }
 }

@@ -168,8 +168,7 @@ class RoundRelayIT {
     void relaysTheCallersOwnTokenOnARequestThatWentThroughTheRealFilterChain() throws Exception {
         String token = createValidTokenForUser(jwtKey, "admin");
 
-        mvc
-            .perform(post("/api/relay-probe-round").header(AUTHORIZATION, BEARER + token))
+        mvc.perform(post("/api/relay-probe-round").header(AUTHORIZATION, BEARER + token))
             .andExpect(status().isOk())
             .andExpect(content().string(FILED_ROUND_ID));
 
@@ -203,19 +202,16 @@ class RoundRelayIT {
     private static HttpServer startStub() {
         try {
             HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-            server.createContext(
-                "/",
-                exchange -> {
-                    REQUESTS.incrementAndGet();
-                    AUTHORIZATION_SEEN.set(exchange.getRequestHeaders().getFirst("Authorization"));
-                    REQUEST_LINE_SEEN.set(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath());
-                    byte[] payload = ("{\"id\":\"" + FILED_ROUND_ID + "\"}").getBytes(StandardCharsets.UTF_8);
-                    exchange.getResponseHeaders().add("Content-Type", "application/json");
-                    exchange.sendResponseHeaders(201, payload.length);
-                    exchange.getResponseBody().write(payload);
-                    exchange.close();
-                }
-            );
+            server.createContext("/", exchange -> {
+                REQUESTS.incrementAndGet();
+                AUTHORIZATION_SEEN.set(exchange.getRequestHeaders().getFirst("Authorization"));
+                REQUEST_LINE_SEEN.set(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath());
+                byte[] payload = ("{\"id\":\"" + FILED_ROUND_ID + "\"}").getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().add("Content-Type", "application/json");
+                exchange.sendResponseHeaders(201, payload.length);
+                exchange.getResponseBody().write(payload);
+                exchange.close();
+            });
             server.start();
             return server;
         } catch (IOException e) {

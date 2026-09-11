@@ -115,11 +115,9 @@ class ProfessionalServiceClientTest {
      */
     @Test
     void anAnonymousRequestRefusesAsMisconfiguredRatherThanRelayingAnEmptyBearer() {
-        SecurityContextHolder
-            .getContext()
-            .setAuthentication(
-                new AnonymousAuthenticationToken("key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")))
-            );
+        SecurityContextHolder.getContext().setAuthentication(
+            new AnonymousAuthenticationToken("key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")))
+        );
         ProfessionalServiceClient client = clientWith(true);
 
         assertThatExceptionOfType(ProfessionalServiceClient.RosterServiceNotConfiguredException.class)
@@ -156,8 +154,9 @@ class ProfessionalServiceClientTest {
     void andTheSubtypeStillFailsTheRoundLikeAnyOtherRefusalToWrite() {
         ProfessionalServiceClient client = clientWith(false);
 
-        assertThatExceptionOfType(ProfessionalServiceClient.RosterServiceUnavailableException.class)
-            .isThrownBy(() -> client.fileRound(ANY_ROUND));
+        assertThatExceptionOfType(ProfessionalServiceClient.RosterServiceUnavailableException.class).isThrownBy(() ->
+            client.fileRound(ANY_ROUND)
+        );
     }
 
     /**
@@ -182,9 +181,9 @@ class ProfessionalServiceClientTest {
      */
     private static void authenticateWithAToken() {
         Jwt jwt = Jwt.withTokenValue(RELAYED_TOKEN).header("alg", "HS512").subject("admin").claim("auth", "ROLE_ADMIN").build();
-        SecurityContextHolder
-            .getContext()
-            .setAuthentication(new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        SecurityContextHolder.getContext().setAuthentication(
+            new JwtAuthenticationToken(jwt, List.of(new SimpleGrantedAuthority("ROLE_ADMIN")))
+        );
     }
 
     /** Bound and released, so the number is one the kernel says is free rather than one guessed. */

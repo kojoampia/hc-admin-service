@@ -101,8 +101,7 @@ class DirectoryLinkNameResolutionIT {
         directoryLinkRepository.save(patientLink(LEARNED, "a15"));
         when(patientServiceClient.resolveName(LEARNED)).thenReturn(new ResolvedName(NameResolution.RESOLVED, "Kojo Ampia-Addison"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "a15").param("resolveNames", "true"))
+        mvc.perform(get("/api/directory-links").param("localId.in", "a15").param("resolveNames", "true"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].resolvedName").value("Kojo Ampia-Addison"))
             .andExpect(jsonPath("$[0].nameResolution").value("RESOLVED"))
@@ -122,8 +121,7 @@ class DirectoryLinkNameResolutionIT {
         directoryLinkRepository.save(patientLink(UNKNOWN_TO_THEM, "a13"));
         when(patientServiceClient.resolveName(UNKNOWN_TO_THEM)).thenReturn(new ResolvedName(NameResolution.NOT_FOUND, null));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "a13").param("resolveNames", "true"))
+        mvc.perform(get("/api/directory-links").param("localId.in", "a13").param("resolveNames", "true"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].nameResolution").value("NOT_FOUND"))
             .andExpect(jsonPath("$[0].resolvedName").doesNotExist())
@@ -142,8 +140,7 @@ class DirectoryLinkNameResolutionIT {
         directoryLinkRepository.save(patientLink(LEARNED, "a15"));
         when(patientServiceClient.resolveName(LEARNED)).thenReturn(new ResolvedName(NameResolution.UNAVAILABLE, null));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "a15").param("resolveNames", "true"))
+        mvc.perform(get("/api/directory-links").param("localId.in", "a15").param("resolveNames", "true"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].nameResolution").value("UNAVAILABLE"))
             .andExpect(jsonPath("$[0].resolvedName").doesNotExist())
@@ -160,8 +157,7 @@ class DirectoryLinkNameResolutionIT {
     void asksNobodyWhenTheCallerDidNotAsk() throws Exception {
         directoryLinkRepository.save(patientLink(LEARNED, "a15"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "a15"))
+        mvc.perform(get("/api/directory-links").param("localId.in", "a15"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].nameResolution").doesNotExist())
             .andExpect(jsonPath("$[0].resolvedName").doesNotExist());
@@ -180,8 +176,7 @@ class DirectoryLinkNameResolutionIT {
     void aBlankResolveNamesIsAnAnswerRatherThanAnError() throws Exception {
         directoryLinkRepository.save(patientLink(LEARNED, "a15"));
 
-        mvc
-            .perform(get("/api/directory-links").param("localId.in", "a15").param("resolveNames", ""))
+        mvc.perform(get("/api/directory-links").param("localId.in", "a15").param("resolveNames", ""))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].nameResolution").doesNotExist());
 
@@ -210,8 +205,7 @@ class DirectoryLinkNameResolutionIT {
         // Sorted, so the clinician is at a known index — the two patient links are seeded with one
         // timestamp and a filter expression cannot express "and no key at all": a row serialized
         // with an explicit null answers `[null]`, which is not the same assertion.
-        mvc
-            .perform(get("/api/directory-links").param("resolveNames", "true").param("size", "20").param("sort", "firstSeenAt,asc"))
+        mvc.perform(get("/api/directory-links").param("resolveNames", "true").param("size", "20").param("sort", "firstSeenAt,asc"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(3))
             .andExpect(jsonPath("$[0].source").value("HC_PROFESSIONAL"))

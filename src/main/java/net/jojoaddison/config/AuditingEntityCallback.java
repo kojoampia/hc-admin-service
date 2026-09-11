@@ -187,13 +187,12 @@ public class AuditingEntityCallback implements BeforeConvertCallback<Object>, Or
         }
 
         void set(String which, Object entity, Object value) throws ReflectiveOperationException {
-            Method setter =
-                switch (which) {
-                    case CREATED_BY -> createdBy;
-                    case CREATED_DATE -> createdDate;
-                    case MODIFIED_BY -> modifiedBy;
-                    default -> modifiedDate;
-                };
+            Method setter = switch (which) {
+                case CREATED_BY -> createdBy;
+                case CREATED_DATE -> createdDate;
+                case MODIFIED_BY -> modifiedBy;
+                default -> modifiedDate;
+            };
             if (setter != null) {
                 setter.invoke(entity, value);
             }

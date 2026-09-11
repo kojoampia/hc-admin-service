@@ -108,8 +108,7 @@ class ArchiveFilterIT {
     @ParameterizedTest
     @MethodSource("endpoints")
     void notEqualsTrueReturnsOnlyTheUnarchived(String path, String active, String archived) throws Exception {
-        mvc
-            .perform(get(path).param("isArchived.notEquals", "true").param("size", "100"))
+        mvc.perform(get(path).param("isArchived.notEquals", "true").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(idOf(active))).exists())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(idOf(archived))).doesNotExist());
@@ -118,8 +117,7 @@ class ArchiveFilterIT {
     @ParameterizedTest
     @MethodSource("endpoints")
     void equalsTrueReturnsOnlyTheArchived(String path, String active, String archived) throws Exception {
-        mvc
-            .perform(get(path).param("isArchived.equals", "true").param("size", "100"))
+        mvc.perform(get(path).param("isArchived.equals", "true").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(idOf(archived))).exists())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(idOf(active))).doesNotExist());
@@ -128,8 +126,7 @@ class ArchiveFilterIT {
     @ParameterizedTest
     @MethodSource("endpoints")
     void noFilterReturnsBothHalves(String path, String active, String archived) throws Exception {
-        mvc
-            .perform(get(path).param("size", "100"))
+        mvc.perform(get(path).param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(idOf(active))).exists())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(idOf(archived))).exists());
@@ -159,13 +156,11 @@ class ArchiveFilterIT {
         assertThat(stored).isNotNull();
         assertThat(stored.containsKey("is_archived")).as("the field must genuinely be absent, not null").isFalse();
 
-        mvc
-            .perform(get("/api/patients").param("isArchived.notEquals", "true").param("size", "100"))
+        mvc.perform(get("/api/patients").param("isArchived.notEquals", "true").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(legacy.getId())).exists());
 
-        mvc
-            .perform(get("/api/patients").param("isArchived.equals", "true").param("size", "100"))
+        mvc.perform(get("/api/patients").param("isArchived.equals", "true").param("size", "100"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.id == '%s')]".formatted(legacy.getId())).doesNotExist());
     }

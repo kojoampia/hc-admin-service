@@ -58,8 +58,7 @@ public class DocumentResource {
             throw new BadRequestAlertException("A new document cannot already have an ID", ENTITY_NAME, "idexists");
         }
         document = documentRepository.save(document);
-        return ResponseEntity
-            .created(new URI("/api/documents/" + document.getId()))
+        return ResponseEntity.created(new URI("/api/documents/" + document.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, document.getId()))
             .body(document);
     }
@@ -92,8 +91,7 @@ public class DocumentResource {
         }
 
         document = documentRepository.save(document);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, document.getId()))
             .body(document);
     }
@@ -181,7 +179,9 @@ public class DocumentResource {
     public ResponseEntity<Void> deleteDocument(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Document : {}", id);
         documentRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

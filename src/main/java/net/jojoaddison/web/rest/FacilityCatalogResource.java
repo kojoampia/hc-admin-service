@@ -58,8 +58,7 @@ public class FacilityCatalogResource {
             throw new BadRequestAlertException("A new facilityCatalog cannot already have an ID", ENTITY_NAME, "idexists");
         }
         facilityCatalog = facilityCatalogRepository.save(facilityCatalog);
-        return ResponseEntity
-            .created(new URI("/api/facility-catalogs/" + facilityCatalog.getId()))
+        return ResponseEntity.created(new URI("/api/facility-catalogs/" + facilityCatalog.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, facilityCatalog.getId()))
             .body(facilityCatalog);
     }
@@ -92,8 +91,7 @@ public class FacilityCatalogResource {
         }
 
         facilityCatalog = facilityCatalogRepository.save(facilityCatalog);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, facilityCatalog.getId()))
             .body(facilityCatalog);
     }
@@ -186,6 +184,8 @@ public class FacilityCatalogResource {
     public ResponseEntity<Void> deleteFacilityCatalog(@PathVariable("id") String id) {
         LOG.debug("REST request to delete FacilityCatalog : {}", id);
         facilityCatalogRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 }

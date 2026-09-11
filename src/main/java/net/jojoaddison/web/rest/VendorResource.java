@@ -74,8 +74,7 @@ public class VendorResource {
         normaliseAccountId(vendor);
         rejectDuplicateAccountId(vendor.getAccountId(), null);
         vendor = vendorRepository.save(vendor);
-        return ResponseEntity
-            .created(new URI("/api/vendors/" + vendor.getId()))
+        return ResponseEntity.created(new URI("/api/vendors/" + vendor.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, vendor.getId()))
             .body(vendor);
     }
@@ -110,8 +109,7 @@ public class VendorResource {
         normaliseAccountId(vendor);
         rejectDuplicateAccountId(vendor.getAccountId(), id);
         vendor = vendorRepository.save(vendor);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, vendor.getId()))
             .body(vendor);
     }
@@ -285,7 +283,9 @@ public class VendorResource {
     public ResponseEntity<Void> deleteVendor(@PathVariable("id") String id) {
         LOG.debug("REST request to delete Vendor : {}", id);
         vendorRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

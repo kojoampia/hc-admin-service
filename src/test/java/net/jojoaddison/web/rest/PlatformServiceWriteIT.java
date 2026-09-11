@@ -98,7 +98,9 @@ class PlatformServiceWriteIT {
 
         restMockMvc
             .perform(
-                put(ENDPOINT + "/" + stored.getId()).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsBytes(stored))
+                put(ENDPOINT + "/" + stored.getId())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsBytes(stored))
             )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.health").value("DEGRADED"))
@@ -114,7 +116,9 @@ class PlatformServiceWriteIT {
 
         restMockMvc
             .perform(
-                put(ENDPOINT + "/a-different-id").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsBytes(stored))
+                put(ENDPOINT + "/a-different-id")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsBytes(stored))
             )
             .andExpect(status().isBadRequest());
     }
@@ -126,7 +130,9 @@ class PlatformServiceWriteIT {
 
         restMockMvc
             .perform(
-                put(ENDPOINT + "/svc-never-stored").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsBytes(unknown))
+                put(ENDPOINT + "/svc-never-stored")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsBytes(unknown))
             )
             .andExpect(status().isBadRequest());
     }

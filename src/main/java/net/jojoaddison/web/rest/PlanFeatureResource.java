@@ -63,8 +63,7 @@ public class PlanFeatureResource {
             throw new BadRequestAlertException("A new planFeature cannot already have an ID", ENTITY_NAME, "idexists");
         }
         planFeature = planFeatureRepository.save(planFeature);
-        return ResponseEntity
-            .created(new URI("/api/plan-features/" + planFeature.getId()))
+        return ResponseEntity.created(new URI("/api/plan-features/" + planFeature.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, planFeature.getId()))
             .body(planFeature);
     }
@@ -97,8 +96,7 @@ public class PlanFeatureResource {
         }
 
         planFeature = planFeatureRepository.save(planFeature);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, planFeature.getId()))
             .body(planFeature);
     }
@@ -207,7 +205,9 @@ public class PlanFeatureResource {
     public ResponseEntity<Void> deletePlanFeature(@PathVariable("id") String id) {
         LOG.debug("REST request to delete PlanFeature : {}", id);
         planFeatureRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

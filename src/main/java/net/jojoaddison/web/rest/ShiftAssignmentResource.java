@@ -65,8 +65,7 @@ public class ShiftAssignmentResource {
             throw new BadRequestAlertException("A new shiftAssignment cannot already have an ID", ENTITY_NAME, "idexists");
         }
         shiftAssignment = shiftAssignmentRepository.save(shiftAssignment);
-        return ResponseEntity
-            .created(new URI("/api/shift-assignments/" + shiftAssignment.getId()))
+        return ResponseEntity.created(new URI("/api/shift-assignments/" + shiftAssignment.getId()))
             .headers(HeaderUtil.createEntityCreationAlert(applicationName, true, ENTITY_NAME, shiftAssignment.getId()))
             .body(shiftAssignment);
     }
@@ -99,8 +98,7 @@ public class ShiftAssignmentResource {
         }
 
         shiftAssignment = shiftAssignmentRepository.save(shiftAssignment);
-        return ResponseEntity
-            .ok()
+        return ResponseEntity.ok()
             .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, shiftAssignment.getId()))
             .body(shiftAssignment);
     }
@@ -175,8 +173,7 @@ public class ShiftAssignmentResource {
     ) {
         LOG.debug("REST request to get a page of ShiftAssignments");
         Page<ShiftAssignment> page;
-        NamedFilters.Builder filters = NamedFilters
-            .builder()
+        NamedFilters.Builder filters = NamedFilters.builder()
             .equals("week.id", weekIdEquals)
             .equals("professional.id", professionalIdEquals);
         if (!filters.isEmpty()) {
@@ -213,7 +210,9 @@ public class ShiftAssignmentResource {
     public ResponseEntity<Void> deleteShiftAssignment(@PathVariable("id") String id) {
         LOG.debug("REST request to delete ShiftAssignment : {}", id);
         shiftAssignmentRepository.deleteById(id);
-        return ResponseEntity.noContent().headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id)).build();
+        return ResponseEntity.noContent()
+            .headers(HeaderUtil.createEntityDeletionAlert(applicationName, true, ENTITY_NAME, id))
+            .build();
     }
 
     private <T> void updateIfPresent(Consumer<T> setter, T value) {

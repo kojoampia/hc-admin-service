@@ -97,7 +97,12 @@ class AccountMixIT {
     @Test
     void addsUpToTheTilesAboveIt() throws Exception {
         patientRepository.save(new Patient().joinedOn(LocalDate.of(2026, 1, 5)).status(AccountStatus.ACTIVE));
-        patientRepository.save(new Patient().joinedOn(LocalDate.of(2026, 3, 5)).status(AccountStatus.ACTIVE).isArchived(true));
+        patientRepository.save(
+            new Patient()
+                .joinedOn(LocalDate.of(2026, 3, 5))
+                .status(AccountStatus.ACTIVE)
+                .isArchived(true)
+        );
         professionalRepository.save(professional());
 
         restMockMvc
