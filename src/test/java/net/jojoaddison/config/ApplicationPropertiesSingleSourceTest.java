@@ -105,6 +105,27 @@ class ApplicationPropertiesSingleSourceTest {
     /** Any placeholder at all — used only to prove the sweep is reading annotation values. */
     private static final Pattern ANY_PLACEHOLDER = Pattern.compile("\\$\\{([A-Za-z0-9.\\-]+)(?::([^}]*))?}");
 
+    /**
+     * Keys whose intended default <em>is</em> the JVM default — decided here rather than absorbed.
+     *
+     * <p>This file's javadoc names the blind spot: "carries a default" is implemented as "differs from
+     * the JVM default", which cannot tell {@code private boolean enabled = false;} — a value somebody
+     * chose — from {@code private boolean enabled;} — a value nobody did. The proxy is right about
+     * every key here but these, and the honest fix is not a looser rule but a named list, so the
+     * exception is as visible as the rule and cannot grow without a reviewer seeing it.
+     * {@link #onlyTheDecidedOffKeysMayCarryTheJvmDefault()} pins the list itself.
+     *
+     * <p><b>{@code application.service-plan-code-backfill.enabled} is off because the work behind it is
+     * not ready to run</b>, which is the reverse of every other {@code enabled} flag in
+     * {@link ApplicationProperties} — those default {@code true} and are switched off per environment.
+     * {@code ServicePlanCodeBackfillMigration} is a Mongock change unit, so it has no Spring profile and
+     * would otherwise run on the next deploy of this service, whatever that deploy was about, applying a
+     * matching rule written without sight of production's plans (backlog item 56). Inverting the field to
+     * something like {@code deferred = true} purely to satisfy the proxy would buy a green build and cost
+     * the reader the plain reading of the key.
+     */
+    private static final Set<String> DECIDED_OFF_KEYS = Set.of("application.service-plan-code-backfill.enabled");
+
     @Configuration
     @EnableConfigurationProperties(ApplicationProperties.class)
     static class BindOnly {}
@@ -256,7 +277,10 @@ class ApplicationPropertiesSingleSourceTest {
         List<String> written = new ArrayList<>();
         for (Map.Entry<String, Boolean> entry : declared.entrySet()) {
             String key = entry.getKey();
-            int places = (entry.getValue() ? 1 : 0) + placeholders.getOrDefault(key, Set.of()).size();
+            // A decided-off key's field initializer is indistinguishable from no initializer at runtime,
+            // so it is counted as the one place its default is written. It still may not have a second.
+            boolean fieldCarriesIt = entry.getValue() || DECIDED_OFF_KEYS.contains(key);
+            int places = (fieldCarriesIt ? 1 : 0) + placeholders.getOrDefault(key, Set.of()).size();
             if (places != 1) {
                 written.add(
                     key +
@@ -317,8 +341,14 @@ class ApplicationPropertiesSingleSourceTest {
      * <p>Named rather than counted, for the reason {@code DevelopmentDataInitializerTest} gives about
      * its fixture: "two keys carry no default" goes on passing when a different two become the ones
      * that do. It is also what keeps the blind spot in this file's javadoc honest — a field whose
-     * intended default is {@code false} or {@code 0} would land in this set and has to be argued
-     * rather than absorbed.
+     * intended default is {@code false} or {@code 0} looks identical to one carrying nothing, and has
+     * to be argued rather than absorbed.
+     *
+     * <p>Those are now argued in {@link #DECIDED_OFF_KEYS} and excluded here, so this assertion keeps
+     * meaning exactly what its name says: the keys whose default lives <em>outside</em> the properties
+     * class are the two {@code @Scheduled} attributes and nothing else. The exception is not lost by
+     * being excluded — {@link #onlyTheDecidedOffKeysMayCarryTheJvmDefault()} pins it separately, which
+     * is the point of splitting them.
      */
     @Test
     void onlyTheTwoScheduleKeysCarryNoDefaultInThePropertiesClass() {
@@ -327,6 +357,7 @@ class ApplicationPropertiesSingleSourceTest {
             .stream()
             .filter(entry -> !entry.getValue())
             .map(Map.Entry::getKey)
+            .filter(key -> !DECIDED_OFF_KEYS.contains(key))
             .toList();
 
         assertThat(withoutAFieldDefault)
@@ -339,6 +370,43 @@ class ApplicationPropertiesSingleSourceTest {
                     "this file's javadoc names as its blind spot and which needs a decision, not a green build."
             )
             .containsExactlyInAnyOrder("application.abofonsa-content.initial-delay-ms", "application.abofonsa-content.refresh-ms");
+    }
+
+    /**
+     * The exemption list is exactly one key, that key is real, and it really does bind off.
+     *
+     * <p>An exemption nobody checks is a hole, and there are three ways this one could become one. It
+     * could name a key {@link ApplicationProperties} no longer declares, leaving a dead entry that
+     * silently widens the day somebody reuses the name. It could name a key that has since been given a
+     * genuine non-JVM default, in which case the exemption is stale and is suppressing the rule for no
+     * reason. And it could grow, one absorbed field at a time, until "carries a default" means nothing
+     * — which is how the blind spot this list exists to make visible would stop being visible.
+     *
+     * <p>The last assertion is the one that is about behaviour rather than about bookkeeping: the whole
+     * argument for exempting this key is that the value it binds to is {@code false}, so that is read
+     * off a bound context rather than off the field.
+     */
+    @Test
+    void onlyTheDecidedOffKeysMayCarryTheJvmDefault() {
+        Map<String, Boolean> declared = declaredKeysAndWhetherTheFieldCarriesADefault();
+
+        assertThat(DECIDED_OFF_KEYS)
+            .as("one exemption, argued where it is declared — adding a second is a decision, not a formality")
+            .containsExactly("application.service-plan-code-backfill.enabled");
+        assertThat(declared)
+            .as("an exemption for a key nothing declares is dead and should be deleted")
+            .containsKeys(DECIDED_OFF_KEYS.toArray(String[]::new));
+        assertThat(DECIDED_OFF_KEYS)
+            .as("an exemption for a key that now carries a real default is stale and should be deleted")
+            .allSatisfy(key -> assertThat(declared.get(key)).isFalse());
+
+        new ApplicationContextRunner()
+            .withUserConfiguration(BindOnly.class)
+            .run(context ->
+                assertThat(context.getBean(ApplicationProperties.class).getServicePlanCodeBackfill().isEnabled())
+                    .as("item 56's backfill ships inert — see ServicePlanCodeBackfillMigration")
+                    .isFalse()
+            );
     }
 
     /**

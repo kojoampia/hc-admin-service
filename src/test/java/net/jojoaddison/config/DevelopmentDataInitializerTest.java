@@ -23,6 +23,7 @@ import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.ProfessionalVerification;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.ServicePlan;
+import net.jojoaddison.domain.Team;
 import net.jojoaddison.domain.WageRate;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.BillingType;
@@ -884,6 +885,51 @@ class DevelopmentDataInitializerTest {
                 .as("home region of %s", professional.getId())
                 .isEqualTo(parentOf.get(parentOf.get(professional.getHomeSpaceId())))
         );
+    }
+
+    /**
+     * <b>One {@code test} team covers a space, and until 2026-09-11 none did — backlog item 60.</b>
+     *
+     * <p>{@code Team.geographicSpaceIds} is the auto-scheduler's only geography and is on no screen, so
+     * nothing rendered it and nothing missed it: the four {@code test} teams carried the field not at
+     * all, only {@code dev}'s single team had one, and {@code test} wins wherever both profiles are
+     * active — which is every stack. {@code RoundPlanningService} therefore short-circuited every round
+     * at {@code NO_TEAM_COVERS_THE_SPACE} <b>before {@code ProfessionalServiceClient} was reached</b>,
+     * so the cross-stack write was unreachable on {@code quality/}, on {@code deploy/e2e/compose.yml}
+     * and under {@code ng serve}, and item 57's token defect could be demonstrated nowhere.
+     *
+     * <p><b>⚠ The field is not free, and this is the other place that says so.</b> After item 57, it
+     * turns the quality console's <em>"Plan and file"</em> into a live write into hc-professional's
+     * quality roster, carrying real hc-patient {@code patientId}s since item 22, with no undo here.
+     * That was decided deliberately. {@code SeedRoundReachabilityTest} carries the full argument and is
+     * the test that drives the planner; this one asserts the fixture itself, so a removal is red in
+     * both the data guard and the behaviour guard rather than only the second.
+     *
+     * <p><b>Named rather than counted</b>, in this file's convention: "some team covers some space"
+     * goes on passing when the covered space is one no seeded professional is near, or when the team
+     * holding it has nobody on it — either of which stops the planner one filter later, at a different
+     * reason, with nothing saying the fixture had drifted. The coupling is the assertion: the space is
+     * covered, and the clinician who is on that team and lives in that space is a {@code NURSE} the
+     * planner can pick.
+     */
+    @Test
+    void shouldCoverOneGeographicSpaceWithATeamThePlannerCanStaff() throws Exception {
+        DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
+
+        assertThat(test.getTeams())
+            .filteredOn(team -> team.getGeographicSpaceIds() != null && team.getGeographicSpaceIds().contains("gs-osu"))
+            .extracting(Team::getId)
+            .containsExactly("team-2");
+
+        assertThat(test.getProfessionals())
+            .filteredOn(professional -> "p2".equals(professional.getId()))
+            .singleElement()
+            .satisfies(nurse -> {
+                assertThat(nurse.getTeam().getId()).as("is on the team that covers gs-osu").isEqualTo("team-2");
+                assertThat(nurse.getHomeSpaceId()).as("and is based in it, so proximity ranks first").isEqualTo("gs-osu");
+                assertThat(nurse.getRole()).as("with a role a round can ask for").isEqualTo(ProfessionalRole.NURSE);
+                assertThat(nurse.getStatus()).as("and an account the planner may schedule").isEqualTo(AccountStatus.ACTIVE);
+            });
     }
 
     /**

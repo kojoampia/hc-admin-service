@@ -1913,6 +1913,7 @@
         "id": "team-2",
         "name": "Home visits · North",
         "description": null,
+        "geographicSpaceIds": ["gs-osu"],
         "supervisor": {
           "id": "p2",
           "licenceNumber": "NMC/GH/19-8820"
