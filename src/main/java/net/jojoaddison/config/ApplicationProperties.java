@@ -74,6 +74,14 @@ public class ApplicationProperties {
      */
     private final Patientservice patientservice = new Patientservice();
 
+    /**
+     * Whether item 56's one-time plan-code backfill may run at all.
+     *
+     * <p>Injected by {@link net.jojoaddison.config.dbmigrations.ServicePlanCodeBackfillMigration}, and
+     * the only block here that a Mongock change unit reads rather than a Spring service.
+     */
+    private final ServicePlanCodeBackfill servicePlanCodeBackfill = new ServicePlanCodeBackfill();
+
     // jhipster-needle-application-properties-property
 
     public Professionalservice getProfessionalservice() {
@@ -86,6 +94,10 @@ public class ApplicationProperties {
 
     public Patientservice getPatientservice() {
         return patientservice;
+    }
+
+    public ServicePlanCodeBackfill getServicePlanCodeBackfill() {
+        return servicePlanCodeBackfill;
     }
 
     // jhipster-needle-application-properties-property-getter
@@ -361,5 +373,45 @@ public class ApplicationProperties {
             this.refreshMs = refreshMs;
         }
     }
+
+    /**
+     * {@code application.service-plan-code-backfill.*} — the switch on backlog item 56's migration.
+     *
+     * <p>Hyphenated, like {@code abofonsa-content} and for the same reason: there is no single-word
+     * name for it elsewhere in the estate to agree with. Relaxed binding would accept
+     * {@code serviceplancodebackfill} too, so use this spelling everywhere and a compose file cannot
+     * end up carrying both.
+     *
+     * <p><b>⚠ As an environment variable that is {@code APPLICATION_SERVICEPLANCODEBACKFILL_ENABLED},
+     * not {@code APPLICATION_SERVICE_PLAN_CODE_BACKFILL_ENABLED}.</b> Spring uppercases, maps
+     * {@code .} to {@code _} and <em>removes</em> hyphens rather than converting them — the exact trap
+     * item 56 records against {@code APPLICATION_ABOFONSACONTENT_ENABLED}, one setting along. The
+     * wrong spelling binds a path nothing reads and leaves the migration off while a compose file
+     * appears to have turned it on, which for this switch is the harmless direction and will not stay
+     * harmless if the default is ever inverted.
+     */
+    public static class ServicePlanCodeBackfill {
+
+        /**
+         * Off, and it is the only default here that ships off because the work is not ready to run.
+         *
+         * <p>The other {@code enabled} flags in this file default {@code true} and are turned off per
+         * environment. This one is the reverse: {@link net.jojoaddison.config.dbmigrations.ServicePlanCodeBackfillMigration}
+         * stamps a published tier code onto plans it recognises, its matching rule was written without
+         * sight of production's rows, and a wrong stamp silently re-points every patient on that plan.
+         * So it stays inert until somebody has compared the rule against the real collection and
+         * deliberately switched it on. That class's javadoc is the argument; this is only the switch.
+         */
+        private boolean enabled = false;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+    }
+
     // jhipster-needle-application-properties-property-class
 }
