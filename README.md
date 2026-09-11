@@ -5,7 +5,7 @@ The administrative microservice of the Health Connect platform — the source of
 Generated with JHipster (`.yo-rc.json` records `jhipsterVersion: 8.11.0`; `package.json` still pins `generator-jhipster: 8.1.0`). Documentation: [https://www.jhipster.tech/documentation-archive/v8.1.0](https://www.jhipster.tech/documentation-archive/v8.1.0).
 
 This is a "microservice" application intended to be part of a microservice architecture, please refer to the [Doing microservices with JHipster][] page of the documentation for more information.
-This application is configured for Service Discovery and Configuration with Consul. On launch, it will refuse to start if it is not able to connect to Consul at [http://localhost:8500](http://localhost:8500). For more information, read our documentation on [Service Discovery and Configuration with Consul][].
+This application is configured for Service Discovery and Configuration with Consul at [http://localhost:8500](http://localhost:8500), registering as `hcadminservice`. **Under `prod` it refuses to start without it** — `bootstrap-prod.yml` sets `spring.cloud.consul.config.fail-fast: true`; under `dev` that flag is `false`, so an unreachable Consul _config_ server does not by itself abort the start. Bring Consul up either way — see [Consul not reachable](#consul-not-reachable), and [`GEMINI.md`](GEMINI.md) for what the configuration does and does not settle. For more information, read our documentation on [Service Discovery and Configuration with Consul][].
 
 ## At a glance
 
@@ -14,7 +14,7 @@ This application is configured for Service Discovery and Configuration with Cons
 | Java / Spring Boot | 25 / 4.0.6 (enforcer accepts JDK `[17,26)`)                                                          |
 | Database           | MongoDB, default db `adminService`; migrations via Mongock                                           |
 | Ports              | **5507** (dev profile), **8080** (prod profile)                                                      |
-| Discovery          | Consul at `localhost:8500` — startup fails without it                                                |
+| Discovery          | Consul at `localhost:8500`; registers as `hcadminservice` — startup fails without it under `prod`    |
 | Messaging          | Kafka via Spring Cloud Stream (`kafkaConsumer;kafkaProducer`)                                        |
 | Security           | OAuth2 resource server; JWTs are issued by `hc-admin-gateway`, not here (`skipUserManagement: true`) |
 | Package root       | `net.jojoaddison`                                                                                    |
@@ -22,14 +22,16 @@ This application is configured for Service Discovery and Configuration with Cons
 ### Place in the stack
 
 ```
-hc-admin-dashboard (Angular, :4200)
+hc-admin-app (Angular console, :9000 dev)
   └─ hc-admin-gateway (:5504 dev / :5503 prod)
        └─ hc-admin-service (:5507 dev / :8080 prod)   ← this repo
 ```
 
 The gateway owns users, authorities, and login; this service trusts the JWT relayed to it.
 
-**Service naming:** this service registers in Consul as `hcadminservice` (`spring.cloud.consul.discovery.service-name`), so the gateway's discovery locator publishes it at `/services/hcadminservice/**` — which is what the Angular dashboard calls. The gateway's `application-dev.yml` also declares a static route to `localhost:5507` for running this service outside Docker — and it uses the **same** name: `id: hcadminservice`, `Path=/services/hcadminservice/**` (`:53-56`). A dev convenience, not a second contract.
+The console is **`hc-admin-app`**. This said `hc-admin-dashboard` until 2026-09-11: that repository was archived on 2026-08-11, is read-only on GitHub and is no longer checked out in the workspace — nothing lands there, not even fixes. Its port depends on how it is launched: `npm start` binds **:9000** (`angular.json`), `deploy/dev/startup.sh` passes `--port 4200`.
+
+**Service naming:** this service registers in Consul as `hcadminservice` (`spring.cloud.consul.discovery.service-name`), so the gateway's discovery locator publishes it at `/services/hcadminservice/**` — which is what the Angular console (`hc-admin-app`) calls. The gateway's `application-dev.yml` also declares a static route to `localhost:5507` for running this service outside Docker — and it uses the **same** name: `id: hcadminservice`, `Path=/services/hcadminservice/**` (`:53-56`). A dev convenience, not a second contract.
 
 This said `/services/admin-service/**` until 2026-09-01, which contradicted the sentence before it. The route was renamed because, as its own comment records, `admin-service` "nothing else in the system used".
 
