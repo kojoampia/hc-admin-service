@@ -50,6 +50,42 @@ import org.springframework.stereotype.Service;
  * login on the link, then {@link #IDENTITY_NOT_ON_FILE}. Never the record's id. See
  * {@link #displayName} for why the last of those is words rather than the empty cell every other
  * absent value in this file uses.
+ *
+ * <h2>⚠ If you are writing the second exporter, read this — backlog item 69</h2>
+ *
+ * <p><b>Item 45's rule is <em>never name a record by its key</em>, and this class is the only place
+ * in the service that has ever broken it — twice.</b> Item 53 named a clinical lead by its id; item
+ * 62 named the patient by its own. Both shipped, both were found by a person reading a downloaded
+ * file, and nothing in the estate reported either: the sweep that enforces the rule,
+ * {@code app/.../entities/directory/record-identity.spec.ts}, is a Vitest spec over Angular
+ * templates and structurally cannot see Java.
+ *
+ * <p>The guard on this side is
+ * {@code PatientCsvExporterTest.noCellInTheFileIsTheIdOfAnyRecordTheRowReaches}. It writes a row
+ * wired to every record a {@link Patient} can reach, each carrying an id, and fails if any cell of
+ * the output equals one — naming the column. <b>It asserts the output rather than the source</b>,
+ * because an id where a name goes has no syntactic signature: {@code text(x.getId())} and
+ * {@code text(x.getName())} are the same expression with a different method on it, and this estate's
+ * two attempts at reading source text for a rule like this were defeated by a Prettier line break
+ * (item 57) and by a {@code );} inside a string literal (item 59).
+ *
+ * <p><b>That sweep cannot find an exporter that does not exist yet, and nothing here pretends
+ * otherwise.</b> There is exactly one exporter in this service — no interface, no base class, no
+ * registry to derive a population from — so the check is bound to this class by construction. A
+ * second exporter must bring its own copy of that sweep; it will not inherit one, and no build will
+ * tell you it is missing. That residual is item 69's, stated here because this class javadoc is
+ * where the next exporter's author will be reading when it becomes their problem.
+ *
+ * <h2>This file and the console name the same record differently, on purpose — backlog item 70</h2>
+ *
+ * <p>The console's patient list sends {@code resolveNames=true} and asks hc-patient, who own the
+ * name, so a record reading {@code kojo@jac.net} here reads {@code Kojo Ampia-Addison} there at the
+ * same moment. Item 70 weighed closing that and decided the two tiers are both correct — see
+ * {@link #displayName} for the cost that was refused. <b>What the decision required was that the
+ * difference stop living in one javadoc: {@code PatientNamingTiersTest} now drives both naming rules
+ * over one link and fails if either tier moves or if the two converge, and
+ * {@code PatientNamingTiersIT} asks the same of the two real endpoints.</b> Treat a failure in either
+ * as a decision to confirm, not as a defect to fix.
  */
 @Service
 public class PatientCsvExporter {
@@ -179,6 +215,39 @@ public class PatientCsvExporter {
      * live per-row lookup on a stream with no page size is the N-request fan-out item 53 refused, and
      * {@code DirectoryNameResolutionService} bounds itself per page — a bound an export has no page
      * to apply.
+     *
+     * <h2>Backlog item 70 settled that residual: the two tiers are both correct, and the difference
+     * is asserted</h2>
+     *
+     * <p>The obvious close was to chunk {@code PatientResource}'s {@code mongoTemplate.stream} so the
+     * per-page budget had a unit to spend against. <b>It was refused</b>, for three reasons worth
+     * keeping because each of them is the kind that reads as an optimisation later: it puts a remote
+     * fan-out on the one endpoint whose whole justification is being cheaper than paging the same
+     * rows; a budget is a promise to a reader who is waiting, and nobody waits on a download the way
+     * they wait on a screen, so the semantics would be invented rather than transferred; and it makes
+     * a slow hc-patient a slow or truncated download, which is a worse failure than a file that names
+     * by address.
+     *
+     * <p><b>⚠ Do not re-derive the cheap tier as expensive.</b> Item 53 deferred item 62 on an
+     * "N-request fan-out" that conflated two different things — <em>resolving a name from
+     * hc-patient</em> (HTTP, remote, worth a budget) with <em>reading the address off the link</em>
+     * (Mongo, in process, one query for the whole file; see {@link LinkedIdentities}). Only the first
+     * is expensive. That confusion cost this column a month with an ObjectId in it.
+     *
+     * <p>What item 70 required instead is that the difference be <b>checked rather than merely
+     * written down here</b>: a javadoc is read by whoever is editing this method and by nobody who
+     * moves the other tier. {@code PatientNamingTiersTest} hands one {@code DirectoryLink} to this
+     * class and to {@code DirectoryNameResolutionService} and pins each tier in a case of its own,
+     * then compares the two computed answers in a third — so a convergence in either direction is
+     * reported, with a message saying which decision moved. {@code PatientNamingTiersIT} asks the
+     * same of {@code GET /api/patients/export} and {@code GET /api/directory-links?resolveNames=true}
+     * over a stored record. Both also pin the floor the tiers share: when hc-patient cannot name the
+     * record, both say the address, which is why this one is narrower rather than worse.
+     *
+     * <p><b>Pin the two answers in separate cases if you add to either class.</b> Asserting "the file
+     * says X", "the screen says Y" and "X ≠ Y" together makes the third follow from the two literals
+     * rather than from the code — a tautology carrying the most important message in the class, which
+     * is how the first draft of both was written.
      */
     private static String displayName(Patient patient, LinkedIdentities identities) {
         Profile profile = patient.getProfile();

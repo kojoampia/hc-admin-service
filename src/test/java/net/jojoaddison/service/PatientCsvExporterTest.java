@@ -1,27 +1,39 @@
 package net.jojoaddison.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.StringWriter;
+import java.lang.reflect.Field;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import net.jojoaddison.domain.Address;
 import net.jojoaddison.domain.Angel;
+import net.jojoaddison.domain.CareActivity;
 import net.jojoaddison.domain.DirectoryLink;
+import net.jojoaddison.domain.Document;
+import net.jojoaddison.domain.Hub;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.Professional;
 import net.jojoaddison.domain.Profile;
 import net.jojoaddison.domain.ServicePlan;
+import net.jojoaddison.domain.Team;
 import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.domain.enumeration.DirectorySource;
 import net.jojoaddison.domain.enumeration.Sex;
 import net.jojoaddison.repository.DirectoryLinkRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 
 /**
  * The shaping rules for the patient export, away from a database.
@@ -187,6 +199,129 @@ class PatientCsvExporterTest {
         for (String line : lines.subList(1, lines.size())) {
             assertThat(cells(line)).as("a patient's id reached the file: %s", line).doesNotContainAnyElementsOf(ids);
         }
+    }
+
+    /**
+     * <b>No cell of this file is the raw id of any record the exported row can reach</b> — backlog
+     * item 69, and the server-side half of item 45's rule.
+     *
+     * <h2>What this adds over the three cases above it</h2>
+     *
+     * <p>Item 45's rule is <em>never render a record's id where its name goes</em>, and on the
+     * console it is swept by {@code record-identity.spec.ts}, which walks every screen and fails on
+     * an id cut into initials. <b>That sweep is a Vitest spec over Angular templates and
+     * structurally cannot see Java.</b> It has now been breached twice on this side, both times in
+     * this class — item 53 in the clinical-lead column, item 62 in the patient column — and both
+     * times by a person looking rather than by a check.
+     *
+     * <p>The three cases above pin the three branches of {@link PatientCsvExporter#displayName}, and
+     * {@code noCellInTheFileIsAPatientsOwnId} widens that to every cell of every row. All four are
+     * about the <b>patient's own</b> id. This one is about <b>every record the row reaches</b>: the
+     * profile, its address, the plan, the sponsor, the clinical lead and the lead's own profile, plus
+     * the hub, the documents and the care activities no column reads today. A fourteenth column added
+     * tomorrow that names a related record by its key — which is precisely what item 53 was — fails
+     * here, in a message that says which column it is.
+     *
+     * <h2>Why the output rather than the source</h2>
+     *
+     * <p>An id where a name goes has no syntactic signature in Java: {@code text(x.getId())} and
+     * {@code text(x.getName())} are the same expression with a different method on it. Items 57 and
+     * 59 are this estate's record of what happens to checks that read source text — one discriminator
+     * defeated by a Prettier line break, another by a {@code );} inside a string literal — so this
+     * reads the bytes the exporter writes and compares them against ids it put into the fixture.
+     * There is nothing here for a formatter to defeat.
+     *
+     * <h2>The fixture's breadth is derived from {@link Patient}, and its depth is not</h2>
+     *
+     * <p>{@link #everyRelationshipOnAPatientIsWiredIntoTheSweep} is the half that keeps this from
+     * quietly narrowing: it reads {@code Patient}'s own {@code @DBRef} fields and fails if the
+     * fixture leaves one unset, so a relationship added to the domain model is in the sweep the day
+     * it exists rather than the day somebody remembers. <b>Depth is not derived</b>, and the residual
+     * is stated rather than assumed away, per item 59's lesson that a limit should be measured before
+     * it is accepted: every field this exporter reads today is at most two hops from the patient, and
+     * every object on those two hops carries an id below. The hole is a future column reading a third
+     * hop — {@code clinicalLead.getTeam().getId()}, say. Closing it is one more line in
+     * {@link #fullyRelatedPatient}, not a redesign.
+     */
+    @Test
+    void noCellInTheFileIsTheIdOfAnyRecordTheRowReaches() throws Exception {
+        links.save(NAMELESS_ID, "naa.adjeley@mail.gh", null);
+        Patient nameless = fullyRelatedPatient(NAMELESS_ID, "nameless", null, null);
+        // A named row in the same file, so a fallback that moves onto the named path is caught too —
+        // a sweep over nameless rows alone goes green the day the defect changes branches.
+        Patient named = fullyRelatedPatient(NAMED_ID, "named", "Ama", "Boateng");
+
+        List<String> lines = write(nameless, named);
+
+        Map<String, String> ids = idsReachableFrom(nameless, named);
+        // The fixture has to be carrying ids at all, or every assertion below is vacuous. Counted
+        // against the graph rather than a literal, so it grows with `fullyRelatedPatient`.
+        assertThat(ids).as("the sweep found no ids in its own fixture, so it would pass against anything").hasSizeGreaterThan(10);
+        for (int row = 1; row < lines.size(); row++) {
+            List<String> cells = cells(lines.get(row));
+            for (int column = 0; column < cells.size(); column++) {
+                String whatTheIdNames = ids.get(cells.get(column));
+                if (whatTheIdNames != null) {
+                    fail(
+                        "Column \"%s\" of row %d holds the raw id of a %s (%s). Backlog item 45: an unresolved record is " +
+                            "reported as unresolved, never named by its key — see PatientCsvExporter.displayName.",
+                        PatientCsvExporter.COLUMNS.get(column),
+                        row,
+                        whatTheIdNames,
+                        cells.get(column)
+                    );
+                }
+            }
+        }
+        // And the rows really were exported, so the loop above ran over something. Named by the two
+        // identities the file is supposed to carry rather than by a count.
+        assertThat(cells(lines.get(1)).getFirst()).isEqualTo("naa.adjeley@mail.gh");
+        assertThat(cells(lines.get(2)).getFirst()).isEqualTo("Ama Boateng");
+    }
+
+    /**
+     * Every relationship a {@link Patient} declares is wired into the sweep's fixture.
+     *
+     * <p>This is what stops {@link #noCellInTheFileIsTheIdOfAnyRecordTheRowReaches} from narrowing
+     * silently. A list of relationships maintained by hand is the shape {@code PaginationIT} was
+     * rewritten to remove: it stops covering things the moment one is added, and nothing reports it.
+     * So the fixture is checked against {@code Patient}'s own {@code @DBRef} fields, and adding a
+     * relationship to the domain model fails here until it is given an id in
+     * {@link #fullyRelatedPatient}.
+     *
+     * <p>Read off the field annotation rather than the getters, because {@code @DBRef} is what makes
+     * a field a separate document with an id of its own — which is the only kind of value this rule
+     * is about.
+     */
+    @Test
+    void everyRelationshipOnAPatientIsWiredIntoTheSweep() throws Exception {
+        Patient patient = fullyRelatedPatient(NAMELESS_ID, "nameless", null, null);
+
+        int relationships = 0;
+        for (Field field : Patient.class.getDeclaredFields()) {
+            if (!field.isAnnotationPresent(DBRef.class)) {
+                continue;
+            }
+            relationships++;
+            Object value = read(field, patient);
+            assertThat(value)
+                .as(
+                    "Patient.%s is a relationship the sweep's fixture leaves unset, so a column naming it by its id " +
+                        "would export one and nothing here would see it — give it an id in fullyRelatedPatient()",
+                    field.getName()
+                )
+                .isNotNull();
+            if (value instanceof Collection<?> elements) {
+                assertThat(elements)
+                    .as("Patient.%s is empty in the sweep's fixture, which covers it no better than leaving it null", field.getName())
+                    .isNotEmpty();
+            }
+        }
+        // A loop that iterates nothing passes every assertion inside it. Asserted as a floor rather
+        // than a figure, because this test's job is to notice relationships being added.
+        assertThat(relationships)
+            .as("no @DBRef field was found on Patient, so this test and the sweep it guards assert nothing")
+            .isGreaterThanOrEqualTo(7);
     }
 
     /**
@@ -459,6 +594,122 @@ class PatientCsvExporterTest {
         Patient patient = new Patient().status(AccountStatus.PENDING);
         patient.setId(id);
         return patient;
+    }
+
+    /**
+     * The two record ids {@link #noCellInTheFileIsTheIdOfAnyRecordTheRowReaches} sweeps for.
+     *
+     * <p>Twenty-four hex characters, which is what a Mongo {@code ObjectId} is and what an
+     * administrator saw in production. Short ids like {@code a13} would work for the equality
+     * assertion and would understate what the defect looks like in a spreadsheet — the whole reason
+     * item 45 calls it unreadable rather than merely wrong.
+     */
+    private static final String NAMELESS_ID = "68b4f2a19c3d5e7f81a02c13";
+
+    private static final String NAMED_ID = "68b4f2a19c3d5e7f81a02c12";
+
+    /**
+     * A patient wired to every record {@link Patient} declares a relationship to, each carrying an
+     * id of its own.
+     *
+     * <p>Built for {@link #noCellInTheFileIsTheIdOfAnyRecordTheRowReaches}, so what matters is that
+     * every related document has an <b>id</b> — the values beside it are only there to keep the
+     * exported cells readable. Relationships no column reads today (the hub, the documents, the care
+     * activities) are wired anyway: the sweep is about the column somebody adds next, and a
+     * relationship left out of the fixture is one that column could name by its key for free.
+     *
+     * @param firstName and {@code lastName} null for the nameless row, which is the state that sends
+     *     {@code displayName} down its fallbacks and the one both breaches were found on.
+     */
+    private static Patient fullyRelatedPatient(String id, String tag, String firstName, String lastName) {
+        Address address = new Address().townDistrict("Osu").cityState("Accra").region("Greater Accra");
+        address.setId("id-address-" + tag);
+        Profile profile = new Profile().firstName(firstName).lastName(lastName).idNumber("GHA-000000-0").address(address);
+        profile.setId("id-profile-" + tag);
+
+        Profile leadProfile = new Profile().firstName("Nii").lastName("Osae");
+        leadProfile.setId("id-lead-profile-" + tag);
+        Professional lead = new Professional().licenceNumber("MDC-9912").profile(leadProfile);
+        lead.setId("id-lead-" + tag);
+
+        ServicePlan plan = new ServicePlan().name("PAWPAW Plan");
+        plan.setId("id-plan-" + tag);
+        Angel angel = new Angel().name("Kofi Boateng").relationship("Son");
+        angel.setId("id-angel-" + tag);
+        Hub hub = new Hub().name("Accra Central");
+        hub.setId("id-hub-" + tag);
+
+        Patient patient = new Patient().status(AccountStatus.ACTIVE).caseCount(2);
+        patient.setId(id);
+        patient.setProfile(profile);
+        patient.setClinicalLead(lead);
+        patient.setPlan(plan);
+        patient.setAngel(angel);
+        patient.setHub(hub);
+        patient.setDocuments(Set.of(new Document().id("id-document-" + tag)));
+        patient.setCareActivities(Set.of(new CareActivity().id("id-activity-" + tag)));
+        return patient;
+    }
+
+    /**
+     * Every id reachable from the exported records, and what each one names.
+     *
+     * <p>Walked rather than listed, following the {@code @DBRef} fields that make a value a separate
+     * document. That is the whole difference between this and a check somebody has to extend: the
+     * set grows with the fixture and with the domain model, and {@code Angel.patient} and
+     * {@code Profile.patient} point back at the root, so the walk has to tolerate cycles rather than
+     * assume a tree.
+     *
+     * <p>Keyed by the id so the assertion is a map lookup per cell rather than a scan, and valued by
+     * the class name so the failure can say <em>whose</em> id reached the file — "a Professional"
+     * sends a reader to the clinical-lead column, where "an id" sends them nowhere.
+     */
+    private static Map<String, String> idsReachableFrom(Object... roots) {
+        Map<String, String> found = new LinkedHashMap<>();
+        Set<Object> seen = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Object root : roots) {
+            collectIds(root, seen, found);
+        }
+        return found;
+    }
+
+    private static void collectIds(Object value, Set<Object> seen, Map<String, String> found) {
+        if (value == null || !value.getClass().getName().startsWith("net.jojoaddison.domain.") || !seen.add(value)) {
+            return;
+        }
+        Object id = invokeGetId(value);
+        if (id instanceof String text && !text.isBlank()) {
+            found.putIfAbsent(text, value.getClass().getSimpleName());
+        }
+        for (Field field : value.getClass().getDeclaredFields()) {
+            if (!field.isAnnotationPresent(DBRef.class)) {
+                continue;
+            }
+            Object related = read(field, value);
+            if (related instanceof Collection<?> elements) {
+                elements.forEach(element -> collectIds(element, seen, found));
+            } else {
+                collectIds(related, seen, found);
+            }
+        }
+    }
+
+    private static Object invokeGetId(Object value) {
+        try {
+            return value.getClass().getMethod("getId").invoke(value);
+        } catch (ReflectiveOperationException e) {
+            // A domain class with no getId() is not a document and has no key to leak.
+            return null;
+        }
+    }
+
+    private static Object read(Field field, Object target) {
+        try {
+            field.setAccessible(true);
+            return field.get(target);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("could not read " + field, e);
+        }
     }
 
     /**
