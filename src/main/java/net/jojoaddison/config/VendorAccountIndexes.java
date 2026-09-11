@@ -55,6 +55,14 @@ import org.springframework.stereotype.Component;
  * sufficient alone, and a reader who has found only one of them should look for the other. It is
  * asserted in {@code VendorScopeIT}, which drops this index in order to reach the state this
  * paragraph permits.
+ *
+ * <p><b>⚠ That sentence was written before it was true, which is the part worth carrying.</b> As
+ * shipped in {@code c637228} the refusal counted the <em>filtered</em> page rather than the account,
+ * so any narrowing filter — {@code status.equals}, either archived operator — separated the
+ * duplicates and served them one at a time under a {@code 200}, and the console's own default list
+ * filter did it in ordinary use. Three documents asserted the guarantee, including this one, and
+ * none of them was what the code did. The count is now taken on {@code account_id} alone, before the
+ * page exists, so it cannot be narrowed by a filter that is added to that handler later either.
  */
 @Component
 public class VendorAccountIndexes {

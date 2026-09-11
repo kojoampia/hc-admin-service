@@ -12,6 +12,7 @@ import java.util.List;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.config.VendorAccountIndexes;
 import net.jojoaddison.domain.Vendor;
+import net.jojoaddison.domain.enumeration.AccountStatus;
 import net.jojoaddison.repository.VendorRepository;
 import net.jojoaddison.security.AuthoritiesConstants;
 import org.junit.jupiter.api.AfterEach;
@@ -55,6 +56,15 @@ import org.springframework.test.web.servlet.MockMvc;
  * works.</b> No principal can obtain a {@code ROLE_VENDOR} token in any environment this workspace
  * runs — hc-vendor grants the authority to nobody and its portal logins have never been seeded — so
  * what is proven here is this service's half against a token constructed in a test.
+ *
+ * <p><b>One part of that half is narrower than it looks, and it is worth naming.</b> The
+ * {@code jwt()} post-processor injects granted authorities <em>directly</em>, so it steps over the
+ * {@code auth}-claim mapping in {@code SecurityJwtConfiguration} that a real token goes through.
+ * Nothing here would therefore notice hc-vendor minting the authority under a different claim name,
+ * or as a scope rather than an authority — the token would verify, carry no authority this chain can
+ * see, and be refused at the matcher with a 403 that looks exactly like the grant having been
+ * removed. That contract is checkable only against a real mint, which is the thing that does not
+ * exist yet.
  */
 @IntegrationTest
 @AutoConfigureMockMvc
@@ -135,6 +145,14 @@ class VendorScopeIT {
      * report success for a request that was not honoured — the shape of failure this service refuses
      * elsewhere. The body is asserted as well as the status, because a 403 whose body carried the row
      * would be the same disclosure with a different number on it.
+     *
+     * <p><b>⚠ Do not read this case as covering the matcher's position.</b> Move the
+     * {@code GET /api/vendors} rule below the blanket read rule in {@code SecurityConfiguration} and
+     * this case still passes — it wants a 403 and the chain hands it one, for a reason that has
+     * nothing to do with the scope it is asserting. It is the review of {@code c637228} that measured
+     * that. {@code SecurityConfigurationOrderIT} is what sees a misplaced matcher, and
+     * {@code ApiAuthorizationIT.aVendorReachesTheVendorDirectoryListing} is the behavioural half;
+     * this case is blind to it by construction.
      */
     @Test
     void aVendorCannotReadAnotherVendorsRow() throws Exception {
@@ -308,6 +326,110 @@ class VendorScopeIT {
         mvc.perform(get(PATH).param("accountId.equals", OTHER_LOGIN).with(as(AuthoritiesConstants.ADMIN)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1));
+
+        // And an administrator who is not resolving anybody still sees the whole directory, the
+        // duplicates in it included — which is how they find the rows the error message tells them to
+        // fix. The refusal is about a resolution that has no answer, not about the collection being
+        // in a state somebody has to repair, and a guard that refused the list as well would take
+        // away the only screen that can show what is wrong.
+        mvc.perform(get(PATH).param("size", "100").with(as(AuthoritiesConstants.ADMIN)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(4));
+    }
+
+    /**
+     * <b>And no filter can separate the duplicates and walk past the refusal.</b>
+     *
+     * <p>The review of {@code c637228} found this and it blocked the merge. The guard was handed the
+     * <em>combined</em> page — {@code account_id} plus {@code status.equals} plus the archived filter
+     — and returned early whenever that page held one row. So the duplicates were refused together and
+     * served one at a time: a supplier enumerating {@code status.equals} over the five
+     * {@code AccountStatus} values read every row sharing its login, each under a 200.
+     *
+     * <p><b>The administrator's half needed no attacker at all</b>, which is what made it urgent: the
+     * console's default list filter is {@code isArchived.notEquals=true}, so hc-vendor's
+     * reconciliation slipped past the refusal in ordinary use.
+     *
+     * <p>The fix is that the count is taken on the account criterion <em>alone</em>, before the page
+     * is built — so it cannot be narrowed by a filter that exists today or by one added later, which
+     * is the property the old shape quietly lacked. Three documents claimed the refusal already had
+     * it; none of them was what the code did.
+     *
+     * <p>Watched failing against {@code c637228} before the fix: the plain resolution answered 409
+     * and every request below answered 200 with a duplicate in it.
+     */
+    @Test
+    void theRefusalIsNotBypassedByANarrowingFilter() throws Exception {
+        mongoTemplate.indexOps(Vendor.class).dropIndex(VendorAccountIndexes.ACCOUNT_ID_INDEX);
+        // Archived and PENDING where `own` is unarchived and ACTIVE, so either filter separates the
+        // two rows — which is exactly what the old guard needed in order to see a count of one.
+        Vendor duplicate = vendorRepository.save(
+            VendorResourceIT.createEntity().accountId(OWN_LOGIN).isArchived(true).status(AccountStatus.PENDING)
+        );
+
+        // The plain resolution is refused, as theAmbiguityIsRefusedRatherThanAnswered asserts. Stated
+        // again here so that a regression which refused nothing at all could not pass this case by
+        // making every request below a 409 for the wrong reason.
+        mvc.perform(get(PATH).with(vendor(OWN_LOGIN))).andExpect(status().isConflict());
+
+        // The archived filter, in both directions — each selects one of the two duplicates.
+        mvc.perform(get(PATH).param("isArchived.equals", "true").with(vendor(OWN_LOGIN))).andExpect(status().isConflict());
+        mvc.perform(get(PATH).param("isArchived.notEquals", "true").with(vendor(OWN_LOGIN))).andExpect(status().isConflict());
+
+        // The status filter, which a supplier can enumerate over five values.
+        mvc.perform(get(PATH).param("status.equals", "PENDING").with(vendor(OWN_LOGIN))).andExpect(status().isConflict());
+        mvc.perform(get(PATH).param("status.equals", "ACTIVE").with(vendor(OWN_LOGIN))).andExpect(status().isConflict());
+
+        // The administrator's reconciliation, in the shape the console actually sends it.
+        mvc.perform(
+            get(PATH).param("accountId.equals", OWN_LOGIN).param("isArchived.notEquals", "true").with(as(AuthoritiesConstants.ADMIN))
+        ).andExpect(status().isConflict());
+
+        // Nothing was disclosed on the way: no refusal carries the row it refused.
+        String body = mvc
+            .perform(get(PATH).param("isArchived.equals", "true").with(vendor(OWN_LOGIN)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        assertThat(body).as("the refused duplicate must not be in the refusal").doesNotContain(duplicate.getId());
+
+        // And an unrelated login still resolves through the same filters, so the fix refuses a
+        // conflict rather than refusing to filter.
+        mvc.perform(
+            get(PATH).param("accountId.equals", OTHER_LOGIN).param("isArchived.notEquals", "true").with(as(AuthoritiesConstants.ADMIN))
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].id").value(other.getId()));
+    }
+
+    /**
+     * <b>An account filter that is empty only after normalising is a blank filter, not a resolution.</b>
+     *
+     * <p>Also from the review of {@code c637228}. The blank guard read the <em>raw</em> parameter and
+     * the normalisation ran after it, so {@code ?accountId.equals=%00} — not whitespace, so not
+     * {@code isBlank()} — passed the guard, trimmed to the empty string, was dropped by
+     * {@code NamedFilters}, and left the ambiguity refusal counting the <b>unfiltered directory</b>.
+     * An administrator got a 409 saying more than one vendor held an account that had resolved
+     * nobody, and on a one-row directory a 200 carrying the whole of it.
+     *
+     * <p>It is the trap {@code scopeToTheCallersOwnAccount}'s own javadoc lectures about — normalise
+     * first, then test, because {@code isBlank()} and {@code trim()} disagree about the C0 controls —
+     * live one parameter above the method that says it.
+     *
+     * <p>400 for both callers, because both sent a filter that names nobody. Watched failing against
+     * {@code c637228}: 409 for the administrator and 403 for the supplier, neither of which is what a
+     * caller did wrong.
+     */
+    @Test
+    void anAccountFilterEmptyOnlyAfterNormalisingIsRefusedAsBlank() throws Exception {
+        // A control character rather than a space, and that IS the case: a space is whitespace, so
+        // isBlank() catches it and this would pass against the defect. NUL is not whitespace and
+        // trim() strips it, which is the disagreement the two guards sat on opposite sides of.
+        String nul = String.valueOf('\0');
+
+        mvc.perform(get(PATH).param("accountId.equals", nul).with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isBadRequest());
+        mvc.perform(get(PATH).param("accountId.equals", nul).with(vendor(OWN_LOGIN))).andExpect(status().isBadRequest());
     }
 
     /**
