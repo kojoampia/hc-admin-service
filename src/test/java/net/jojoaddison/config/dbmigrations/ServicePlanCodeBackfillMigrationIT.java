@@ -139,9 +139,16 @@ class ServicePlanCodeBackfillMigrationIT {
     /**
      * Running it twice is running it once.
      *
-     * <p>Asserted on the whole documents rather than on the codes: "the codes are still right" would pass
-     * against a second run that rewrote every field back to the same value, and the property wanted here
-     * is that the second run finds no codeless plan and touches nothing at all.
+     * <p><b>Asserted on the whole documents rather than on the codes, and the reason is a specific
+     * regression rather than a general one.</b> Comparing documents cannot tell "touched nothing" from
+     * "rewrote every field to identical values" — a raw-{@link Document} rewrite of identical content
+     * passes this exactly as a codes-only assertion would, so that is not what makes it strong.
+     *
+     * <p>What it does catch is the rewrite this codebase would actually produce: a mapped
+     * {@code save(entity)} in place of the targeted {@code $set} <b>drops the unmapped {@code tier}
+     * field</b>, because {@code ServicePlan} has not declared it since item 51. That changes the document
+     * and fails the comparison; a codes-only assertion would pass through it, and {@code tier} is the
+     * strongest evidence of what each row was — the thing a re-review of the mapping would need most.
      */
     @Test
     void isANoOpOnASecondRun() {
@@ -258,6 +265,39 @@ class ServicePlanCodeBackfillMigrationIT {
             .hasMessageContaining("which another plan already holds");
 
         assertThat(row("essential").getString("code")).isNull();
+    }
+
+    /**
+     * A code held in a different case, or with whitespace round it, is still held.
+     *
+     * <p><b>The one comparison in the class that was exact, and the sparse unique index does not cover
+     * for it.</b> {@code ServicePlan.code} is optional and editable, so a hand-created row whose code was
+     * typed {@code pear} or {@code " PEAR "} is reachable through the console's own {@code PUT}. An exact
+     * {@code taken.contains("PEAR")} does not see it, stamps {@code PEAR} onto {@code Bridge Essential}
+     * anyway, and <b>MongoDB's default collation is case-sensitive</b>, so the unique index raises
+     * nothing either. Two rows then mean the PEAR tier, {@code findOneByCode} resolves to whichever, and
+     * the subscribers split across two plausible cards — exactly the state the "already holds" refusal
+     * exists to prevent, walked past on normalisation.
+     *
+     * <p>Written before the normalisation and watched failing against the exact comparison: the plan was
+     * stamped and the run returned cleanly.
+     */
+    @Test
+    void refusesACodeAnotherPlanHoldsInADifferentCaseOrWithWhitespace() {
+        insert("shouty", "Custom tier", null, "3000");
+        mongoTemplate.updateFirst(
+            new Query(Criteria.where("_id").is(FIXTURE_PREFIX + "shouty")),
+            new Update().set("code", "  pear "),
+            SERVICE_PLAN
+        );
+        insert("essential", "Bridge Essential", "ESSENTIAL", "320");
+
+        assertThatThrownBy(() -> enabled().migrate())
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("which another plan already holds");
+
+        assertThat(row("essential").getString("code")).isNull();
+        assertThat(row("shouty").getString("code")).as("the row holding it is not tidied either").isEqualTo("  pear ");
     }
 
     /**

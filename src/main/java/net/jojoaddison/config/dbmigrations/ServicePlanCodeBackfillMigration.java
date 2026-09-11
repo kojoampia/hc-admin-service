@@ -71,6 +71,26 @@ import org.springframework.data.mongodb.core.query.Update;
  * matters. It costs nothing: a disabled run returns before it reads anything at all, and an enabled one is
  * idempotent by construction — the second finds no codeless plan and stops on one query.
  *
+ * <h2>⚠ SWITCH THE FLAG BACK OFF ONCE A RUN HAS BEEN VERIFIED</h2>
+ *
+ * <p><b>Leaving it on is not a mistake somebody makes carelessly — it is what happens by default</b>,
+ * because nothing fails and nothing asks. That is why the success path says so in its own log line rather
+ * than only here: the person who needs this sentence is the one who just ran it, not the one reading the
+ * source months later.
+ *
+ * <p>The idempotence above holds only while the collection is static, and <b>this collection is editable
+ * through the console</b>: {@code ServicePlan.code} is {@code @Size(max = 40)} and <em>not</em> required, so
+ * an administrator may legitimately create a plan with no code at any time. With the flag still set, that
+ * plan sits harmlessly until <b>the next restart or deploy of this service, whatever that deploy is
+ * about</b> — at which point {@code runAlways} re-executes this unit, the new plan matches no recogniser,
+ * this throws, Mongock fails fast, and <b>the service crash-loops on a refusal about a row somebody was
+ * entitled to create</b>, at the moment furthest from its cause and with a Mongock stack trace as the only
+ * clue.
+ *
+ * <p>The refusal itself is right and is not what should change: guessing at an unrecognised plan is how the
+ * wrong subscribers get re-pointed. What should change is the flag, back to {@code false}, as the last step
+ * of the operation rather than as a tidy-up nobody scheduled.
+ *
  * <h2>Refuses rather than guesses, and refuses before writing anything</h2>
  *
  * <p>Every codeless plan must be recognised by <b>exactly one</b> recogniser. A plan matching none — a
@@ -181,7 +201,11 @@ public class ServicePlanCodeBackfillMigration {
         LOG.warn(
             "Stamped {} published tier code(s) onto plans that had none: {}. Every other field, monthlyPrice " +
                 "included, is untouched — this was a targeted $set and not a rewrite. The catalogue sync will now " +
-                "reconcile these rows rather than insert duplicates beside them.",
+                "reconcile these rows rather than insert duplicates beside them. " +
+                "NOW SET application.service-plan-code-backfill.enabled BACK TO false " +
+                "(APPLICATION_SERVICEPLANCODEBACKFILL_ENABLED) once you have checked these rows. This change unit " +
+                "runs on every start, an administrator may legitimately create a plan with no code at any time, and " +
+                "with the flag left on the next restart of this service would refuse that plan and fail to start.",
             byCode.size(),
             byCode.keySet()
         );
@@ -194,11 +218,18 @@ public class ServicePlanCodeBackfillMigration {
      * this on wants the whole picture of what this database holds, not the first row that broke.
      */
     private Map<String, Document> resolveOrRefuse(List<Document> plans) {
+        // Trimmed and upper-cased, like every other comparison in this class and unlike the exact
+        // contains() this replaced. `code` is optional and editable, so a hand-created row whose code was
+        // typed `pear` or ` PEAR ` is reachable through the console's own PUT — and an exact test does not
+        // see it, stamps PEAR onto Bridge Essential anyway, and the sparse unique index raises nothing
+        // because MongoDB's default collation is case-sensitive. Two rows would then mean one published
+        // tier, which is the state the refusal below exists to prevent. Blank is dropped for the same
+        // reason the selection treats it as absent: a blank code claims nothing.
         List<String> taken = mongoTemplate
             .find(new Query(Criteria.where(CODE).ne(null)), Document.class, SERVICE_PLAN)
             .stream()
-            .map(plan -> plan.getString(CODE))
-            .filter(code -> code != null && !code.isBlank())
+            .map(plan -> normalised(plan.getString(CODE)))
+            .filter(code -> code != null)
             .toList();
 
         List<String> refusals = new ArrayList<>();
@@ -238,6 +269,22 @@ public class ServicePlanCodeBackfillMigration {
             );
         }
         return byCode;
+    }
+
+    /**
+     * A stored code as it should be compared: trimmed and upper-cased, or {@code null} if it claims nothing.
+     *
+     * <p>Comparison only — nothing is normalised <em>into</em> the database. A row holding {@code " pear "}
+     * keeps it: this migration stamps codes onto plans that have none and is not a tidy-up of plans that
+     * do, and rewriting somebody else's field in passing is how a backfill becomes a repricing.
+     * {@link #RECOGNISERS} already carries its codes in this form, so the other side of the comparison
+     * needs no call.
+     */
+    private static String normalised(String code) {
+        if (code == null || code.isBlank()) {
+            return null;
+        }
+        return code.trim().toUpperCase(Locale.ROOT);
     }
 
     /** Id and name only. A plan name is not personal data, and no price or subscriber count is needed to act. */
