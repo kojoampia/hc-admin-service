@@ -218,7 +218,6 @@ public void autoScheduleShifts(LocalDate date) {
     kafkaTemplate.send("roster-events", new RosterEvent(shift.getId(), "PATIENT_SHIFT_ASSIGNED", shift.getPatientId(), selected.getId()));
   }
 }
-
 ```
 
 The frontend counterpart to this brief is in `hc-admin-dashboard`'s consolidated `admin-web.md`.

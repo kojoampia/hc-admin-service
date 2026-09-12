@@ -125,12 +125,26 @@ jobs:
       # never drifted on either package. Reformatting without adding this step would buy one clean
       # afternoon and re-open on the next stale install.
       #
-      # THE GLOB IS NARROWER THAN `npm run prettier:check`, AND THAT IS MEASURED, NOT AN OVERSIGHT.
-      # The repo script covers {,**/}*.{md,json,yml,html,java}, and on the day this landed exactly
-      # one non-Java file failed it: admin-api.md, the historical plan doc, short one trailing
-      # newline. Item 66's scope was the Java, so widening this to the script means fixing that file
-      # first — do it, and then widen, because .jhipster/*.json, the yml config and the markdown are
-      # ungated by the line below.
+      # THE GATE IS THE REPO SCRIPT ITSELF, and that is the point rather than a convenience.
+      # It used to run a narrower glob than `npm run prettier:check` — Java only — which left
+      # .jhipster/*.json, the yml config and every markdown file formatted by the pre-commit hook and
+      # checked by nothing. Item 93 widened it; the one file blocking that was admin-api.md, the
+      # historical plan doc, and it was reformatted in the same commit.
+      #
+      # Calling the script rather than repeating its glob is what stops this recurring. Two globs
+      # that are meant to be equal are a thing that drifts silently, and the drift is invisible in
+      # exactly the direction that matters: the hook goes on formatting a file the gate never checks.
+      # One definition, in package.json, read by both.
+      #
+      # Re-measured at widening time rather than assumed from item 66's day: `npm run prettier:check`
+      # over the whole repository failed on admin-api.md ALONE, four weeks after item 66 landed and
+      # with .jhipster/*.json and the yml ungated throughout. So widening reddened nothing else.
+      #
+      # Residual, stated because "the script" reads as "everything" and is not: the glob is
+      # {md,json,yml,html,java}, so .lintstagedrc.cjs and
+      # src/main/docker/mongodb/scripts/init_replicaset.js are formatted by neither the hook nor this
+      # step. That is unchanged by item 93 and is the same on both sides, which is the property worth
+      # keeping — widen the script, not this line, if they ever need covering.
       #
       # `npm ci`, not `npm install`: the lockfile is the input, and a gate that resolves different
       # versions than the pre-commit hook is not a gate — it is a second opinion.
@@ -149,7 +163,7 @@ jobs:
         run: npm ci
 
       - name: Prettier
-        run: npx prettier --check "src/**/*.java"
+        run: npm run prettier:check
 
       - name: Upload surefire and failsafe reports
         if: failure()
