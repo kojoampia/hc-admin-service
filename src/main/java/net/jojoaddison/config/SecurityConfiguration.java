@@ -123,8 +123,14 @@ public class SecurityConfiguration {
                     //
                     // ABOVE the blanket read rule, like every carve-out in this file: below it,
                     // admin-or-operator answers first and a vendor token is 403 while this line goes
-                    // on reading like a grant. SecurityConfigurationOrderTest asserts the position
+                    // on reading like a grant. SecurityConfigurationOrderIT asserts the position
                     // and not merely the rule, because a misplaced matcher fails nothing.
+                    //
+                    // The suffix is load-bearing: this repository's guard ends IT, and hc-admin-gateway
+                    // has a different one, of the same name ending Test. Both exist, one per repo, and
+                    // this line named the gateway's for a while (backlog item 94) — which read as
+                    // plausible precisely because it resolves to something real, one repository over.
+                    // Check which repository you are in before "correcting" it back.
                     //
                     // ADMIN and OPERATOR are named here as well, and dropping them is the regression
                     // this rule invites: first match wins, so once this matcher owns
