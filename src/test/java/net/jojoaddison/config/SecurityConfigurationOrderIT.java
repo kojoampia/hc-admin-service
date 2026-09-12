@@ -54,6 +54,12 @@ class SecurityConfigurationOrderIT {
     /** Backlog item 31 — a supplier reading its own row, and above the rule below it. */
     private static final String VENDORS = "/api/vendors";
 
+    /** Backlog item 88 — the same supplier reading the same row by id. */
+    private static final String VENDOR_RECORD = "/api/vendors/{id}";
+
+    /** The console's directory counts, which stay the console's — and which {@code {id}} matches. */
+    private static final String VENDOR_SUMMARY = "/api/vendors/summary";
+
     private static final String BLANKET_READ = "/api/**";
 
     @Autowired
@@ -250,17 +256,124 @@ class SecurityConfigurationOrderIT {
     }
 
     /**
-     * The reader is not reporting the order it was asked to check.
+     * <b>{@code GET /api/vendors/{id}} is stated, above the blanket rule, and still keeps the
+     * console.</b>
      *
-     * <p>{@code indexOf} matches on rendered text, so a rule naming a longer path that merely
-     * contains the shorter one would be found in its place. Both live rules under
-     * {@code /api/vendors} are checked rather than assumed: the carve-out is the exact list path,
-     * and everything deeper — the summary tiles, the id-addressed record — must still fall to the
-     * blanket rule, since those take their subject from the path and have no relationship to the
-     * caller.
+     * <p>Backlog item 88, decided 2026-09-12. It is the same bargain as the listing rule with a
+     * different scoping shape behind it: the matcher admits a supplier to a record addressed by an id
+     * that has no relationship to the caller, and what keeps it to its own row is
+     * {@code VendorResource.getVendor}, which loads the row and compares its {@code accountId}.
+     *
+     * <p>Below the blanket read rule this matcher is never evaluated — admin-or-operator answers
+     * first, a supplier is 403, and the grant reads as though it had been made.
+     * {@code ApiAuthorizationIT.aVendorReachesTheIdAddressedRecord} is the behavioural half, where the
+     * same misplacement shows up as a 403 where a 404 is expected.
+     *
+     * <p>ADMIN and OPERATOR are asserted for the reason the listing rule asserts them: first match
+     * wins, so this rule — not the blanket one — is what the console is judged by on this path now,
+     * and dropping either takes the vendor record screen away.
      */
     @Test
-    void onlyTheListPathIsCarvedOut() {
+    void theVendorRecordRuleSitsAboveTheBlanketReadRuleAndKeepsTheConsole() {
+        List<String> rules = rulesInOrder();
+        int record = indexOf(rules, HttpMethod.GET, VENDOR_RECORD);
+        int blanketRead = indexOf(rules, HttpMethod.GET, BLANKET_READ);
+
+        assertThat(record)
+            .as(
+                "GET %s is no longer stated in SecurityConfiguration. Without it the blanket read rule " +
+                    "decides the path, which is admin-or-operator, and a supplier cannot read its own " +
+                    "record at all — backlog item 88.",
+                VENDOR_RECORD
+            )
+            .isGreaterThan(-1);
+        assertThat(blanketRead)
+            .as("the blanket GET %s rule is gone — the whole read surface is now decided by something else", BLANKET_READ)
+            .isGreaterThan(-1);
+
+        assertThat(record)
+            .as(
+                "GET %s is now BELOW the blanket GET %s rule, which already matches it. First match wins, " +
+                    "so the rule is never evaluated: a ROLE_VENDOR token is 403 while the line above still " +
+                    "reads like a grant.",
+                VENDOR_RECORD,
+                BLANKET_READ
+            )
+            .isLessThan(blanketRead);
+
+        assertThat(rules.get(record))
+            .as(
+                "the GET %s rule no longer names all three authorities — and it, not the blanket rule, is what decides this path",
+                VENDOR_RECORD
+            )
+            .contains(AuthoritiesConstants.ADMIN)
+            .contains(AuthoritiesConstants.OPERATOR)
+            .contains(AuthoritiesConstants.VENDOR);
+    }
+
+    /**
+     * <b>And the summary rule sits above {@code {id}}, naming the console's authorities alone.</b>
+     *
+     * <p>This is the assertion item 88 added the class a second reason to exist for, and the ordering
+     * it grades is between two carve-outs rather than between a carve-out and the blanket rule.
+     * {@code {id}} is a <em>single-segment wildcard</em>, so {@code /api/vendors/summary} matches it:
+     * put the summary rule second and the record rule answers first, admits a supplier on
+     * {@code ROLE_VENDOR}, and MVC then routes the request to the summary handler — which counts every
+     * vendor on the platform and takes no account of who is asking. Nothing else in this suite would
+     * see it as an ordering problem; {@code ApiAuthorizationIT.aVendorReachesNothingElse} sees it as a
+     * 200 where it wanted a 403.
+     *
+     * <p>The authorities are asserted too, negatively: a summary rule that named {@code ROLE_VENDOR}
+     * would sit in the right place and disclose the same thing.
+     */
+    @Test
+    void theVendorSummaryRuleSitsAboveTheRecordRuleAndStaysTheConsoles() {
+        List<String> rules = rulesInOrder();
+        int summary = indexOf(rules, HttpMethod.GET, VENDOR_SUMMARY);
+        int record = indexOf(rules, HttpMethod.GET, VENDOR_RECORD);
+
+        assertThat(summary)
+            .as(
+                "GET %s is not stated. It is a literal segment behind the %s wildcard, so without a rule " +
+                    "of its own the record rule decides it and every supplier can read the whole " +
+                    "directory's counts.",
+                VENDOR_SUMMARY,
+                VENDOR_RECORD
+            )
+            .isGreaterThan(-1);
+        assertThat(record).as("GET %s is not stated, so there is no ordering to grade here", VENDOR_RECORD).isGreaterThan(-1);
+
+        assertThat(summary)
+            .as(
+                "GET %s is now BELOW GET %s, which matches it — {id} is a single-segment wildcard. The " +
+                    "record rule answers first, a supplier is admitted on ROLE_VENDOR, and MVC routes the " +
+                    "request to the summary handler regardless.",
+                VENDOR_SUMMARY,
+                VENDOR_RECORD
+            )
+            .isLessThan(record);
+
+        assertThat(rules.get(summary))
+            .as("the GET %s rule names ROLE_VENDOR. Its position would then be protecting nothing.", VENDOR_SUMMARY)
+            .doesNotContain(AuthoritiesConstants.VENDOR);
+    }
+
+    /**
+     * The reader is not reporting the order it was asked to check, and no fourth rule has appeared.
+     *
+     * <p>{@code indexOf} matches on rendered text, so a rule naming a longer path that merely
+     * contains the shorter one would be found in its place. Every live rule under {@code /api/vendors}
+     * is therefore checked rather than assumed.
+     *
+     * <p><b>This case was called {@code onlyTheListPathIsCarvedOut} and asserted a count of one, and
+     * item 88 made that name describe a rule that no longer holds.</b> It is three now — the listing,
+     * the summary and the record — and the name and the assertion moved together on purpose: a
+     * carve-out count nudged upwards to make a suite green is exactly how the next one arrives
+     * unexamined. Each of the three takes its path out of the blanket rule's reach, so each has to be
+     * gated on what it discloses, and the two cases above are where that is argued.
+     */
+    @Test
+    void exactlyTheThreeDecidedVendorPathsAreCarvedOut() {
         List<String> rules = rulesInOrder();
 
         assertThat(
@@ -270,10 +383,11 @@ class SecurityConfigurationOrderIT {
                 .toList()
         )
             .as(
-                "a second /api/vendors matcher has appeared. Each one takes its path out of the blanket " +
-                    "rule's reach, so it has to be gated on what it discloses — and /api/vendors/{id} " +
-                    "discloses another supplier's record to a caller who guesses an id."
+                "the set of /api/vendors matchers has changed. Each one takes its path out of the blanket " +
+                    "rule's reach, so a new one has to be gated on what it discloses — and a path one " +
+                    "segment deep also matters to %s, which matches it.",
+                VENDOR_RECORD
             )
-            .hasSize(1);
+            .hasSize(3);
     }
 }

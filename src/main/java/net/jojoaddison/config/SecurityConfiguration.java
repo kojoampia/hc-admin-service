@@ -131,17 +131,45 @@ public class SecurityConfiguration {
                     // GET /api/vendors the blanket rule below never sees it and a vendor-only rule
                     // would take the directory away from the console it was built for.
                     //
-                    // ⚠ The authority and the scoping are ONE decision. This admits a vendor to an
-                    // unfiltered list endpoint; what keeps it to its own row is
+                    // ⚠ The authority and the scoping are ONE decision. The list rule admits a vendor
+                    // to an unfiltered list endpoint; what keeps it to its own row is
                     // VendorResource.getAllVendors, which derives the caller's accountId from the
                     // token and refuses a request naming anybody else. Neither half is safe alone,
-                    // and each names the other where it is written.
+                    // and each names the other where it is written. The {id} rule below is the same
+                    // bargain with a different scoping shape, and item 88 argues it there.
                     //
-                    // Exactly /api/vendors, not /api/vendors/**. The summary tiles and the
-                    // id-addressed record fall to the blanket rule and stay admin-or-operator —
-                    // /api/vendors/{id} takes its subject from the path and has no relationship to
-                    // the caller, which is the same reason the duty-roster patient rule was deleted.
+                    // Three exact matchers rather than /api/vendors/**, and writing them out is the
+                    // point: everything else under /api/vendors/ — a bulk export, a sub-collection —
+                    // matches none of them and falls to the blanket rules below, which is the safe
+                    // direction to fail.
                     .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/vendors"))
+                        .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR, AuthoritiesConstants.VENDOR)
+                    // The summary tiles are the whole directory's counts, so they stay the console's.
+                    //
+                    // ⚠ THIS LINE HAS TO PRECEDE THE {id} RULE BELOW and is not a tidy-up: {id} is a
+                    // single-segment wildcard, so /api/vendors/summary MATCHES IT. Below it, the
+                    // id-addressed rule would answer first, admit a supplier on ROLE_VENDOR, and MVC
+                    // would route the request to the literal handler — every vendor on the platform
+                    // counted, for a caller entitled to one row. It is the trap the geographic-space
+                    // comment above describes, live rather than hypothetical, because item 88 added
+                    // a {id} carve-out to a path that already had a literal sibling.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/vendors/summary"))
+                        .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR)
+                    // A supplier reading its own row by id — backlog item 88, decided 2026-09-12.
+                    //
+                    // ⚠ THE MATCHER ALONE IS THE INVERSE OF THE ITEM. An id-addressed read takes its
+                    // subject from the path and has no relationship to the caller, so this grant on
+                    // its own opens EVERY vendor row to EVERY vendor, for the price of guessing an
+                    // id. What makes it a scoped read is VendorResource.getVendor, which loads the
+                    // row and compares its accountId to the caller's own — load-and-compare, because
+                    // an id identifies one document and there is no criterion to narrow. Neither
+                    // half is safe alone and each names the other where it is written.
+                    //
+                    // The refusal there is a 404 and not a 403, since a 403 on an id-addressed read
+                    // confirms the row exists. That is why this matcher stays permissive and the
+                    // decision is the handler's: a chain that refused here could only refuse with
+                    // the status that discloses.
+                    .requestMatchers(mvc.matcher(HttpMethod.GET, "/api/vendors/{id}"))
                         .hasAnyAuthority(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR, AuthoritiesConstants.VENDOR)
                     // The read/write split. Everything else under /api is admin data: operators read
                     // it, only admins change it. Authentication alone is deliberately not enough —
