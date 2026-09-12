@@ -46,6 +46,24 @@ public class ExceptionTranslatorTestController {
         throw new RuntimeException();
     }
 
+    /**
+     * A default-path (non-400) error that carries {@code params}. The only one in the api today, and
+     * the shape every future 409 or 500 with a placeholder will have.
+     */
+    @GetMapping("/ambiguous-account")
+    public void ambiguousAccount() {
+        throw new AmbiguousAccountException("test ambiguous account", "directoryVendor", "accountidambiguous");
+    }
+
+    /**
+     * The 400 branch, which builds its own params from the failure-alert headers and must stay
+     * exactly as it was.
+     */
+    @GetMapping("/bad-request-alert")
+    public void badRequestAlert() {
+        throw new BadRequestAlertException("test bad request alert", "directoryVendor", "idexists");
+    }
+
     public static class TestDTO {
 
         @NotNull

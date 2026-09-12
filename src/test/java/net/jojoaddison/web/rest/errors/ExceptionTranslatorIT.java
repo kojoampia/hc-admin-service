@@ -114,4 +114,62 @@ class ExceptionTranslatorIT {
             .andExpect(jsonPath("$.message").value("error.http.500"))
             .andExpect(jsonPath("$.title").value("Internal Server Error"));
     }
+
+    /**
+     * The default path — 409, 500, and everything else the console's {@code handleDefaultError}
+     * takes — must put a parameter <b>map</b> on the wire. That branch hands {@code error.params}
+     * straight to ngx-translate, and a bare string interpolates nothing.
+     *
+     * <p><b>Asserted on the serialised body, deliberately.</b> The distinction does not exist before
+     * then: a {@code ProblemDetail} property is an {@code Object} whether it holds a String or a
+     * Map, so an assertion on the translator would pass on exactly the value that renders
+     * {@code {{ entityName }}} literally in the browser.
+     */
+    @Test
+    void testDefaultPathCarriesParamsAsAMap() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/ambiguous-account"))
+            .andExpect(status().isConflict())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value("error.accountidambiguous"))
+            .andExpect(jsonPath("$.params").isMap())
+            .andExpect(jsonPath("$.params.entityName").value("directoryVendor"));
+    }
+
+    /**
+     * A default-path error naming no params gains none. The map is built from what the exception
+     * supplied, never invented — an empty object would tell a reader a placeholder was available.
+     */
+    @Test
+    void testDefaultPathWithoutParamsGainsNone() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/concurrency-failure"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.params").doesNotExist());
+    }
+
+    /**
+     * The 400 branch is unchanged, and this is the regression most likely to slip through: the
+     * obvious way to write {@code ExceptionTranslator.buildInterpolationParams} normalises every
+     * status, and 400 is the one branch the console has its own answer for. Watched red against
+     * exactly that over-reach — with the status guard removed this case fails
+     * {@code JSON path "$.params" expected:<directoryVendor> but was:<null>}, {@code null} rather
+     * than the wrapped object because the scalar match reads through an object and finds nothing.
+     *
+     * <p><b>The headers are deliberately not asserted, in either direction.</b> This response
+     * carries no {@code X-<app>-error} and no {@code X-<app>-params} — measured, and a defect in its
+     * own right, because {@code ExceptionTranslator.buildHeaders} never runs for an
+     * {@code ErrorResponseException} — but pinning an absence here would turn fixing that into a red
+     * build on a file that has nothing to do with it. The body is what this change could move, so
+     * the body is what is pinned.
+     */
+    @Test
+    void testBadRequestPathIsUnchanged() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/bad-request-alert"))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.message").value("error.idexists"))
+            .andExpect(jsonPath("$.params").value("directoryVendor"));
+    }
 }

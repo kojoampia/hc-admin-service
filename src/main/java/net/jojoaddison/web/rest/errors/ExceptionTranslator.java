@@ -46,6 +46,8 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
     private static final String FIELD_ERRORS_KEY = "fieldErrors";
     private static final String MESSAGE_KEY = "message";
     private static final String PATH_KEY = "path";
+    private static final String PARAMS_KEY = "params";
+    private static final String ENTITY_NAME_PARAM = "entityName";
     private static final boolean CASUAL_CHAIN_ENABLED = false;
 
     @Value("${jhipster.clientApp.name}")
@@ -117,9 +119,69 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
             (problemProperties == null || !problemProperties.containsKey(FIELD_ERRORS_KEY))
         ) problem.setProperty(FIELD_ERRORS_KEY, getFieldErrors(fieldException));
 
+        buildInterpolationParams(problem);
+
         problem.setCause(buildCause(err.getCause(), request).orElse(null));
 
         return problem;
+    }
+
+    /**
+     * Makes {@code params} an interpolation map on every status the console does not read the alert
+     * headers for, so a {@code {{ … }}} token in the message bundle resolves there too.
+     *
+     * <h2>The two branches that disagreed</h2>
+     *
+     * <p>{@code app/shared/alert/alert-error.ts} splits on the status. {@code handleBadRequest} —
+     * <b>400 only</b> — ignores the body and builds its own object from the failure-alert headers,
+     * {@code { entityName }}. {@code handleDefaultError} — everything else, so 401, 403, 405, 409 and
+     * 500 — hands {@code error.params} <em>verbatim</em> to ngx-translate as the interpolation
+     * argument.
+     *
+     * <p>A bare string is not a parameter map. {@link AmbiguousAccountException} set
+     * {@code .withProperty("params", entityName)}, so {@code params} reached the console as
+     * {@code "directoryVendor"} and any token in {@code error.accountidambiguous} would have rendered
+     * literally. <b>Nothing reports that</b>: the bundle looks identical either way, so the next
+     * person writing a 409 or 500 message has no way to learn the rule. That is what made it a trap
+     * rather than a bug, and it is why the fix is here rather than on the one exception that hit it.
+     *
+     * <h2>Why {@code entityName}, and why 400 is left alone</h2>
+     *
+     * <p>The name is <b>derived from the 400 branch, not invented</b> — {@code entityName} is the
+     * only interpolation name the console has ever built and therefore the only one the bundle
+     * already spells (see {@code global.json}'s {@code error.idexists}). Two dialects would be worse
+     * than the wart.
+     *
+     * <p>400 is deliberately untouched, and the wire shape it has today is pinned by
+     * {@code ExceptionTranslatorIT.testBadRequestPathIsUnchanged} rather than left to trust. The
+     * obvious way to write this method normalises every status; that is the regression, because the
+     * 400 branch is the one the console already has its own answer for.
+     *
+     * <p><b>⚠ Do not read that as "400 works".</b> It was measured on 2026-09-12 and it does not:
+     * {@link #buildHeaders} <b>never runs</b> for a {@link BadRequestAlertException}. That class
+     * extends {@link org.springframework.web.ErrorResponseException}, for which
+     * {@link ResponseEntityExceptionHandler} declares a handler that is <em>more specific</em> than
+     * this advice's {@code Throwable} one, so Spring dispatches there and answers with the
+     * exception's own (empty) headers. A 400 from this api carries no {@code X-<app>-error} and no
+     * {@code X-<app>-params}, the console's header branch therefore never fires, and its fallback
+     * hands the body's bare-string {@code params} to ngx-translate exactly as the default path used
+     * to. <b>That is a separate defect with a separate cause</b> — a dead header builder, not a
+     * missing map — and it is reported rather than fixed here, because fixing it restores the
+     * headers and makes the 400 body's {@code params} unread again.
+     *
+     * <p>A {@code params} that is <b>already a Map is left exactly as it is</b>: an exception that
+     * has gone to the trouble of naming its own placeholders knows better than this method does.
+     */
+    private void buildInterpolationParams(ProblemDetailWithCause problem) {
+        if (problem.getStatus() == HttpStatus.BAD_REQUEST.value()) return;
+
+        Map<String, Object> problemProperties = problem.getProperties();
+        if (problemProperties == null) return;
+
+        Object params = problemProperties.get(PARAMS_KEY);
+        if (params == null || params instanceof Map) return;
+
+        problem.setProperty(PARAMS_KEY, Map.of(ENTITY_NAME_PARAM, params));
     }
 
     private String extractTitle(Throwable err, int statusCode) {

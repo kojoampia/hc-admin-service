@@ -36,7 +36,12 @@ public class AmbiguousAccountException extends ErrorResponseException {
     /**
      * @param defaultMessage what an operator has to know, with no identifier in it — the message
      *                       reaches a client and this one is about somebody's account key.
-     * @param entityName the JHipster entity name, so the alert header names the right screen.
+     * @param entityName the JHipster entity name. It is carried as {@code params} and
+     *                   {@link ExceptionTranslator#buildInterpolationParams reaches the console as}
+     *                   {@code { entityName }}, so a {@code {{ entityName }}} in the message bundle
+     *                   resolves. This is a 409 and therefore sets <b>no</b> failure-alert header —
+     *                   {@link ExceptionTranslator#buildHeaders} builds those for
+     *                   {@link BadRequestAlertException} alone.
      * @param errorKey the client-side message key, prefixed {@code error.} like every other.
      */
     public AmbiguousAccountException(String defaultMessage, String entityName, String errorKey) {
