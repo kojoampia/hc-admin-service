@@ -3,6 +3,7 @@ package net.jojoaddison.web.rest.errors;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -149,27 +150,68 @@ class ExceptionTranslatorIT {
     }
 
     /**
-     * The 400 branch is unchanged, and this is the regression most likely to slip through: the
+     * The 400 <b>body</b> is unchanged, and this is the regression most likely to slip through: the
      * obvious way to write {@code ExceptionTranslator.buildInterpolationParams} normalises every
      * status, and 400 is the one branch the console has its own answer for. Watched red against
      * exactly that over-reach — with the status guard removed this case fails
      * {@code JSON path "$.params" expected:<directoryVendor> but was:<null>}, {@code null} rather
      * than the wrapped object because the scalar match reads through an object and finds nothing.
      *
-     * <p><b>The headers are deliberately not asserted, in either direction.</b> This response
-     * carries no {@code X-<app>-error} and no {@code X-<app>-params} — measured, and a defect in its
-     * own right, because {@code ExceptionTranslator.buildHeaders} never runs for an
-     * {@code ErrorResponseException} — but pinning an absence here would turn fixing that into a red
-     * build on a file that has nothing to do with it. The body is what this change could move, so
-     * the body is what is pinned.
+     * <p><b>This case was called {@code testBadRequestPathIsUnchanged} until backlog item 91, and that
+     * name became a lie the moment item 91 landed</b> — the 400 path <em>did</em> change, it gained
+     * the failure-alert headers it should always have carried. The assertions did not need to move,
+     * because what they were really pinning is narrower than the old name claimed: that
+     * {@code buildInterpolationParams} leaves the 400 <b>body</b> alone. The name says that now.
+     *
+     * <p>The headers are asserted by {@link #testBadRequestAlertCarriesItsFailureAlertHeaders}, which
+     * is where the old javadoc's "measured, and a defect in its own right" note went.
      */
     @Test
-    void testBadRequestPathIsUnchanged() throws Exception {
+    void testBadRequestBodyParamsStaysBare() throws Exception {
         mockMvc
             .perform(get("/api/exception-translator-test/bad-request-alert"))
             .andExpect(status().isBadRequest())
             .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.message").value("error.idexists"))
             .andExpect(jsonPath("$.params").value("directoryVendor"));
+    }
+
+    /**
+     * A refused write reaches the console <b>with its failure-alert headers</b>. This is backlog item
+     * 91, and it is asserted here rather than on the body because the body has been correct since the
+     * class was generated — a body assertion would have passed against the defect.
+     *
+     * <p><b>What was broken.</b> {@link BadRequestAlertException} extends
+     * {@link org.springframework.web.ErrorResponseException}, and
+     * {@link org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler}
+     * declares a handler for that which is <em>more specific</em> than this advice's
+     * {@code @ExceptionHandler(Throwable)}. Spring dispatched there, answered with the exception's own
+     * empty headers, and {@code ExceptionTranslator.handleAnyException} — and therefore
+     * {@code buildHeaders} — was never entered. Measured on the quality stack on 2026-09-12: a real
+     * {@code POST /services/hcadminservice/api/hubs} carrying an id came back {@code 400} with
+     * {@code Content-Type: application/problem+json} and no {@code X-}-prefixed alert header at all,
+     * through the gateway and straight at the api alike.
+     *
+     * <p><b>Watched red before the fix</b>, with exactly this case:
+     * {@code Response header 'X-hcAdminServiceApp-error' expected:<error.idexists> but was:<null>}.
+     *
+     * <p><b>⚠ The header name is the api's, and the console does not read it.</b>
+     * {@code jhipster.clientApp.name} here is {@code hcAdminServiceApp} — derived from this repo's
+     * {@code baseName}, {@code hcAdminService} — so {@code HeaderUtil} emits
+     * {@code X-hcAdminServiceApp-error}. {@code app/}'s {@code shared/jhipster/constants.ts} reads
+     * {@code x-hcadminapp-error}, derived from <em>its</em> {@code baseName}, {@code hcAdmin}. The two
+     * have never agreed, nothing anywhere pins either, and until that is settled restoring these
+     * headers does not by itself make {@code error.idexists}'s {@code {{ entityName }}} resolve on
+     * screen. Reported rather than fixed here: renaming either side is a cross-repo decision, and this
+     * assertion deliberately pins <b>what this api emits</b> so that whichever side moves, the move is
+     * a visible diff rather than a silent one.
+     */
+    @Test
+    void testBadRequestAlertCarriesItsFailureAlertHeaders() throws Exception {
+        mockMvc
+            .perform(get("/api/exception-translator-test/bad-request-alert"))
+            .andExpect(status().isBadRequest())
+            .andExpect(header().string("X-hcAdminServiceApp-error", "error.idexists"))
+            .andExpect(header().string("X-hcAdminServiceApp-params", "directoryVendor"));
     }
 }
