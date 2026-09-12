@@ -65,6 +65,82 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
         return handleExceptionInternal((Exception) ex, pdCause, buildHeaders(ex), HttpStatusCode.valueOf(pdCause.getStatus()), request);
     }
 
+    /**
+     * Puts the failure-alert headers back on a {@link BadRequestAlertException}.
+     *
+     * <h2>Why an override rather than another {@code @ExceptionHandler}</h2>
+     *
+     * <p>{@link #handleAnyException} calls {@link #buildHeaders} and <b>never runs for this family</b>.
+     * {@code BadRequestAlertException} extends {@link ErrorResponseException}, and
+     * {@link ResponseEntityExceptionHandler#handleException} declares a handler for that which is
+     * <em>more specific</em> than {@code handleAnyException}'s bare {@code Throwable}, so Spring
+     * dispatches there and answers with the exception's own — empty — headers. {@code buildHeaders}
+     * built a perfectly good {@code HttpHeaders} that nothing ever received. That is backlog item 91,
+     * and it was live on every 400 this api has ever refused a write with.
+     *
+     * <p>The obvious repair is a second {@code @ExceptionHandler(BadRequestAlertException.class)} on
+     * this advice, and it would work — a subclass outranks its parent in
+     * {@code ExceptionHandlerMethodResolver}. It is <b>not</b> what this does, because <em>competing
+     * for dispatch is what broke this in the first place</em>: the advice claimed
+     * {@code Throwable} and quietly lost. {@link ResponseEntityExceptionHandler#handleException} is
+     * {@code final}, so overriding this protected seam is the framework's own answer, there is one
+     * dispatch path rather than two, and any future {@code ErrorResponseException} that
+     * {@code buildHeaders} learns about is covered without a third handler.
+     *
+     * <h2>Two things this deliberately does not do</h2>
+     *
+     * <p><b>It does not touch the body.</b> {@code params} stays the bare entity name on a 400, which
+     * is item 89's contract and is pinned by
+     * {@code ExceptionTranslatorIT.testBadRequestBodyParamsStaysBare}. Once the headers arrive the
+     * console takes its {@code errorKey} branch and builds {@code { entityName }} itself from the
+     * {@code -params} header, translating it through {@code global.menu.entities.<param>} — which the
+     * server cannot do — so the body's {@code params} goes back to being unread there. That is the
+     * intended outcome, not a regression.
+     *
+     * <p><b>It does not merge into a header the exception set itself.</b> The alert headers win on a
+     * key collision, because {@code buildHeaders} is the only thing in this repository that writes
+     * them and an {@code ErrorResponseException} carrying its own {@code X-<app>-error} would be
+     * asserting something this advice has no way to reconcile.
+     *
+     * <h2>⚠ Restoring these headers is necessary and is not sufficient</h2>
+     *
+     * <p>{@code HeaderUtil} names them from {@code jhipster.clientApp.name}, which is
+     * {@code hcAdminServiceApp} here — derived from this repo's {@code baseName}, {@code hcAdminService}.
+     * The console reads {@code x-hcadminapp-error} / {@code x-hcadminapp-params}
+     * ({@code app/src/main/webapp/app/shared/jhipster/constants.ts}), derived from <em>its</em>
+     * {@code baseName}, {@code hcAdmin}. <b>The two have never agreed</b>, no test or configuration on
+     * either side pins them, and the same mismatch silences every success alert this api sends. Until
+     * that is settled, {@code error.idexists}'s {@code {{ entityName }}} still renames nothing on
+     * screen. It is reported rather than fixed here: it is one name in one of two repositories and the
+     * choice of which is not this change's to make.
+     *
+     * <h2>One visible side effect</h2>
+     *
+     * <p>{@code HeaderUtil.createFailureAlert} opens with {@code log.error("Entity processing failed,
+     * {}", defaultMessage)}, so every refused write now logs at ERROR where it logged nothing before.
+     * All eighteen {@code BadRequestAlertException} messages in this api were read before accepting
+     * that: every one is a constant, or a constant concatenated with a filter <em>parameter name</em>
+     * ({@code DirectoryLinkResource.rejectBlank}) or a bound ({@code MAX_LOCAL_IDS}). None interpolates
+     * a correlation key, an address or an id, so item 43's rule is not breached — but note that this
+     * log statement lives in the jhipster-framework jar, where {@code LogPseudonymTest}'s sweep cannot
+     * see it. A future message that interpolated a subject would be leaked by a line no sweep reads.
+     */
+    @Override
+    protected ResponseEntity<Object> handleErrorResponseException(
+        ErrorResponseException ex,
+        HttpHeaders headers,
+        HttpStatusCode statusCode,
+        WebRequest request
+    ) {
+        HttpHeaders alertHeaders = buildHeaders(ex);
+        if (alertHeaders == null) return super.handleErrorResponseException(ex, headers, statusCode, request);
+
+        HttpHeaders merged = new HttpHeaders();
+        merged.putAll(headers);
+        merged.putAll(alertHeaders);
+        return super.handleErrorResponseException(ex, merged, statusCode, request);
+    }
+
     @Nullable
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
@@ -152,22 +228,20 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
      * already spells (see {@code global.json}'s {@code error.idexists}). Two dialects would be worse
      * than the wart.
      *
-     * <p>400 is deliberately untouched, and the wire shape it has today is pinned by
-     * {@code ExceptionTranslatorIT.testBadRequestPathIsUnchanged} rather than left to trust. The
+     * <p>400 is deliberately untouched, and the body shape it has today is pinned by
+     * {@code ExceptionTranslatorIT.testBadRequestBodyParamsStaysBare} rather than left to trust. The
      * obvious way to write this method normalises every status; that is the regression, because the
      * 400 branch is the one the console already has its own answer for.
      *
-     * <p><b>⚠ Do not read that as "400 works".</b> It was measured on 2026-09-12 and it does not:
-     * {@link #buildHeaders} <b>never runs</b> for a {@link BadRequestAlertException}. That class
-     * extends {@link org.springframework.web.ErrorResponseException}, for which
-     * {@link ResponseEntityExceptionHandler} declares a handler that is <em>more specific</em> than
-     * this advice's {@code Throwable} one, so Spring dispatches there and answers with the
-     * exception's own (empty) headers. A 400 from this api carries no {@code X-<app>-error} and no
-     * {@code X-<app>-params}, the console's header branch therefore never fires, and its fallback
-     * hands the body's bare-string {@code params} to ngx-translate exactly as the default path used
-     * to. <b>That is a separate defect with a separate cause</b> — a dead header builder, not a
-     * missing map — and it is reported rather than fixed here, because fixing it restores the
-     * headers and makes the 400 body's {@code params} unread again.
+     * <p><b>⚠ "400 is left alone" has meant two different things, and only one of them is still
+     * true.</b> When this method was written, a 400 reached the console with <em>no</em>
+     * {@code X-<app>-error} and no {@code X-<app>-params} at all — {@link #buildHeaders} was dead
+     * code — so the console's header branch never fired and its fallback read the body's bare-string
+     * {@code params} exactly as the default path used to. That was backlog item 91, a separate defect
+     * with a separate cause, and it is fixed: see {@link #handleErrorResponseException}. What is
+     * unchanged is this method's guard. The 400 <b>body</b> keeps its bare {@code params}, because the
+     * console now genuinely does build its own object from the headers — and it translates the entity
+     * name through {@code global.menu.entities.<param>}, which the server cannot do.
      *
      * <p>A {@code params} that is <b>already a Map is left exactly as it is</b>: an exception that
      * has gone to the trouble of naming its own placeholders knows better than this method does.
