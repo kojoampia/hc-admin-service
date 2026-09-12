@@ -315,7 +315,51 @@ public class VendorResource {
     }
 
     /**
-     * {@code GET  /vendors/:id} : get the "id" vendor.
+     * {@code GET  /vendors/:id} : get the "id" vendor — the console's record screen, and a supplier's
+     * own row.
+     *
+     * <h2>Load and compare, because there is nothing here to filter</h2>
+     *
+     * <p>Backlog item 88, decided 2026-09-12. {@code ROLE_VENDOR} reaches this path as well as the
+     * listing since that item, and <b>the scoping could not be copied from
+     * {@link #getAllVendors}</b>: that handler resolves the caller's account and narrows a query by
+     * it, where an id already identifies exactly one document and there is no criterion to narrow.
+     * So this one loads the row and compares its {@code accountId} to the caller's own, which is the
+     * same join — {@code Vendor.accountId} holds a vendor-gateway login and the gateway puts the
+     * login in the JWT's {@code sub}. An administrator and an operator are unscoped and read any row,
+     * exactly as before this item; so is a principal holding {@code ROLE_VENDOR} alongside one of
+     * them, for the reason {@link #scopeToTheCallersOwnAccount} gives.
+     *
+     * <h2>⚠ The refusal is a 404, and it is the SAME 404</h2>
+     *
+     * <p>A {@code 403} on an id-addressed read confirms the row exists, so a supplier could walk the
+     * collection by status code alone and learn how many suppliers this platform has and which ids
+     * are theirs. The refusal therefore has to be indistinguishable from the row being absent — and
+     * "indistinguishable" is a property of the response, not of the status line, so a hand-rolled
+     * {@code 404} differing in body, headers or problem type would be the same disclosure one field
+     * along.
+     *
+     * <p>It is written as a {@code filter} on the {@link Optional} rather than as a branch for
+     * exactly that reason: a refused row and a missing row become the same empty {@code Optional}
+     * before anything renders, so both leave through {@code ResponseUtil.wrapOrNotFound} and there is
+     * no second response to keep in step with the first. {@code VendorScopeIT} asserts the two are
+     * byte-identical on one URI.
+     *
+     * <p>A row linked to no portal login — {@code accountId} null, which most of this directory is —
+     * belongs to no supplier, so a supplier is refused it like any other. Reading null as "unclaimed,
+     * therefore anybody's" would hand over the bulk of the collection.
+     *
+     * <p><b>The scope is resolved BEFORE the read</b>, and the line below says why at length: it is
+     * the one thing on this path that can answer differently for an id that exists and an id that
+     * does not, which is the disclosure this whole section is about.
+     *
+     * <h2>And deliberately no ambiguity refusal</h2>
+     *
+     * <p>{@link #refuseAnAmbiguousAccount} is <b>not</b> called here, and its absence is the decision
+     * rather than an omission. Two vendors sharing a login is a question about resolving an account
+     * <em>to</em> a record; an id arrives having resolved one already, and answers the same single
+     * document whatever {@code accountId} it holds. A {@code 409} on this path would be a guard with
+     * no failure mode, which is worse than no guard at all because it reads as protection.
      *
      * @param id the id of the vendor to retrieve.
      * @return the {@link ResponseEntity} with status {@code 200 (OK)} and with body the vendor, or with status {@code 404 (Not Found)}.
@@ -323,7 +367,15 @@ public class VendorResource {
     @GetMapping("/{id}")
     public ResponseEntity<Vendor> getVendor(@PathVariable("id") String id) {
         LOG.debug("REST request to get Vendor : {}", id);
-        Optional<Vendor> vendor = vendorRepository.findById(id);
+        // RESOLVED BEFORE THE READ, and the order is the fix rather than a style choice. A supplier
+        // whose token carries no login is refused with a 403, and while this lived inside the filter
+        // below it was never reached for an id that matched no document — so the refusal was 403 for
+        // a row that exists and 404 for one that does not, which is a caller learning whether a row
+        // exists from a status: the exact disclosure the 404 above is chosen to prevent, reintroduced
+        // by lazy evaluation. Deciding the scope first makes it constant for every id, and
+        // VendorScopeIT asserts both ids rather than one. Found by watching that case fail.
+        String ownAccount = callerIsASupplier() ? theCallersOwnLogin() : null;
+        Optional<Vendor> vendor = vendorRepository.findById(id).filter(row -> ownAccount == null || ownAccount.equals(row.getAccountId()));
         return ResponseUtil.wrapOrNotFound(vendor);
     }
 
@@ -387,17 +439,15 @@ public class VendorResource {
      * settles one parameter along.
      *
      * <p><b>A vendor token with no login is refused too, and that is not the same as "no rows".</b>
-     * It is a broken credential. The dangerous reading is not "answer nothing" but "answer with no
+     * It is a broken credential, and the dangerous reading is not "answer nothing" but "answer with no
      * filter", which is what an empty string does to {@code NamedFilters} — the whole directory, with
-     * a 200. Normalise first and test afterwards: {@link String#isBlank()} asks about whitespace while
-     * {@link String#trim()} strips every code point at or below {@code U+0020}, so a subject of
-     * {@code U+0000} passes a guard placed ahead of the trim and arrives as the empty string the check
-     * exists to keep out. hc-vendor's resolver was fixed for exactly this and says so at length.
+     * a 200. {@link #theCallersOwnLogin} is where that is refused, and carries the normalise-before-
+     * testing argument; it is shared with the record read, which has the same question to ask.
      *
      * <p>An administrator or an operator is unscoped and keeps the whole directory, including the
-     * resolution filter hc-vendor's reconciliation report calls. A principal holding
-     * {@code ROLE_VENDOR} <em>and</em> one of those is unscoped as well — decided rather than
-     * inherited, so that one token cannot mean two things depending on which authority is read first.
+     * resolution filter hc-vendor's reconciliation report calls. So is a principal holding
+     * {@code ROLE_VENDOR} <em>and</em> one of those — see {@link #callerIsASupplier}, which is the one
+     * definition both scoped reads use.
      *
      * @param requestedAccountId the normalised {@code accountId.equals} the caller sent, or null.
      * @return the account to filter on: the caller's own when it is a supplier, otherwise whatever
@@ -405,12 +455,52 @@ public class VendorResource {
      * @throws AccessDeniedException when a supplier's token carries no login, or names another one.
      */
     private static String scopeToTheCallersOwnAccount(String requestedAccountId) {
-        boolean isSupplier =
-            SecurityUtils.hasCurrentUserThisAuthority(AuthoritiesConstants.VENDOR) &&
-            SecurityUtils.hasCurrentUserNoneOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR);
-        if (!isSupplier) {
+        if (!callerIsASupplier()) {
             return requestedAccountId;
         }
+        String login = theCallersOwnLogin();
+        if (requestedAccountId != null && !requestedAccountId.equals(login)) {
+            LOG.warn("A vendor asked for a directory record that is not its own; refusing");
+            throw new AccessDeniedException("A vendor may only read its own directory record");
+        }
+        return login;
+    }
+
+    /**
+     * Whether the caller is a supplier, and therefore scoped to its own record.
+     *
+     * <p>One definition for both of this controller's scoped reads. A principal holding
+     * {@code ROLE_VENDOR} <em>and</em> {@code ROLE_ADMIN} or {@code ROLE_OPERATOR} is not a supplier
+     * here — decided rather than inherited, so one token cannot mean two things depending on which
+     * authority is read first, and so the listing and the record cannot answer differently about it.
+     */
+    private static boolean callerIsASupplier() {
+        return (
+            SecurityUtils.hasCurrentUserThisAuthority(AuthoritiesConstants.VENDOR) &&
+            SecurityUtils.hasCurrentUserNoneOfAuthorities(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR)
+        );
+    }
+
+    /**
+     * The supplier's own login, normalised the way {@code accountId} is stored, or a refusal.
+     *
+     * <p><b>A vendor token with no login is refused, and that is not the same as "no rows".</b> It is
+     * a broken credential — the dangerous reading is not "answer nothing" but "answer without a
+     * scope", which on the listing is the whole directory under a 200. Normalise first and test
+     * afterwards: {@link String#isBlank()} asks about whitespace while {@link String#trim()} strips
+     * every code point at or below {@code U+0020}, so a subject of {@code U+0000} passes a guard
+     * placed ahead of the trim and arrives as the empty string the check exists to keep out.
+     * hc-vendor's resolver was fixed for exactly this and says so at length.
+     *
+     * <p><b>On the id-addressed read this 403 is not the disclosure item 88 forbids</b>, and the
+     * distinction is worth stating because the two look alike. What a status may not do there is
+     * depend on the row: this one is decided entirely by the token, so it is returned identically for
+     * an id that exists and an id that does not, and a caller learns nothing about the collection
+     * from it. {@code VendorScopeIT} asserts that constancy rather than taking it on trust.
+     *
+     * @throws AccessDeniedException when a supplier's token carries no login.
+     */
+    private static String theCallersOwnLogin() {
         String login = SecurityUtils.getCurrentUserLogin()
             .map(subject -> subject.trim().toLowerCase(java.util.Locale.ROOT))
             .filter(subject -> !subject.isEmpty())
@@ -419,12 +509,8 @@ public class VendorResource {
             // No login in the message: it identifies nobody, and the rows it could be about are
             // somebody's. See LoginAttempt's javadoc for why an identifier is not put in a log here
             // even when there is one.
-            LOG.warn("A vendor token carries no login; refusing rather than scoping the directory to nothing");
+            LOG.warn("A vendor token carries no login; refusing rather than answering about somebody's records");
             throw new AccessDeniedException("A vendor token must carry a login for its own record to be identified");
-        }
-        if (requestedAccountId != null && !requestedAccountId.equals(login)) {
-            LOG.warn("A vendor asked for a directory record that is not its own; refusing");
-            throw new AccessDeniedException("A vendor may only read its own directory record");
         }
         return login;
     }

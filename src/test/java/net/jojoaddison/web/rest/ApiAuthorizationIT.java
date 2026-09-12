@@ -479,7 +479,7 @@ class ApiAuthorizationIT {
             .containsExactlyInAnyOrder("/api/geographic-spaces", "/api/geographic-spaces/{id}");
     }
 
-    // --- the vendor carve-out: one path, and only the list ----------------------------------------
+    // --- the vendor carve-outs: the listing and the record, and nothing else ----------------------
 
     /**
      * <b>A supplier reaches the vendor directory listing and nothing else here.</b>
@@ -503,19 +503,45 @@ class ApiAuthorizationIT {
     }
 
     /**
-     * And that carve-out is the list path alone.
+     * <b>And a supplier reaches the id-addressed record — the chain admits it, and the resource
+     * decides it.</b>
      *
-     * <p>{@code /api/vendors/{id}} and {@code /api/vendors/summary} take no account of who is asking
-     * — an id-addressed record hands a supplier another supplier's row for the price of guessing an
-     * id, which is the defect the deleted patient-roster rule had. They fall to the blanket read rule
-     * and stay admin-or-operator, and the writes stay the administrator's.
+     * <p>Backlog item 88, decided 2026-09-12, which reversed the sentence this file used to carry:
+     * {@code /api/vendors/{id}} used to fall to the blanket read rule and answer a supplier 403.
+     *
+     * <p><b>404 rather than 403 is the whole assertion.</b> A 403 would mean the chain refused before
+     * {@code VendorResource} was reached — the state before this item — so this single status carries
+     * both halves of the ordering: the matcher exists, and it sits above the blanket read rule.
+     * {@code SecurityConfigurationOrderIT} asserts the position structurally as well, because a
+     * matcher moved below that rule fails nothing that only asserts the rule exists.
+     *
+     * <p><b>What the 404 does not say is that the scoping works</b> — an unknown id is absent for
+     * everybody, and this case would read the same against a handler that served any row to any
+     * supplier. That is {@code VendorScopeIT}'s half, on a row that really exists. The authority and
+     * the comparison are one decision and this file is half of it.
+     */
+    @Test
+    void aVendorReachesTheIdAddressedRecord() throws Exception {
+        mvc.perform(get("/api/vendors/any-id").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isNotFound());
+    }
+
+    /**
+     * And those two carve-outs are the only ones.
+     *
+     * <p>{@code /api/vendors/summary} is the case to read twice. It is the whole directory's counts,
+     * and it is a <em>literal segment behind a single-segment wildcard</em>: it matches
+     * {@code /api/vendors/{id}}, so it is kept the console's by a matcher of its own placed ABOVE that
+     * rule. Below it, a supplier would be admitted on {@code ROLE_VENDOR} and MVC would then route the
+     * request to the summary handler, which takes no account of who is asking — every vendor on the
+     * platform counted, for a caller entitled to one row. The 403 here is what says that matcher is
+     * still in front; see {@link #noLiteralSiblingHidesBehindTheVendorIdMatcher} for the sibling that
+     * does not exist yet.
      *
      * <p>{@code /api/teams} stands for the rest of the entity surface, the same way
-     * {@link #plainUserIsRefusedEverywhere} uses it.
+     * {@link #plainUserIsRefusedEverywhere} uses it, and the writes stay the administrator's.
      */
     @Test
     void aVendorReachesNothingElse() throws Exception {
-        mvc.perform(get("/api/vendors/any-id").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
         mvc.perform(get("/api/vendors/summary").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
         mvc.perform(get(ENTITY_PATH).with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
         mvc.perform(get("/api/patients").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
@@ -523,6 +549,60 @@ class ApiAuthorizationIT {
             post("/api/vendors").with(as(AuthoritiesConstants.VENDOR)).contentType(MediaType.APPLICATION_JSON).content("{}")
         ).andExpect(status().isForbidden());
         mvc.perform(delete("/api/vendors/any-id").with(as(AuthoritiesConstants.VENDOR))).andExpect(status().isForbidden());
+    }
+
+    /**
+     * The literal sibling that does not exist yet, and that the matchers would not stop.
+     *
+     * <p>The same shape as {@link #noLiteralSiblingHidesBehindTheGeographicSpaceIdMatcher}, and item
+     * 88 is what made it reachable here: before it, everything under {@code /api/vendors/} fell to the
+     * blanket read rule, so a new literal path arrived admin-or-operator by default and the failing
+     * direction was the safe one. With a {@code {id}} carve-out naming {@code ROLE_VENDOR}, a literal
+     * one segment deep — {@code /export}, say — matches that wildcard, is admitted to every supplier,
+     * and is then routed by MVC to its own handler. {@code /api/vendors/summary} is that case already
+     * and needed a matcher of its own above the wildcard; a third would need the same decision made
+     * about it.
+     *
+     * <p>No request can demonstrate it, because by the time one exists the damage is written and
+     * green. So this grades the shape of the application instead, discovered from the handler mapping
+     * rather than enumerated: it fails on the commit that adds a fourth pattern, which is exactly when
+     * somebody needs to read the rules in {@code SecurityConfiguration}.
+     */
+    @Test
+    void noLiteralSiblingHidesBehindTheVendorIdMatcher() {
+        List<String> mapped = handlerMapping
+            .getHandlerMethods()
+            .keySet()
+            .stream()
+            .filter(ApiAuthorizationIT::isReachableByGet)
+            .map(RequestMappingInfo::getPathPatternsCondition)
+            .filter(Objects::nonNull)
+            .flatMap(condition -> condition.getPatternValues().stream())
+            .filter(pattern -> pattern.startsWith("/api/vendors"))
+            .distinct()
+            .sorted()
+            .toList();
+
+        assertThat(mapped)
+            .as(
+                "A new GET path under /api/vendors/ needs its own matcher ABOVE the /api/vendors/{id} " +
+                    "rule in SecurityConfiguration, gated on what it discloses — one segment deep it " +
+                    "matches {id} and is open to every supplier in the estate. /api/vendors/summary is " +
+                    "the worked example. Add the matcher, then add the pattern here."
+            )
+            .containsExactlyInAnyOrder("/api/vendors", "/api/vendors/summary", "/api/vendors/{id}");
+    }
+
+    /**
+     * Whether a mapping can be reached by {@code GET} — which a mapping declaring no method can be.
+     *
+     * <p>The empty case is not a detail to skip: an undeclared method condition matches every verb, so
+     * reading it as "not a GET" would let exactly the sibling above hide from the sweep that exists to
+     * find it.
+     */
+    private static boolean isReachableByGet(RequestMappingInfo info) {
+        var methods = info.getMethodsCondition().getMethods();
+        return methods.isEmpty() || methods.stream().anyMatch(method -> "GET".equals(method.name()));
     }
 
     /**

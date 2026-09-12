@@ -27,8 +27,19 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
- * What a {@code ROLE_VENDOR} token may read from the vendor directory — backlog item 31, and
+ * What a {@code ROLE_VENDOR} token may read from the vendor directory — backlog items 31 and 88, and
  * hc-vendor's {@code vendor-portal-spec.md} row 5.1.
+ *
+ * <h2>Two endpoints, two scoping shapes, one rule</h2>
+ *
+ * <p>The rule is that a supplier reads its own row and nobody else's; how it is enforced differs, and
+ * the second could not be copied from the first. The <b>listing</b> (item 31) resolves the caller's
+ * account and narrows a query by it. The <b>record</b> (item 88) has no criterion to narrow — an id
+ * identifies one document — so it loads the row and compares, and its refusal is a <b>404</b>,
+ * because a 403 on an id-addressed read confirms the row exists. The ambiguity question that earns a
+ * 409 on the listing <b>does not arise</b> on the record, and
+ * {@link #theRecordIsAnsweredEvenWhenTwoRowsShareTheLogin} asserts that absence rather than leaving
+ * it to be inferred.
  *
  * <h2>Why this runs with the filter chain on</h2>
  *
@@ -228,6 +239,203 @@ class VendorScopeIT {
         mvc.perform(get(PATH).param("accountId.equals", "").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isBadRequest());
     }
 
+    // --- the id-addressed record: load and compare, and refuse as though it were absent ------------
+
+    /**
+     * <b>The case item 88 exists for: vendor A asking for vendor B's id is told there is no such
+     * row.</b>
+     *
+     * <p>Watched red against the matcher with no comparison behind it — the dangerous half-fix the
+     * item names — where it answered <b>200 carrying B's entire record</b>. That is what the authority
+     * does on its own here, and it is worse than on the listing: an id takes its subject from the path
+     * and has no relationship to the caller, so the grant alone opens every vendor row to every
+     * vendor.
+     *
+     * <p><b>404 and not 403, because a 403 confirms the row exists.</b> A supplier handed 403 for
+     * every real id and 404 for every invented one can enumerate the collection by status code — how
+     * many suppliers this platform has, and which ids are not theirs — without ever reading a field.
+     * So the refusal has to be the answer the collection gives for a row that is not there.
+     *
+     * <p><b>⚠ The refusal DOES carry the id, and asserting otherwise was this case's own first
+     * defect.</b> It required {@code doesNotContain(other.getId())} and went red on the first run
+     * where the comparison actually worked: JHipster's problem detail echoes the request URI in
+     * {@code instance} and {@code path}, so the id is in the body — <em>and it is in the body of the
+     * genuine 404 too</em>, identically. Demanding its absence would have demanded a refusal that
+     * differs from a real not-found, which is the disclosure this item is about, arrived at by an
+     * assertion written to prevent it. It is not a disclosure in any case: the caller supplied the id,
+     * so the response tells it nothing it did not already know. What the refusal may not carry is a
+     * <em>field of the row</em>, which is what is asserted instead.
+     *
+     * @see #theRefusalIsTheSameResponseAsTheRowBeingAbsent for the assertion that it really is the
+     *      same answer and not merely the same number
+     */
+    @Test
+    void aVendorAskingForAnotherVendorsIdIsTold404() throws Exception {
+        String body = mvc
+            .perform(get(PATH + "/" + other.getId()).with(vendor(OWN_LOGIN)))
+            .andExpect(status().isNotFound())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        assertThat(body).as("the refused row's portal login must not be in the refusal").doesNotContain(OTHER_LOGIN);
+        assertThat(body).as("nor any other field of it — the name is the one a screen would show").doesNotContain(other.getName());
+    }
+
+    /**
+     * <b>And the refusal is not merely a 404 — it is the same response the absent row produces.</b>
+     *
+     * <p>"Indistinguishable" is a property of the whole response, not of the status line, so a
+     * hand-rolled 404 differing in body, problem type or headers would be the disclosure this item
+     * forbids, one field along. The handler earns the property by construction rather than by
+     * matching one: a refused row and a missing row converge on the same empty {@code Optional} before
+     * anything renders, and both leave through {@code ResponseUtil.wrapOrNotFound}.
+     *
+     * <p><b>The two responses are taken from the same URI and the same caller</b>, which is what makes
+     * the comparison worth anything: a problem detail carries the request path, so comparing two
+     * different URLs would report a difference that is not about the refusal, and comparing after
+     * stripping it would be comparing less than the caller sees. The row is deleted between the two
+     * requests, so the only thing that changes is whether it exists.
+     *
+     * <p>The body is compared in full, as a string, and so is the status.
+     */
+    @Test
+    void theRefusalIsTheSameResponseAsTheRowBeingAbsent() throws Exception {
+        String uri = PATH + "/" + other.getId();
+
+        var refused = mvc
+            .perform(get(uri).with(vendor(OWN_LOGIN)))
+            .andReturn()
+            .getResponse();
+
+        // The same id, the same caller, the same URI — and now genuinely nothing behind it.
+        vendorRepository.deleteById(other.getId());
+        var absent = mvc
+            .perform(get(uri).with(vendor(OWN_LOGIN)))
+            .andReturn()
+            .getResponse();
+
+        assertThat(refused.getStatus())
+            .as("refusing somebody else's row answers a different status from the row being absent")
+            .isEqualTo(absent.getStatus());
+        assertThat(refused.getContentAsString())
+            .as(
+                "the refusal and the absence differ in the body, so a supplier can tell one from the " +
+                    "other and enumerate the collection without reading a field"
+            )
+            .isEqualTo(absent.getContentAsString());
+        assertThat(refused.getContentType()).as("the refusal and the absence differ in content type").isEqualTo(absent.getContentType());
+    }
+
+    /** Its own row, by id, is the point of the grant — 200 and the record itself. */
+    @Test
+    void aVendorReadsItsOwnRowById() throws Exception {
+        mvc.perform(get(PATH + "/" + own.getId()).with(vendor(OWN_LOGIN)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(own.getId()))
+            .andExpect(jsonPath("$.accountId").value(OWN_LOGIN));
+    }
+
+    /** Its own login in the casing a human would type is still its own row — the join is normalised. */
+    @Test
+    void aVendorReadsItsOwnRowWhateverCasingItsTokenCarries() throws Exception {
+        mvc.perform(get(PATH + "/" + own.getId()).with(vendor("  Kaneshie ")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(own.getId()));
+    }
+
+    /**
+     * A supplier whose login names no row in this console reads nothing — not the row it asked for.
+     *
+     * <p>The ordinary state on the day a supplier is created in hc-vendor and not yet here, and the
+     * state in which a comparison that failed open would be at its most dangerous: "the caller has no
+     * account here" must not collapse into "so do not compare". 404 rather than 200, and rather than
+     * the 500 an unguarded {@code null.equals} would give.
+     */
+    @Test
+    void aVendorWhoseLoginNamesNoRowHereReadsNothing() throws Exception {
+        mvc.perform(get(PATH + "/" + own.getId()).with(vendor("nobody"))).andExpect(status().isNotFound());
+        mvc.perform(get(PATH + "/" + other.getId()).with(vendor("nobody"))).andExpect(status().isNotFound());
+    }
+
+    /**
+     * And a row linked to no portal login at all belongs to no supplier.
+     *
+     * <p>Most of this directory is that row — {@code accountId} is null on every vendor written before
+     * the field existed — so a comparison treating null as "unclaimed, therefore anybody's" would hand
+     * the bulk of the collection to the first supplier that guessed an id.
+     */
+    @Test
+    void aVendorCannotReadAnUnlinkedRow() throws Exception {
+        String unlinked = vendorRepository
+            .findAll()
+            .stream()
+            .filter(candidate -> candidate.getAccountId() == null)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("the unlinked row seed() writes is missing, so this case asserts nothing"))
+            .getId();
+
+        mvc.perform(get(PATH + "/" + unlinked).with(vendor(OWN_LOGIN))).andExpect(status().isNotFound());
+    }
+
+    /**
+     * A {@code ROLE_VENDOR} token with no login is refused on the record too, and identically for
+     * every id.
+     *
+     * <p>It is a broken credential rather than a supplier with no rows, which is the distinction the
+     * listing makes one handler along and which hc-vendor's own {@code VendorScopeResolver} makes for
+     * the same reason.
+     *
+     * <p><b>403 here does not breach the 404-not-403 rule, and the second assertion is what says so.</b>
+     * What a status may not do on this path is depend on the row; this one depends only on the token,
+     * so it is returned identically for a row that exists and an id that never has, and a caller
+     * learns nothing about the collection from it. Asserting both is the difference between a decision
+     * and a coincidence.
+     */
+    @Test
+    void aVendorTokenWithNoLoginIsRefusedOnTheRecordToo() throws Exception {
+        mvc.perform(get(PATH + "/" + own.getId()).with(as(AuthoritiesConstants.VENDOR).jwt(builder -> builder.subject(" ")))).andExpect(
+            status().isForbidden()
+        );
+        mvc.perform(get(PATH + "/no-such-vendor").with(as(AuthoritiesConstants.VENDOR).jwt(builder -> builder.subject(" ")))).andExpect(
+            status().isForbidden()
+        );
+    }
+
+    /**
+     * <b>Two rows on one login are NOT a conflict here, and that absence is the decision.</b>
+     *
+     * <p>Item 88 says so in as many words: an id resolves exactly one document whatever
+     * {@code accountId} it holds, so there is nothing for a {@code 409} to be about, and copying item
+     * 31's {@code refuseAnAmbiguousAccount} onto this path would be a guard with no failure mode —
+     * worse than no guard, because it reads as protection.
+     *
+     * <p>So this asserts the opposite of {@code theAmbiguityIsRefusedRatherThanAnswered}, in the same
+     * state that case constructs: index dropped, duplicates present. Each duplicate is still its own
+     * document and each is still the caller's, so both are answered. It is written down because a
+     * reader who has just read the listing's refusal will reach for one here, and a 409 would pass
+     * every other case in this file.
+     */
+    @Test
+    void theRecordIsAnsweredEvenWhenTwoRowsShareTheLogin() throws Exception {
+        mongoTemplate.indexOps(Vendor.class).dropIndex(VendorAccountIndexes.ACCOUNT_ID_INDEX);
+        Vendor duplicate = vendorRepository.save(VendorResourceIT.createEntity().accountId(OWN_LOGIN));
+
+        // The listing cannot resolve the account and refuses — stated here so that a regression
+        // answering 409 everywhere could not pass this case by making both halves agree.
+        mvc.perform(get(PATH).with(vendor(OWN_LOGIN))).andExpect(status().isConflict());
+
+        mvc.perform(get(PATH + "/" + own.getId()).with(vendor(OWN_LOGIN)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(own.getId()));
+        mvc.perform(get(PATH + "/" + duplicate.getId()).with(vendor(OWN_LOGIN)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(duplicate.getId()));
+
+        // And the other supplier's row is still refused, so the duplicates have not widened the scope.
+        mvc.perform(get(PATH + "/" + other.getId()).with(vendor(OWN_LOGIN))).andExpect(status().isNotFound());
+    }
+
     // --- the console, which must not have changed -------------------------------------------------
 
     /**
@@ -264,14 +472,57 @@ class VendorScopeIT {
     }
 
     /**
+     * <b>And an administrator and an operator still read ANY row by id — unchanged by item 88.</b>
+     *
+     * <p>The regression that item invites, and the one it says is most likely to slip through: the new
+     * {@code /api/vendors/{id}} matcher takes the path out of the blanket read rule's reach, so the
+     * console is now judged by the carve-out, and the comparison in front of the row is new code on a
+     * path the console has always used. Either an authority dropped from the matcher or a comparison
+     * that ran for everybody turns every vendor record screen into a 404 — which reads as missing
+     * data rather than as a rule, and would be diagnosed anywhere but here.
+     *
+     * <p>Both suppliers' rows are asserted for each, not one: a comparison scoping an administrator by
+     * their own login would answer one of these correctly by coincidence.
+     */
+    @Test
+    void theConsoleStillReadsAnyRowById() throws Exception {
+        for (String authority : List.of(AuthoritiesConstants.ADMIN, AuthoritiesConstants.OPERATOR)) {
+            mvc.perform(get(PATH + "/" + own.getId()).with(as(authority)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(own.getId()));
+            mvc.perform(get(PATH + "/" + other.getId()).with(as(authority)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(other.getId()));
+        }
+    }
+
+    /** And a record that is not there is still a 404 for the console, not a 403 and not a 200. */
+    @Test
+    void theConsoleStillGetsNotFoundForARowThatIsNotThere() throws Exception {
+        mvc.perform(get(PATH + "/no-such-vendor").with(as(AuthoritiesConstants.ADMIN))).andExpect(status().isNotFound());
+        mvc.perform(get(PATH + "/no-such-vendor").with(as(AuthoritiesConstants.OPERATOR))).andExpect(status().isNotFound());
+    }
+
+    /**
      * A principal holding both authorities is unscoped, and that is decided rather than inherited.
      *
      * <p>No such account exists or is expected. It is asserted because a scope has to be a function
      * of the token and not of the order two authorities happen to appear in — the same answer
      * hc-vendor's resolver gives, so the two products cannot disagree about one token.
+     *
+     * <p>Since item 88 the record read asks the same question, through the same
+     * {@code callerIsASupplier}, and is asserted here beside the listing so the two cannot answer
+     * differently about one token.
      */
     @Test
     void anAdministratorWhoAlsoHoldsTheVendorAuthorityIsNotScoped() throws Exception {
+        mvc.perform(
+            get(PATH + "/" + other.getId()).with(
+                as(AuthoritiesConstants.ADMIN, AuthoritiesConstants.VENDOR).jwt(builder -> builder.subject(OWN_LOGIN))
+            )
+        )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(other.getId()));
         mvc.perform(
             get(PATH)
                 .param("size", "100")
