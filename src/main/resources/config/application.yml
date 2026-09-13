@@ -375,7 +375,24 @@ info:
 
 jhipster:
   clientApp:
-    name: 'hcAdminServiceApp'
+    # ⚠ This is NOT derived from .yo-rc.json's baseName (hcAdminService), and the divergence is
+    # deliberate — backlog item 95. HeaderUtil names the alert headers from this value, so the api
+    # emitted X-hcAdminServiceApp-alert / -error / -params while app/'s shared/jhipster/constants.ts
+    # read — and still reads — x-hcadminapp-*. The two never matched, so no alert this api sent, a
+    # refused write or a successful one, was ever displayed by the console. The gateway emitted a
+    # third name of its own. Both services are hcAdminApp now, which those constants match.
+    #
+    # It is also the root key of every one of app/'s i18n bundles (hcAdminApp.platformHub.created),
+    # which HeaderUtil builds the -alert header's VALUE from — so the name settles the message key as
+    # well as the header it arrives on.
+    #
+    # A JHipster regeneration reverts this to '<baseName>App' and silently restores the defect, which
+    # is exactly how it survived from the generator's first commit. Three tests pin it, none of them
+    # by reading this property: ExceptionTranslatorIT.testBadRequestAlertCarriesItsFailureAlertHeaders
+    # and .testSuccessAlertCarriesTheHeaderTheConsoleReads assert the literal header names on a real
+    # response, and ConfigurationBindingTest.theShippedClientAppNameIsTheOneTheConsoleReads asserts
+    # this file — the test profile shadows it, so an IT alone would not see it drift back.
+    name: 'hcAdminApp'
   # By default CORS is disabled. Uncomment to enable.
   # cors:
   #   allowed-origins: "http://localhost:8100,http://localhost:9000"

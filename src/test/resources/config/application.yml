@@ -139,7 +139,12 @@ server:
 # ===================================================================
 jhipster:
   clientApp:
-    name: 'hcAdminServiceApp'
+    # Must match src/main/resources/config/application.yml — backlog item 95. This file shadows the
+    # shipped one entirely for the whole suite (same classpath path, test classes first), so an IT
+    # asserting a header name is asserting THIS value and would stay green against a shipped file
+    # that had drifted back. ConfigurationBindingTest.theShippedClientAppNameIsTheOneTheConsoleReads
+    # reads the shipped file off disk and closes that gap.
+    name: 'hcAdminApp'
   mail:
     from: hcAdminService@localhost.com
     base-url: http://127.0.0.1:8080
