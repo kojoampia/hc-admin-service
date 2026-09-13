@@ -102,17 +102,24 @@ public class ExceptionTranslator extends ResponseEntityExceptionHandler {
      * them and an {@code ErrorResponseException} carrying its own {@code X-<app>-error} would be
      * asserting something this advice has no way to reconcile.
      *
-     * <h2>⚠ Restoring these headers is necessary and is not sufficient</h2>
+     * <h2>⚠ Restoring these headers was necessary and was not sufficient — the names had to agree too</h2>
      *
-     * <p>{@code HeaderUtil} names them from {@code jhipster.clientApp.name}, which is
-     * {@code hcAdminServiceApp} here — derived from this repo's {@code baseName}, {@code hcAdminService}.
-     * The console reads {@code x-hcadminapp-error} / {@code x-hcadminapp-params}
-     * ({@code app/src/main/webapp/app/shared/jhipster/constants.ts}), derived from <em>its</em>
-     * {@code baseName}, {@code hcAdmin}. <b>The two have never agreed</b>, no test or configuration on
-     * either side pins them, and the same mismatch silences every success alert this api sends. Until
-     * that is settled, {@code error.idexists}'s {@code {{ entityName }}} still renames nothing on
-     * screen. It is reported rather than fixed here: it is one name in one of two repositories and the
-     * choice of which is not this change's to make.
+     * <p>{@code HeaderUtil} names them from {@code jhipster.clientApp.name}, and <b>three names were in
+     * play with no two matching</b>: this api emitted {@code X-hcAdminServiceApp-*} (from its
+     * {@code baseName}, {@code hcAdminService}), the gateway {@code X-AdminGatewayApp-*}, and the
+     * console read {@code x-hcadminapp-*}
+     * ({@code app/src/main/webapp/app/shared/jhipster/constants.ts}). So these headers were restored
+     * and still reached nobody, and the same mismatch silenced every <em>success</em> alert as well —
+     * no create, update or delete confirmation this api sent was ever displayed.
+     *
+     * <p><b>Settled by backlog item 95</b>: both services emit {@code hcAdminApp}, which the console's
+     * existing constants match and which is also the root key of all 38 of its i18n bundles. The value
+     * therefore diverges from {@code .yo-rc.json}'s {@code baseName} and a regeneration reverts it
+     * silently, so it is pinned in three places that do not read the property —
+     * {@code ExceptionTranslatorIT.testBadRequestAlertCarriesItsFailureAlertHeaders} and
+     * {@code .testSuccessAlertCarriesTheHeaderTheConsoleReads} on a real response, and
+     * {@code ConfigurationBindingTest.theShippedClientAppNameIsTheOneTheConsoleReads} on the shipped
+     * file, which the test profile shadows.
      *
      * <h2>One visible side effect</h2>
      *

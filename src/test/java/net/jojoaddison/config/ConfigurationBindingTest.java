@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -381,6 +383,74 @@ class ConfigurationBindingTest {
     }
 
     /**
+     * <b>The shipped {@code jhipster.clientApp.name} is the one the console's constants read</b>, and
+     * no profile overrides it — backlog item 95.
+     *
+     * <p>{@code HeaderUtil} names {@code X-<clientApp.name>-alert} / {@code -error} / {@code -params}
+     * from this value. Three names were in play and no two matched: this api emitted
+     * {@code X-hcAdminServiceApp-*}, the gateway {@code X-AdminGatewayApp-*}, and
+     * {@code app/src/main/webapp/app/shared/jhipster/constants.ts} read — and still reads —
+     * {@code x-hcadminapp-*}. So <b>every</b> alert either service sent was discarded by the console:
+     * not just the failure ones item 91 had just restored, but every create, update and delete
+     * confirmation, through {@code notificationInterceptor}, for the life of the repository. Both
+     * services are {@code hcAdminApp} now.
+     *
+     * <p><b>Why this is here and not only in {@code ExceptionTranslatorIT}.</b> That IT asserts the
+     * emitted header on a real response, which is the stronger assertion — but every test in this
+     * suite runs against {@code src/test/resources/config/application.yml}, which declares this key
+     * itself and therefore <em>shadows the shipped file completely</em>. A regeneration touching only
+     * the shipped file would leave the whole suite green and every alert dead again. That is this
+     * estate's most-repeated defect, one file along, and it is exactly what this class was written
+     * for: {@link #propertiesOf} reads {@code src/main/resources} off disk.
+     *
+     * <p><b>The value is diverged from {@code .yo-rc.json}'s {@code baseName} on purpose</b>
+     * ({@code hcAdminService} → {@code hcAdminServiceApp} is what the generator would write), which
+     * is precisely why it needs a guard: a regeneration reverts it silently and nothing else in the
+     * build would notice.
+     *
+     * <p>The override sweep is derived rather than enumerated, for the reason the binding sweeps
+     * above give — a profile file added later is covered the moment it exists. {@code prod} is the
+     * one that matters and is the one no test profile activates.
+     */
+    @Test
+    void theShippedClientAppNameIsTheOneTheConsoleReads() throws IOException {
+        String key = "jhipster.clientApp.name";
+
+        assertThat(propertiesOf("config/application.yml").get(key))
+            .as(
+                "%s names X-<value>-alert / -error / -params; the console reads x-hcadminapp-* and matches nothing else, " +
+                    "so any other value silences every alert this api sends (backlog item 95)",
+                key
+            )
+            .isEqualTo("hcAdminApp");
+
+        for (String profile : shippedProfileConfigs()) {
+            Object override = propertiesOf(profile).get(key);
+            assertThat(override)
+                .as(
+                    "%s overrides %s — a value set in the profile that actually runs is what makes this class of defect silent",
+                    profile,
+                    key
+                )
+                .satisfiesAnyOf(value -> assertThat(value).isNull(), value -> assertThat(value).isEqualTo("hcAdminApp"));
+        }
+    }
+
+    /** Every {@code config/application-*.yml} that ships, so a profile added later is swept too. */
+    private List<String> shippedProfileConfigs() throws IOException {
+        try (Stream<Path> entries = Files.list(Path.of("src/main/resources/config"))) {
+            List<String> configs = entries
+                .map(path -> path.getFileName().toString())
+                .filter(name -> name.startsWith("application-") && name.endsWith(".yml"))
+                .map(name -> "config/" + name)
+                .sorted()
+                .toList();
+            assertThat(configs).as("src/main/resources/config should hold the profile configs").isNotEmpty();
+            return configs;
+        }
+    }
+
+    /**
      * Read from {@code src/main/resources} on disk, NOT from the classpath.
      *
      * <p>This is the difference between a guard and a decoration. Under surefire,
@@ -390,8 +460,9 @@ class ConfigurationBindingTest {
      * happily, and would never have seen the shipped file that took production down. The test
      * config is already exercised by every other test in the suite; this one exists solely for the
      * file that is not.
+     *
+     * <p>Every property in a shipped file, flattened — {@code a.b.c} style, as Spring sees them.
      */
-    /** Every property in a shipped file, flattened — {@code a.b.c} style, as Spring sees them. */
     private Map<String, Object> propertiesOf(String resource) throws IOException {
         FileSystemResource file = new FileSystemResource("src/main/resources/" + resource);
         Map<String, Object> flattened = new LinkedHashMap<>();
