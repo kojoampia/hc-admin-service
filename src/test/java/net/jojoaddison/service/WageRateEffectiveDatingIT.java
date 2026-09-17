@@ -55,7 +55,7 @@ class WageRateEffectiveDatingIT {
                 // shift type would still find the DAY rows and read plausibly.
                 rate(ProfessionalRole.DOCTOR, ShiftType.NIGHT, 750, LocalDate.of(2026, 1, 1)),
                 rate(ProfessionalRole.NURSE, ShiftType.DAY, 300, LocalDate.of(2026, 1, 1)),
-                rate(ProfessionalRole.CAREGIVER, ShiftType.DAY, 200, LocalDate.of(2026, 1, 1))
+                rate(ProfessionalRole.CARER, ShiftType.DAY, 200, LocalDate.of(2026, 1, 1))
             )
         );
     }
@@ -153,7 +153,9 @@ class WageRateEffectiveDatingIT {
         LocalDate asOf = LocalDate.of(2026, 9, 30);
         WageRateService.RateTable table = wageRateService.rateTableUpTo(asOf);
 
-        for (ProfessionalRole role : ProfessionalRole.values()) {
+        // PAYABLE, not values(): the directory-only three are priced nowhere by design (item 35 D2),
+        // so sweeping them here would assert agreement between two empty answers and prove nothing.
+        for (ProfessionalRole role : ProfessionalRole.PAYABLE) {
             for (ShiftType shiftType : ShiftType.values()) {
                 for (LocalDate date : List.of(LocalDate.of(2026, 3, 5), LocalDate.of(2026, 8, 31), LocalDate.of(2026, 9, 2))) {
                     assertThat(table.rateOn(role, shiftType, date).map(WageRate::getAmount))

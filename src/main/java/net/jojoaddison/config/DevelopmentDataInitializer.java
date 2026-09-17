@@ -88,6 +88,16 @@ import tech.jhipster.config.JHipsterConstants;
  * <p>The JSON is keyed by profile at the root ({@code dev} / {@code test}), and each profile holds
  * plain arrays of domain objects per collection. Records carry explicit ids, so repeated startups
  * overwrite the same documents rather than accumulating duplicates.
+ *
+ * <p><b>A seeded id is a key and not a label — renaming one forks the row rather than renaming it.</b>
+ * This loads with {@code saveAll} and never clears a collection, so an id that changes writes a
+ * <em>new</em> document and leaves the old one behind on every database the previous name was seeded
+ * into. That is why backlog item 35's {@code CAREGIVER} → {@code CARER} rename left the wage-rate ids
+ * reading {@code wage-caregiver-day-2026-01} and changed only the {@code role} values: renaming them
+ * too would have put two rows in each of five {@code (role, shiftType)} cells on every dev and quality
+ * database — identical amounts, identical {@code validFrom}, one of them a ghost — and
+ * {@code WageRateService.rateOn} resolves a tie between them arbitrarily. The id is opaque; the
+ * duplicate would not be.
  */
 @Component
 @Profile({ JHipsterConstants.SPRING_PROFILE_DEVELOPMENT, JHipsterConstants.SPRING_PROFILE_TEST })

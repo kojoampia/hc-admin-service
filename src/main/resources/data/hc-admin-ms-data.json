@@ -124,7 +124,7 @@
     "wageRates": [
       {
         "id": "wage-caregiver-day-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "DAY",
         "amount": 200,
         "currency": "GHS",
@@ -133,7 +133,7 @@
       },
       {
         "id": "wage-caregiver-evening-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "EVENING",
         "amount": 240,
         "currency": "GHS",
@@ -142,7 +142,7 @@
       },
       {
         "id": "wage-caregiver-night-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "NIGHT",
         "amount": 300,
         "currency": "GHS",
@@ -151,7 +151,7 @@
       },
       {
         "id": "wage-caregiver-off-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "OFF",
         "amount": 0,
         "currency": "GHS",
@@ -160,7 +160,7 @@
       },
       {
         "id": "wage-caregiver-flexible-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "FLEXIBLE",
         "amount": 120,
         "currency": "GHS",
@@ -1635,7 +1635,7 @@
       {
         "id": "p3",
         "isArchived": false,
-        "role": "CAREGIVER",
+        "role": "CARER",
         "speciality": "Daily living support",
         "licenceNumber": "CG/ABF/22-114",
         "verification": "VERIFIED",
@@ -1747,7 +1747,7 @@
       {
         "id": "p7",
         "isArchived": false,
-        "role": "CAREGIVER",
+        "role": "CARER",
         "speciality": "Mobility & physio support",
         "licenceNumber": "CG/ABF/24-206",
         "verification": "PENDING",
@@ -16855,7 +16855,7 @@
     "wageRates": [
       {
         "id": "wage-caregiver-day-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "DAY",
         "amount": 200,
         "currency": "GHS",
@@ -16864,7 +16864,7 @@
       },
       {
         "id": "wage-caregiver-night-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "NIGHT",
         "amount": 300,
         "currency": "GHS",
@@ -16873,7 +16873,7 @@
       },
       {
         "id": "wage-caregiver-off-2026-01",
-        "role": "CAREGIVER",
+        "role": "CARER",
         "shiftType": "OFF",
         "amount": 0,
         "currency": "GHS",

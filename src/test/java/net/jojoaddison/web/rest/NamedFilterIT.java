@@ -115,7 +115,7 @@ class NamedFilterIT {
     @Test
     void shouldFilterProfessionalsByRole() throws Exception {
         professional(ProfessionalRole.DOCTOR, AccountStatus.ACTIVE);
-        professional(ProfessionalRole.CAREGIVER, AccountStatus.ACTIVE);
+        professional(ProfessionalRole.CARER, AccountStatus.ACTIVE);
 
         restMockMvc
             .perform(get("/api/professionals?role.equals=DOCTOR"))

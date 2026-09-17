@@ -88,6 +88,22 @@ public final class RoundPlanDtos {
      * server-composed message would be the one string on that screen that never translates.
      */
     public enum Reason {
+        /**
+         * The round asks for a discipline hc-admin does not roster — {@code PHARMACIST},
+         * {@code CHEMIST} or {@code TECHNICIAN}.
+         *
+         * <p>Those three exist on {@link net.jojoaddison.domain.enumeration.ProfessionalRole} so that a
+         * clinician hc-professional recognises can be <i>described</i> here; hc-admin neither rosters
+         * nor pays them, and {@code ProfessionalRole.PAYABLE} is the list that does. Backlog item 35,
+         * decision D2.
+         *
+         * <p><b>Refused here rather than deeper.</b> A round for one of the three would otherwise reach
+         * {@code RoundPlanningService.duty}, whose exhaustive switch exists to turn an unknown duty into
+         * a build failure rather than a 400 from another stack — so it would have become a 500 on a
+         * request that is merely asking for something this service does not do. An unplanned outcome
+         * with a translatable code is the honest answer, and it matches every other refusal here.
+         */
+        ROLE_IS_NOT_ROSTERED_HERE,
         /** No {@code Team} lists the round's space in {@code geographicSpaceIds}. */
         NO_TEAM_COVERS_THE_SPACE,
         /** Teams cover it, but nobody on them holds the role the round asks for. */
