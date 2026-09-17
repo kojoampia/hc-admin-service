@@ -236,10 +236,16 @@ class RoundPlanningServiceTest {
     /**
      * hc-admin's roles translated into the duty names hc-professional declares.
      *
-     * <p>Four of the five names match and one does not — {@code CAREGIVER} is {@code CARER} over
-     * there — which is the near-identity {@code duty-roster-resolution.md} § 6.4 calls more
-     * dangerous than clean difference. Every value is asserted, so adding a {@link ProfessionalRole}
-     * fails here as well as failing to compile.
+     * <p>All five names now match. One did not until 2026-09-16 — hc-admin said {@code CAREGIVER}
+     * where hc-professional says {@code CARER} — which is the near-identity
+     * {@code duty-roster-resolution.md} § 6.4 calls more dangerous than clean difference, and
+     * backlog item 35's D3 renamed it away. Every value is asserted, so adding a
+     * {@link ProfessionalRole} fails here as well as failing to compile.
+     *
+     * <p><b>An identity mapping still has to be asserted value by value.</b> The two enums belong to
+     * two products released separately; the day either side adds or renames one, this is where that
+     * has to be noticed, and a test that looped over {@code values()} comparing {@code name()} would
+     * agree with any translation table at all — including a broken one.
      */
     @Test
     void translatesEveryRoleToADutyHcProfessionalDeclares() {
@@ -247,8 +253,10 @@ class RoundPlanningServiceTest {
         assertThat(RoundPlanningService.duty(ProfessionalRole.NURSE)).isEqualTo("NURSE");
         assertThat(RoundPlanningService.duty(ProfessionalRole.PARAMEDIC)).isEqualTo("PARAMEDIC");
         assertThat(RoundPlanningService.duty(ProfessionalRole.THERAPIST)).isEqualTo("THERAPIST");
-        assertThat(RoundPlanningService.duty(ProfessionalRole.CAREGIVER)).isEqualTo("CARER");
-        assertThat(ProfessionalRole.values()).hasSize(5);
+        assertThat(RoundPlanningService.duty(ProfessionalRole.CARER)).isEqualTo("CARER");
+        // Five payable disciplines, eight in total — the other three are directory-only (item 35 D2).
+        assertThat(ProfessionalRole.PAYABLE).hasSize(5);
+        assertThat(ProfessionalRole.values()).hasSize(8);
     }
 
     // --- hard constraints -----------------------------------------------------------------------

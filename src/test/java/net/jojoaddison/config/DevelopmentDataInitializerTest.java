@@ -305,10 +305,10 @@ class DevelopmentDataInitializerTest {
             .containsEntry("doctor", ProfessionalRole.DOCTOR)
             .containsEntry("nurse", ProfessionalRole.NURSE)
             .containsEntry("paramedic", ProfessionalRole.PARAMEDIC)
-            .containsEntry("carer", ProfessionalRole.CAREGIVER)
+            .containsEntry("carer", ProfessionalRole.CARER)
             .containsEntry("nosae", ProfessionalRole.DOCTOR)
             .containsEntry("asarpong", ProfessionalRole.NURSE)
-            .containsEntry("kntim", ProfessionalRole.CAREGIVER)
+            .containsEntry("kntim", ProfessionalRole.CARER)
             .containsEntry("afrimpong", ProfessionalRole.PARAMEDIC)
             .containsEntry("makoto", ProfessionalRole.NURSE);
 
@@ -478,7 +478,9 @@ class DevelopmentDataInitializerTest {
     void shouldPriceEveryProfessionalRoleUnderTest() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
-        assertThat(test.getWageRates().stream().map(WageRate::getRole).distinct()).containsExactlyInAnyOrder(ProfessionalRole.values());
+        assertThat(test.getWageRates().stream().map(WageRate::getRole).distinct())
+            .as("the seed prices exactly the PAYABLE roles — the directory-only three must never gain a rate")
+            .containsExactlyInAnyOrderElementsOf(ProfessionalRole.PAYABLE);
     }
 
     /**
@@ -528,7 +530,7 @@ class DevelopmentDataInitializerTest {
                 .distinct()
         )
             .as("dev prices every (role, shiftType) cell")
-            .hasSize(ProfessionalRole.values().length * ShiftType.values().length);
+            .hasSize(ProfessionalRole.PAYABLE.size() * ShiftType.values().length);
     }
 
     /**
@@ -541,7 +543,8 @@ class DevelopmentDataInitializerTest {
      * express could not be looked at. Worse, the case a reader did see was {@code OFF} at
      * {@code 0 GHS}, which is precisely the state "Not set" exists to be told apart from.
      *
-     * <p>{@code CAREGIVER} is the role, and the pair is chosen rather than arbitrary.
+     * <p>{@code CARER} is the role — {@code CAREGIVER} until the 2026-09-16 rename — and the pair is
+     * chosen rather than arbitrary.
      * {@code EVENING} has 45 assignments in the roster fixture, so the counts move and the screens
      * have something to report; {@code FLEXIBLE} has none anywhere, so it exercises the rendering
      * without touching a total. {@code dev} stays whole, which is what keeps
@@ -562,8 +565,8 @@ class DevelopmentDataInitializerTest {
             .distinct()
             .toList();
 
-        assertThat(priced).doesNotContain("CAREGIVER/EVENING", "CAREGIVER/FLEXIBLE");
-        assertThat(priced).hasSize(ProfessionalRole.values().length * ShiftType.values().length - 2);
+        assertThat(priced).doesNotContain("CARER/EVENING", "CARER/FLEXIBLE");
+        assertThat(priced).hasSize(ProfessionalRole.PAYABLE.size() * ShiftType.values().length - 2);
     }
 
     /**

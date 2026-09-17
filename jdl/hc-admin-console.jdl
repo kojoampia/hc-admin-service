@@ -48,7 +48,10 @@ enum IdType { GHANA_CARD, PASSPORT, VOTER_ID, DRIVERS_LICENCE }
 
 enum AccountStatus { ACTIVE, PENDING, SUSPENDED, ON_LEAVE, UNDER_REVIEW }
 enum VerificationStatus { VERIFIED, PENDING, REJECTED, REVOKED, EXPIRED }
-enum ProfessionalRole { CAREGIVER, PARAMEDIC, THERAPIST, NURSE, DOCTOR }
+// CARER..DOCTOR are payable and key the wage grid; PHARMACIST, CHEMIST and TECHNICIAN are
+// directory-only — hc-professional recognises eight disciplines, hc-admin pays five.
+// See ProfessionalRole.PAYABLE, which is the executable version of that sentence (item 35 D2).
+enum ProfessionalRole { CARER, PARAMEDIC, THERAPIST, NURSE, DOCTOR, PHARMACIST, CHEMIST, TECHNICIAN }
 
 /** Kinds of site a vendor can operate. Matches
     net.jojoaddison.domain.enumeration.FacilityType, which is the live shape —

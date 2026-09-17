@@ -141,6 +141,15 @@ public class RoundPlanningService {
 
         for (int index = 0; index < request.rounds().size(); index++) {
             RoundRequest round = request.rounds().get(index);
+            // Refuse a discipline this service does not roster before doing any work for it. The three
+            // directory-only roles exist so hc-professional's clinicians can be described here, not
+            // staffed — see ProfessionalRole.PAYABLE and backlog item 35 D2. Checked first because the
+            // answer does not depend on teams, candidates or dates, and because reaching `duty` with one
+            // is a 500 where this is a translatable refusal.
+            if (!round.role().isPayable()) {
+                outcomes.add(RoundOutcome.unplanned(index, Reason.ROLE_IS_NOT_ROSTERED_HERE));
+                continue;
+            }
             List<Team> coveringTeams = teamRepository.findByGeographicSpaceIdsContaining(round.geographicSpaceId());
             if (coveringTeams.isEmpty()) {
                 outcomes.add(RoundOutcome.unplanned(index, Reason.NO_TEAM_COVERS_THE_SPACE));
@@ -258,11 +267,18 @@ public class RoundPlanningService {
     /**
      * hc-admin's {@link ProfessionalRole} as hc-professional's {@code DutyRole} name.
      *
-     * <p><b>A cross-repo mirror, and the only one this service keeps.</b> Four of the five names are
-     * identical on both sides and one is not — hc-admin says {@code CAREGIVER}, hc-professional says
-     * {@code CARER} — which is precisely the near-identity that {@code duty-roster-resolution.md}
-     * § 6.4 calls more dangerous than clean difference. Written as an exhaustive switch so that a
-     * new {@code ProfessionalRole} is a compile error here rather than a 400 from another stack.
+     * <p><b>A cross-repo mirror, and the only one this service keeps.</b> All five names are now
+     * identical on both sides. Until 2026-09-16 one was not — hc-admin said {@code CAREGIVER} where
+     * hc-professional says {@code CARER} — which is precisely the near-identity that
+     * {@code duty-roster-resolution.md} § 6.4 calls more dangerous than clean difference, and
+     * renaming it (backlog item 35, decision D3) is what closed the gap. Written as an exhaustive
+     * switch so that a new {@code ProfessionalRole} is a compile error here rather than a 400 from
+     * another stack.
+     *
+     * <p><b>Agreeing name-for-name is not a reason to delete this method.</b> Two enums owned by two
+     * products, deployed separately, are not one enum: {@code role.name()} would keep working right
+     * up to the day either side adds or renames a value, and would then send a duty the far service
+     * rejects with nothing here having changed. The switch is what makes that a build failure.
      *
      * <p>hc-admin's own {@code DutyRole} enum — {@code CARE, VENDOR, MEDIC, ADMINISTRATOR} among
      * them — was deleted with {@code DutyRoster}: it was a third vocabulary, it disagreed with
@@ -278,7 +294,14 @@ public class RoundPlanningService {
             case NURSE -> "NURSE";
             case PARAMEDIC -> "PARAMEDIC";
             case THERAPIST -> "THERAPIST";
-            case CAREGIVER -> "CARER";
+            case CARER -> "CARER";
+            // Unreachable: the planning loop refuses a non-payable role before any round reaches here.
+            // Kept as a throw rather than a mapping because hc-professional's DutyRole does not
+            // necessarily carry these, and inventing a duty name would send a value another product
+            // may reject — which is the exact failure this switch exists to make impossible.
+            case PHARMACIST, CHEMIST, TECHNICIAN -> throw new IllegalArgumentException(
+                role + " is a directory-only discipline; hc-admin does not roster it. See ProfessionalRole.PAYABLE."
+            );
         };
     }
 

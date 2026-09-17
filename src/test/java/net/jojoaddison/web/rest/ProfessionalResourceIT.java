@@ -47,7 +47,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser
 class ProfessionalResourceIT {
 
-    private static final ProfessionalRole DEFAULT_ROLE = ProfessionalRole.CAREGIVER;
+    private static final ProfessionalRole DEFAULT_ROLE = ProfessionalRole.CARER;
     private static final ProfessionalRole UPDATED_ROLE = ProfessionalRole.PARAMEDIC;
 
     private static final String DEFAULT_SPECIALITY = "AAAAAAAAAA";
