@@ -204,6 +204,44 @@ class ConfigurationBindingTest {
     }
 
     /**
+     * <b>This product's own channel publishes to {@code admin.event}, by name — backlog item 112.</b>
+     *
+     * <p>The same exception the case above earns, for the same reason and against a wider audience.
+     * {@code admin.event} is item 110's fourth channel: hc-patient, hc-professional and hc-vendor each
+     * have a filed item to consume it, and none of those repositories imports anything from this one.
+     * The only thing holding four ends together is that this string matches theirs, and a misspelling
+     * is a real topic — created on send, healthy, and read by nobody in three products at once.
+     *
+     * <p><b>The binding name is pinned as well as the topic</b>, because they fail differently and
+     * only one of them is visible. {@code EntityChangeAnnouncer.ADMIN_EVENT_BINDING} is what goes to
+     * {@code StreamBridge}; a binding that resolves to nothing declared here gets a <em>dynamic</em>
+     * destination named after itself, so renaming the key in the file without renaming the constant
+     * publishes every entity change in this service to a topic called {@code admin-event-out-0}.
+     *
+     * <p>⚠ <b>It is deliberately absent from {@code spring.cloud.function.definition}</b>, and the
+     * case below does not cover it — that sweep reads {@code -in-} bindings only. This is a
+     * {@code StreamBridge} destination, not a function bean, exactly as {@code binding-out-0},
+     * {@code verification-out-0} and {@code plan-verification-out-0} are; adding it to that list would
+     * name a bean that does not exist. It follows that no compose file's
+     * {@code SPRING_CLOUD_FUNCTION_DEFINITION} override needs to change for this channel.
+     */
+    @Test
+    void theEntityChannelPublishesToTheTopicTheThreeSiblingsConsume() throws IOException {
+        Map<String, Object> properties = propertiesOf("config/application.yml");
+
+        assertThat(properties.get("spring.cloud.stream.bindings.admin-event-out-0.destination"))
+            .as("item 112's channel must publish to the exact topic the siblings bind to; a misspelling is a real topic that nobody reads")
+            .isEqualTo("admin.event");
+        assertThat(properties.get("spring.cloud.stream.bindings.admin-event-out-0.content-type"))
+            .as("the frame is JSON; text/plain would hand a consumer's function a String")
+            .isEqualTo("application/json");
+
+        assertThat(String.valueOf(properties.get("spring.cloud.function.definition")).split(";"))
+            .as("admin-event-out-0 is a StreamBridge destination, not a function bean — naming it here names a bean that does not exist")
+            .doesNotContain("admin-event-out-0", "adminEventProducer");
+    }
+
+    /**
      * <b>Every inbound binding declares a destination, a group, and a function that exists.</b>
      *
      * <p>The mirror of the rule above, and it guards a worse failure. A missing {@code destination}
