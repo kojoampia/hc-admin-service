@@ -67,6 +67,19 @@ spring:
           destination: professional-verification
           content-type: text/plain
           group: hc-admin-service
+        # This product's own channel (backlog item 112). It DOES declare its real destination here,
+        # like the three inbound bindings below and unlike binding-out-0 above: OutputDestination
+        # resolves by destination when a binding has one, and nothing in this service consumes
+        # admin.event, so naming the shipped topic short-circuits nothing and lets AdminEntityEventIT
+        # ask for the frame by the name a sibling product would subscribe to.
+        #
+        # There is no plan-verification-out-0 here and that is not an omission — it has never been
+        # declared in this file; PatientPlanVerificationServiceTest asserts that frame at the publisher
+        # instead, and ConfigurationBindingTest pins the shipped destination off disk.
+        admin-event-out-0:
+          destination: admin.event
+          content-type: application/json
+          group: hc-admin-service
         # These THREE DO declare their real destinations here, unlike binding-out-0 above, and for the
         # mirror-image reason: InputDestination resolves by destination when a binding has one, so
         # naming the shipped topic is what lets a test send to `patient-events` and reach the

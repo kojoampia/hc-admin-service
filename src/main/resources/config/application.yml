@@ -226,6 +226,42 @@ spring:
           destination: patient-events-plan
           content-type: application/json
           group: hc-admin-service
+        # THIS PRODUCT'S OWN CHANNEL — backlog item 112, extending item 110's one-channel-per-product
+        # rule to hc-admin. `patient|professional|vendor.event` are the siblings' three; this is the
+        # fourth, and it is the one carrying every return leg in the estate.
+        #
+        # EntityChangeAnnouncer publishes here on every save and delete across every collection, which
+        # is why nothing enumerates the entities: it is a Mongo event listener, the same mechanism that
+        # already writes the audit trail, so a collection generated next week is on the channel the
+        # moment it exists. The frame carries identifiers and metadata ONLY — the domain class's simple
+        # name, the entity id, SAVED or DELETED, when, and the caller's gateway account id. Never the
+        # changed values, and never a login; see AdminEntityEvent, which takes both of those from the
+        # siblings' built producers and where the one exception (a command carries the value it
+        # decides) is stated as a rule.
+        #
+        # NOT in spring.cloud.function.definition, and it must not be added there. That list names
+        # FUNCTIONS — Suppliers, Functions and Consumers whose bindings Spring creates. This is a
+        # StreamBridge destination resolved by binding name, exactly as binding-out-0,
+        # verification-out-0 and plan-verification-out-0 are, and none of those is in the list either.
+        # Adding it would name a bean that does not exist. It follows that no compose file's
+        # SPRING_CLOUD_FUNCTION_DEFINITION override needs to change for this channel — the trap that
+        # entry warns about is a trap for consumers, and this is a producer.
+        #
+        # `admin.event` is a CROSS-PRODUCT NAME: hc-patient, hc-professional and hc-vendor each have a
+        # filed item to consume it, and none of those repositories imports anything from this one. The
+        # only thing holding the ends together is that this string matches theirs, so
+        # ConfigurationBindingTest pins it as a literal — deliberately breaking that file's
+        # derive-don't-enumerate rule, for the reason patient-events-plan already earns an exception:
+        # a misspelling is a real topic that nobody reads, silent on both sides at once.
+        #
+        # application/json, like plan-verification-out-0 and unlike the three text/plain bindings
+        # above. The payload is sent as bytes under a partition key of `<EntityType>/<id>`, so two
+        # changes to one record cannot overtake each other on the way to a consumer. hc-vendor keys
+        # the same pair, independently and for the same stated reason.
+        admin-event-out-0:
+          destination: admin.event
+          content-type: application/json
+          group: hc-admin-service
         # THE TWO DOMAIN SUBSCRIPTIONS. Everything above this line is either outbound or the SSE
         # fan-out; these are the only bindings on which this service learns anything from another.
         #

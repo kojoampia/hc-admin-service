@@ -220,6 +220,46 @@ class OutboundEventPublisherTest {
     }
 
     /**
+     * <b>The five-argument form keys the frame and can leave the string header off</b> — backlog item
+     * 112, which added it for {@code admin.event}.
+     *
+     * <p>{@code patientKey} is hc-patient's spelling for their own topic, sent on
+     * {@code patient-events-plan} so the return leg is legible to a consumer following either
+     * convention. On this service's own channel there is nobody to be legible to, and a frame about a
+     * wage rate carrying a header called {@code patientKey} would read as a defect to whoever found it.
+     *
+     * <p>The case above is what keeps that separation honest: it asserts the four-argument form
+     * <em>still</em> sends the header, so the live contract is unchanged by the overload beneath it.
+     * Both are needed — one alone would pass if the header were sent always, and the other alone would
+     * pass if it were sent never.
+     */
+    @Test
+    void aKeyedSendCanOmitTheStringHeaderAndStillCarryTheKey() {
+        publisher.publish(
+            "admin-event-out-0",
+            "{\"subject\":{\"entityId\":\"sp-1\"}}",
+            "SAVE on service_plan [sp-1]",
+            "service_plan/sp-1",
+            null
+        );
+        queued.forEach(Runnable::run);
+
+        ArgumentCaptor<Message<byte[]>> sent = ArgumentCaptor.forClass(Message.class);
+        verify(streamBridge).send(eq("admin-event-out-0"), sent.capture());
+        Message<byte[]> message = sent.getValue();
+
+        assertThat((byte[]) message.getHeaders().get(KafkaHeaders.KEY))
+            .as("the partition key is what stops two changes to one record overtaking each other")
+            .isEqualTo("service_plan/sp-1".getBytes(StandardCharsets.UTF_8));
+        assertThat(message.getHeaders().get(OutboundEventPublisher.PATIENT_KEY_HEADER))
+            .as("this channel is not hc-patient's and must not borrow their header")
+            .isNull();
+        assertThat(message.getHeaders().get(MessageHeaders.CONTENT_TYPE))
+            .as("the frame is JSON on both channels")
+            .hasToString(MimeTypeUtils.APPLICATION_JSON_VALUE);
+    }
+
+    /**
      * And the three-argument form still sends a bare payload.
      *
      * <p>The keyed overload was added beneath the existing one, so every current caller now routes

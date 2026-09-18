@@ -105,6 +105,19 @@ public class OutboundEventPublisher {
      */
     public static final String EXECUTOR_BEAN = "outboundEventExecutor";
 
+    /**
+     * The string header hc-patient's own publishers repeat the subject key under on
+     * {@code patient-events}, and which this service reads back as
+     * {@code DirectoryEventConsumers.PATIENT_KEY_HEADER}.
+     *
+     * <p>Sent alongside the Kafka key so the return leg is legible to a consumer following either
+     * convention. It is <b>theirs</b>, which is why it is a parameter of the five-argument
+     * {@link #publish(String, String, String, String, String)} rather than something every keyed send
+     * carries: a frame on this service's own {@code admin.event} is not about a patient and must not
+     * claim to be.
+     */
+    public static final String PATIENT_KEY_HEADER = "patientKey";
+
     private static final Logger LOG = LoggerFactory.getLogger(OutboundEventPublisher.class);
 
     private final StreamBridge streamBridge;
@@ -170,8 +183,34 @@ public class OutboundEventPublisher {
      * @param messageKey the partition key, or null to send unkeyed as the three-argument form does
      */
     public void publish(String bindingName, String payload, String subject, String messageKey) {
+        publish(bindingName, payload, subject, messageKey, PATIENT_KEY_HEADER);
+    }
+
+    /**
+     * Queues one already-serialised JSON event under a partition key, naming the redundant string
+     * header — or omitting it.
+     *
+     * <p>As {@link #publish(String, String, String, String)}, which is this method with
+     * {@link #PATIENT_KEY_HEADER} supplied, so {@code patient-events-plan}'s frame is unchanged
+     * byte-for-byte. Added for backlog item 112, whose {@code admin.event} frames want the partition key
+     * and <b>not</b> that header.
+     *
+     * <p><b>The header is not a second copy of the key, it is a copy of somebody else's convention.</b>
+     * {@code patientKey} is the spelling hc-patient's own publishers use on {@code patient-events}, sent
+     * so the return leg is legible to a consumer following either convention. On a channel this service
+     * owns there is nobody to be legible to, and a frame about a wage rate carrying a header called
+     * {@code patientKey} would read as a defect to whoever found it — so {@code admin.event} passes
+     * {@code null} and sends the Kafka key alone.
+     *
+     * @param bindingName the binding as {@code application.yml} declares it
+     * @param payload the wire form, already serialised as JSON
+     * @param subject what to name in the log if this never reaches the broker
+     * @param messageKey the partition key, or null to send unkeyed as the three-argument form does
+     * @param keyHeaderName the string header to repeat the key under, or null for none
+     */
+    public void publish(String bindingName, String payload, String subject, String messageKey, String keyHeaderName) {
         try {
-            executor.execute(() -> send(bindingName, payload, subject, messageKey));
+            executor.execute(() -> send(bindingName, payload, subject, messageKey, keyHeaderName));
         } catch (RejectedExecutionException e) {
             // The queue is full, which takes a broker that has been unreachable long enough for the
             // one thread to still be stuck creating the binding. Dropping is the honest answer: the
@@ -187,12 +226,12 @@ public class OutboundEventPublisher {
      * <p><b>A missing broker is silent</b> — the app starts, serves and reports healthy while
      * everything produced goes nowhere. This log line is the only thing that says so.
      */
-    private void send(String bindingName, String payload, String subject, String messageKey) {
+    private void send(String bindingName, String payload, String subject, String messageKey, String keyHeaderName) {
         try {
             if (messageKey == null) {
                 streamBridge.send(bindingName, payload);
             } else {
-                streamBridge.send(bindingName, keyed(payload, messageKey));
+                streamBridge.send(bindingName, keyed(payload, messageKey, keyHeaderName));
             }
         } catch (RuntimeException e) {
             LOG.warn("{} was recorded but its event could not be published to {}", subject, bindingName, e);
@@ -206,14 +245,13 @@ public class OutboundEventPublisher {
      * {@code ByteArraySerializer} by default, so handing it a {@code String} produces a
      * {@code ClassCastException} inside the producer rather than a compile error here.
      */
-    private static Message<byte[]> keyed(String payload, String messageKey) {
-        return MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8))
+    private static Message<byte[]> keyed(String payload, String messageKey, String keyHeaderName) {
+        MessageBuilder<byte[]> builder = MessageBuilder.withPayload(payload.getBytes(StandardCharsets.UTF_8))
             .setHeader(MessageHeaders.CONTENT_TYPE, MimeTypeUtils.APPLICATION_JSON_VALUE)
-            .setHeader(KafkaHeaders.KEY, messageKey.getBytes(StandardCharsets.UTF_8))
-            // The spelling hc-patient's own publishers use on `patient-events`, which this service
-            // reads back as DirectoryEventConsumers.PATIENT_KEY_HEADER. Sent as well as the Kafka key
-            // so that the return leg is legible to a consumer following either convention.
-            .setHeader("patientKey", messageKey)
-            .build();
+            .setHeader(KafkaHeaders.KEY, messageKey.getBytes(StandardCharsets.UTF_8));
+        if (keyHeaderName != null) {
+            builder.setHeader(keyHeaderName, messageKey);
+        }
+        return builder.build();
     }
 }
