@@ -22,12 +22,12 @@ import java.util.Map;
 import net.jojoaddison.broker.AdminEntityEvent;
 import net.jojoaddison.broker.OutboundEventPublisher;
 import net.jojoaddison.domain.ServicePlan;
+import net.jojoaddison.security.SecurityUtils;
 import org.bson.Document;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import net.jojoaddison.security.SecurityUtils;
 import org.springframework.data.mongodb.core.mapping.event.AfterDeleteEvent;
 import org.springframework.data.mongodb.core.mapping.event.AfterSaveEvent;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -62,11 +62,7 @@ class EntityChangeAnnouncerTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    private final EntityChangeAnnouncer announcer = new EntityChangeAnnouncer(
-        publisher,
-        objectMapper,
-        Clock.fixed(WHEN, ZoneOffset.UTC)
-    );
+    private final EntityChangeAnnouncer announcer = new EntityChangeAnnouncer(publisher, objectMapper, Clock.fixed(WHEN, ZoneOffset.UTC));
 
     @BeforeEach
     @AfterEach
@@ -246,11 +242,7 @@ class EntityChangeAnnouncerTest {
     void aFailureToAnnounceNeverFailsTheWrite() {
         OutboundEventPublisher throwing = mock(OutboundEventPublisher.class);
         doThrow(new IllegalStateException("no publisher")).when(throwing).publish(anyString(), anyString(), anyString(), any(), any());
-        EntityChangeAnnouncer overABrokenPublisher = new EntityChangeAnnouncer(
-            throwing,
-            objectMapper,
-            Clock.fixed(WHEN, ZoneOffset.UTC)
-        );
+        EntityChangeAnnouncer overABrokenPublisher = new EntityChangeAnnouncer(throwing, objectMapper, Clock.fixed(WHEN, ZoneOffset.UTC));
 
         assertThatCode(() -> overABrokenPublisher.onAfterSave(saveOf(plan("sp-1"), "service_plan"))).doesNotThrowAnyException();
     }
