@@ -1,0 +1,9 @@
+{
+  "eventId": "9c4d11aa-2e0b-4c6f-8d3a-7b5e9f0a1c22",
+  "type": "EntityChanged",
+  "version": 1,
+  "occurredAt": "2026-09-24T08:14:02.457Z",
+  "source": "hcPatientService",
+  "subject": { "entityType": "Membership", "entityId": "68a1f0d2c9e4b83a5d6f7e42" },
+  "data": { "action": "UPDATED", "actorAccountId": null }
+}

@@ -1,0 +1,9 @@
+{
+  "eventId": "5f0b0c2e-8f5d-4f1a-9a4e-1d2c3b4a5f60",
+  "type": "EntityChanged",
+  "version": 1,
+  "occurredAt": "2026-09-24T08:12:45.123Z",
+  "source": "hcAdminService",
+  "subject": { "entityType": "ServicePlan", "entityId": "68a1f0d2c9e4b83a5d6f7e01" },
+  "data": { "action": "SAVED", "actorAccountId": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11" }
+}

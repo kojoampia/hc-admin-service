@@ -49,18 +49,28 @@ import java.time.Instant;
  *       {@code type.getSimpleName()}, a reflective id, and
  *       {@code SecurityUtils.getCurrentAccountId().orElse(null)}.</li>
  *   <li><b>{@code hc-patient/api .../service/event/EntityEvent.java}</b> — same seven-component
- *       envelope, but {@code subject} is {@code (accountId)}, the <em>actor</em>, and
- *       {@code entityType}/{@code entityId}/{@code action} are in {@code data}.</li>
+ *       envelope. As first read (2026-09-18) its {@code subject} was {@code (accountId)}, the
+ *       <em>actor</em>, with {@code entityType}/{@code entityId}/{@code action} in {@code data} —
+ *       since repaired; see the correction below.</li>
  * </ul>
  *
- * <p>⚠ <b>So hc-patient disagrees with the other two about what {@code subject} means, under the same
- * {@code type} string.</b> A consumer reading two of these channels through one code path — which is
- * the whole point of one channel per product — finds {@code subject.accountId} on one and
- * {@code subject.entityType} on the other. That divergence is recorded in this item's report rather
- * than repaired here, because it is another product's code.
+ * <p>⚠ <b>This passage said, until 2026-09-24, that hc-patient disagreed with the other two about what
+ * {@code subject} means under the same {@code type} string</b> — {@code subject.accountId} on one and
+ * {@code subject.entityType} on the other — and that the divergence was recorded in the item's report
+ * rather than repaired here, because it is another product's code. <b>hc-patient repaired it</b>: at
+ * their {@code 216a44ca} their {@code EntityEvent.Subject} is {@code (String entityType, String
+ * entityId)}, and their own javadoc records the correction and the architect's ruling that "subject"
+ * means <em>the thing this event is about</em>. hc-professional went further and created a
+ * <b>separate</b> record, {@code broker/EntityChangeEvent}, precisely so their shared
+ * {@code ProfessionalEvent.Subject(email, accountId)} would not have to mean two things. So <b>all
+ * four products now agree that {@code subject} is {@code (entityType, entityId)}</b>. The captured
+ * frames under {@code src/test/resources/event-frames/entity-changed/} hold one copy per product,
+ * with the producer commit each was derived from recorded in the {@code README.md} beside them —
+ * item 124(a), and a narrowing rather than a guarantee, as {@code EntityChangedEnvelopeTest}'s
+ * javadoc says in as many words.
  *
- * <p><b>This class follows hc-vendor and hc-professional</b>: the subject of an entity-change frame is
- * the entity, their {@code Subject} is then identical to this one, and keying the partition on the
+ * <p><b>This class follows the same rule</b>: the subject of an entity-change frame is the entity,
+ * every product's {@code Subject} is then identical to this one, and keying the partition on the
  * record rather than the actor is what makes two changes to one row arrive in order.
  *
  * <h2>What the fields mean, because a consumer will be written against them and not against this</h2>
