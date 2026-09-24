@@ -71,10 +71,11 @@ import tools.jackson.databind.ObjectMapper;
  * as both keys present: a consumer built from this envelope with {@code actorAccountId} required
  * (item 109's decision (c)) would refuse every actorless hc-professional frame while the binding
  * binds and lag stays zero. The two fixtures carry one pole each — {@code hc-professional.json}
- * omits the key, {@code hc-patient.json} carries the explicit {@code null}. Whether the estate
- * standardises absent-versus-explicit-null is the architect's call — backlog item 129 in
- * {@code hc-admin-doc} carries the question, both quoted positions and the options; this artefact
- * records what the producers do.
+ * omits the key, {@code hc-patient.json} carries the explicit {@code null}. <b>Item 129 settled the
+ * question on 2026-09-24: omit everywhere.</b> This product's producer now omits (see
+ * {@link AdminEntityEvent.ChangeData}); hc-patient's explicit null is still what their producer
+ * publishes until their own change lands, so their fixture stays as captured — this artefact records
+ * what the producers do, not what was decided.
  *
  * <h2>Why it derives its inputs instead of naming them</h2>
  *

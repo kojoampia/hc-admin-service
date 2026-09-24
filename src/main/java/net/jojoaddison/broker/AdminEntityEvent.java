@@ -1,5 +1,6 @@
 package net.jojoaddison.broker;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
@@ -104,7 +105,12 @@ import java.time.Instant;
  *       seeder runs as an {@code ApplicationRunner} at boot — and real tokens carrying no such claim,
  *       because a sibling gateway sharing this estate's signing key spells it differently. An absent
  *       actor says "this service does not know"; a {@code system} placeholder would say "this service
- *       knows, and the answer is a name".</li>
+ *       knows, and the answer is a name". <b>Absent means the key is not in the frame</b> — the
+ *       estate rule since item 129 (architect, 2026-09-24), adopting hc-professional's shape: their
+ *       {@code DomainEventPublisher} argues <i>"absence is the only unambiguous way to say that no
+ *       account was behind this write"</i>. Until that item this class's serialised frame carried the
+ *       key as an explicit JSON null, contradicting this very paragraph; {@link ChangeData} is where
+ *       the omission is implemented.</li>
  * </ul>
  *
  * <h2>It holds no domain types, and that is enforced</h2>
@@ -313,10 +319,21 @@ public class AdminEntityEvent implements Serializable {
     /**
      * What happened, and who did it. Metadata about the change, never the change.
      *
+     * <p><b>A null {@code actorAccountId} is omitted from the frame, not written as a JSON null</b> —
+     * the {@code @JsonInclude} on the component is what implements the class javadoc's "absent when
+     * unknown" and the estate rule item 129 decided on 2026-09-24. It must be the
+     * {@code com.fasterxml} annotation: the frame is serialised by the injected
+     * {@code WebConfigurer.objectMapper()}, a Jackson 2 mapper, so the {@code tools.jackson} twin
+     * would compile and do nothing. It sits on this one component rather than on the record — or the
+     * mapper — deliberately: {@code Subject#entityId} is legitimately null on a delete matched off
+     * {@code _id} and stays present-with-null, and a mapper-wide {@code NON_NULL} would silently
+     * change every payload that mapper writes.
+     *
      * @param action {@link #SAVED} or {@link #DELETED}
      * @param actorAccountId the gateway {@code User.id} from the {@code uid} claim, or {@code null} when
-     *                       there is no authenticated caller or the token carries no such claim. Never a
-     *                       login — see the class javadoc.
+     *                       there is no authenticated caller or the token carries no such claim — in
+     *                       which case the key is absent from the serialised frame. Never a login — see
+     *                       the class javadoc.
      */
-    public record ChangeData(String action, String actorAccountId) implements Serializable {}
+    public record ChangeData(String action, @JsonInclude(JsonInclude.Include.NON_NULL) String actorAccountId) implements Serializable {}
 }

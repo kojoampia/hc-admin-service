@@ -67,6 +67,11 @@ Both publishers fire on **every** write, so seeds and system jobs produce actorl
 routinely — this is not an edge. The test therefore requires `action` and permits no key outside
 `{action, actorAccountId}`, and never requires both keys: a consumer built with `actorAccountId`
 required (item 109 / decision (c)) would refuse every actorless hc-professional frame while the
-binding binds and lag stays zero. Whether the estate standardises absent-vs-explicit-null is the
-architect's call — **backlog item 129** in `hc-admin-doc` carries the question, both quoted
-positions and the options; this directory records what the producers do.
+binding binds and lag stays zero.
+
+**Decided — backlog item 129, architect, 2026-09-24: omit the key everywhere.** hc-admin's producer
+now omits it on actorless writes (a `@JsonInclude` on `AdminEntityEvent.ChangeData.actorAccountId`),
+joining hc-professional's pole. hc-patient's explicit null is still what **their** producer publishes
+until their own change lands, so the divergence remains live on the wire and `hc-patient.json` stays
+as captured — this directory records what the producers do, not what was decided. The test's
+never-require-both-keys shape is unchanged and is now doubly right.
