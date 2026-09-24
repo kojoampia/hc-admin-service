@@ -72,7 +72,8 @@ import tools.jackson.databind.ObjectMapper;
  * (item 109's decision (c)) would refuse every actorless hc-professional frame while the binding
  * binds and lag stays zero. The two fixtures carry one pole each — {@code hc-professional.json}
  * omits the key, {@code hc-patient.json} carries the explicit {@code null}. Whether the estate
- * standardises absent-versus-explicit-null is the architect's call, filed separately; this artefact
+ * standardises absent-versus-explicit-null is the architect's call — backlog item 129 in
+ * {@code hc-admin-doc} carries the question, both quoted positions and the options; this artefact
  * records what the producers do.
  *
  * <h2>Why it derives its inputs instead of naming them</h2>
@@ -145,7 +146,9 @@ class EntityChangedEnvelopeTest {
         // actorless write and hc-patient carries it as an explicit null — divergence (iii) in the
         // class javadoc. Requiring both keys would refuse hc-professional's routine frames. Two
         // assertions, because the two failures they catch are different defects and each message
-        // must describe the one that fired.
+        // must describe the one that fired. Do not fold them into the subset check or tidy the
+        // contains away: isSubsetOf on an empty key list passes vacuously, so contains("action")
+        // is the assertion that catches an empty or degenerate `data` at all.
         assertThat(keysOf(frame.get("data")))
             .as(
                 "%s: data.action is the one required key — actorAccountId is legitimately absent on hc-professional's actorless writes (divergence (iii))",

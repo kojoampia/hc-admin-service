@@ -68,4 +68,5 @@ routinely — this is not an edge. The test therefore requires `action` and perm
 `{action, actorAccountId}`, and never requires both keys: a consumer built with `actorAccountId`
 required (item 109 / decision (c)) would refuse every actorless hc-professional frame while the
 binding binds and lag stays zero. Whether the estate standardises absent-vs-explicit-null is the
-architect's call, filed as its own backlog item; this directory records what the producers do.
+architect's call — **backlog item 129** in `hc-admin-doc` carries the question, both quoted
+positions and the options; this directory records what the producers do.
