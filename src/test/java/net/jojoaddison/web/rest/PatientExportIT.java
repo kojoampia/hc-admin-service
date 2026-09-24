@@ -183,8 +183,18 @@ class PatientExportIT {
      */
     @Test
     void aPatientWithNoProfileIsNamedFromItsLinkAndNeverByItsOwnId() throws Exception {
-        Patient linked = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 1)));
-        Patient unknown = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 2)));
+        Patient linked = patientRepository.save(
+            new Patient()
+                .accountId("acct-linked")
+                .status(AccountStatus.PENDING)
+                .joinedOn(LocalDate.of(2026, 3, 1))
+        );
+        Patient unknown = patientRepository.save(
+            new Patient()
+                .accountId("acct-unknown")
+                .status(AccountStatus.PENDING)
+                .joinedOn(LocalDate.of(2026, 3, 2))
+        );
         directoryLinkRepository.save(link(LINKED_ID, linked.getId(), "naa.adjeley@mail.gh"));
         // A link of the same source naming nobody — the care-angel and erased rows are both this
         // shape — so the map this export builds walks one and keys on the rest.
@@ -368,6 +378,7 @@ class PatientExportIT {
     private Patient patient(AccountStatus status, boolean archived, Profile profile) {
         Profile saved = profileRepository.save(profileWithSavedAddress(profile));
         return new Patient()
+            .accountId("acct-export")
             .status(status)
             .joinedOn(LocalDate.of(2026, 1, 1))
             .isArchived(archived)

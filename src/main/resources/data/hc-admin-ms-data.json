@@ -958,6 +958,7 @@
     "patients": [
       {
         "id": "a1",
+        "accountId": "fixture-account-a1",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2019-01-14",
@@ -987,6 +988,7 @@
       },
       {
         "id": "a2",
+        "accountId": "fixture-account-a2",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2020-03-22",
@@ -1016,6 +1018,7 @@
       },
       {
         "id": "a3",
+        "accountId": "fixture-account-a3",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2021-09-09",
@@ -1045,6 +1048,7 @@
       },
       {
         "id": "a4",
+        "accountId": "fixture-account-a4",
         "isArchived": true,
         "status": "ACTIVE",
         "joinedOn": "2022-02-17",
@@ -1074,6 +1078,7 @@
       },
       {
         "id": "a5",
+        "accountId": "fixture-account-a5",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2019-06-05",
@@ -1103,6 +1108,7 @@
       },
       {
         "id": "a6",
+        "accountId": "fixture-account-a6",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2023-10-28",
@@ -1132,6 +1138,7 @@
       },
       {
         "id": "a7",
+        "accountId": "fixture-account-a7",
         "isArchived": false,
         "status": "PENDING",
         "joinedOn": "2026-08-02",
@@ -1161,6 +1168,7 @@
       },
       {
         "id": "a8",
+        "accountId": "fixture-account-a8",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2020-12-11",
@@ -1190,6 +1198,7 @@
       },
       {
         "id": "a9",
+        "accountId": "fixture-account-a9",
         "isArchived": false,
         "status": "SUSPENDED",
         "joinedOn": "2023-04-19",
@@ -1219,6 +1228,7 @@
       },
       {
         "id": "a10",
+        "accountId": "fixture-account-a10",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2019-01-03",
@@ -1248,6 +1258,7 @@
       },
       {
         "id": "a11",
+        "accountId": "fixture-account-a11",
         "isArchived": true,
         "status": "ACTIVE",
         "joinedOn": "2022-07-25",
@@ -1277,6 +1288,7 @@
       },
       {
         "id": "a12",
+        "accountId": "fixture-account-a12",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2026-08-04",
@@ -1306,6 +1318,7 @@
       },
       {
         "id": "a13",
+        "accountId": "fixture-account-a13",
         "isArchived": false,
         "status": "PENDING",
         "joinedOn": "2026-09-06",
@@ -1314,6 +1327,7 @@
       },
       {
         "id": "a14",
+        "accountId": "fixture-account-a14",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2026-09-06",
@@ -1322,6 +1336,7 @@
       },
       {
         "id": "a15",
+        "accountId": "fixture-account-a15",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2026-09-08",

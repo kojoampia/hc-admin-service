@@ -228,7 +228,10 @@ class RoundCustomerResourceIT {
     }
 
     private static Patient patient() {
-        return new Patient().status(AccountStatus.ACTIVE).joinedOn(LocalDate.of(2026, 3, 1));
+        return new Patient()
+            .accountId("acct-round")
+            .status(AccountStatus.ACTIVE)
+            .joinedOn(LocalDate.of(2026, 3, 1));
     }
 
     /**

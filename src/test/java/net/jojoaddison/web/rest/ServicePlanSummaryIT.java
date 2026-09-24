@@ -268,6 +268,7 @@ class ServicePlanSummaryIT {
 
     private static Patient patient(ServicePlan plan, boolean archived) {
         return new Patient()
+            .accountId("acct-plan")
             .status(AccountStatus.ACTIVE)
             .joinedOn(LocalDate.of(2026, 1, 1))
             .plan(plan)

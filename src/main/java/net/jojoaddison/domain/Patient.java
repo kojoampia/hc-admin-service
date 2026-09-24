@@ -27,6 +27,42 @@ public class Patient implements Serializable {
     @Id
     private String id;
 
+    /**
+     * The identity link to the subject's gateway Account — the same identifier {@link Profile#getAccountId()}
+     * carries, on the record hc-admin owns about a patient.
+     *
+     * <p>A plain String, not a relationship: the account lives in a gateway's own database — for a patient,
+     * <b>hc-patient's</b>, since patients register there and this stack's gateway never issues
+     * {@code ROLE_PATIENT} — and this service cannot join across that boundary.
+     *
+     * <p><b>The value is the account's {@code User.id}, never the login and never hc-patient's
+     * {@code patientId}</b> — the estate decision of 2026-09-17 ({@code account.id = profile.accountId}),
+     * applied to {@code Patient} by backlog item 115. The three are all opaque strings and a join on the
+     * wrong one matches nothing silently, which is why this paragraph names the value space instead of
+     * trusting the field name. It is required for the same reason {@code Profile.accountId} is: a patient
+     * with no account id is a record that cannot be joined to the identity that owns it, on any screen or
+     * any stream.
+     *
+     * <p>Where the value comes from, in order of arrival: hc-patient's publishers put
+     * {@code subject.accountId} on every frame since their item 72 refactor (their {@code b6894dc},
+     * 2026-09-24), item 130 reads it onto {@code directory_link.account_id}, and
+     * {@code DirectoryProjectionService} stamps it onto the record it creates.
+     * {@code PatientAccountIdBackfillMigration} resolves rows written before this field existed from that
+     * same link column — and <b>reports what it cannot resolve rather than defaulting it</b>, because a
+     * fabricated account id is a join key that silently matches nothing (item 26's defect with a new name).
+     *
+     * <p>⚠ <b>Seeded values are fixture identifiers, deliberately.</b> hc-patient's gateway mints its
+     * account ids at seed time ({@code UUID.randomUUID()}-style, no pinned-id seeding exists there), so no
+     * fixture on any stack holds an id this seed could reference — the same transitional state
+     * {@code Profile.accountId}'s javadoc records for the nine clinician rows. The seed says so by shape
+     * ({@code fixture-account-*}) and {@code DevelopmentDataInitializerTest} pins it, so a reader never
+     * mistakes a seeded value for one that resolves on a sibling stack.
+     */
+    @NotNull
+    @Size(max = 60)
+    @Field("account_id")
+    private String accountId;
+
     @NotNull
     @Field("status")
     private AccountStatus status;
@@ -99,6 +135,19 @@ public class Patient implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getAccountId() {
+        return this.accountId;
+    }
+
+    public Patient accountId(String accountId) {
+        this.setAccountId(accountId);
+        return this;
+    }
+
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 
     public AccountStatus getStatus() {
@@ -317,6 +366,7 @@ public class Patient implements Serializable {
     public String toString() {
         return "Patient{" +
             "id=" + getId() +
+            ", accountId='" + getAccountId() + "'" +
             ", status='" + getStatus() + "'" +
             ", joinedOn='" + getJoinedOn() + "'" +
             ", lastActiveOn='" + getLastActiveOn() + "'" +

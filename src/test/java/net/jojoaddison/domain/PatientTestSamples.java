@@ -10,14 +10,14 @@ public class PatientTestSamples {
     private static final AtomicInteger intCount = new AtomicInteger(random.nextInt() + 2 * Short.MAX_VALUE);
 
     public static Patient getPatientSample1() {
-        return new Patient().id("id1").caseCount(1);
+        return new Patient().id("id1").accountId("accountId1").caseCount(1);
     }
 
     public static Patient getPatientSample2() {
-        return new Patient().id("id2").caseCount(2);
+        return new Patient().id("id2").accountId("accountId2").caseCount(2);
     }
 
     public static Patient getPatientRandomSampleGenerator() {
-        return new Patient().id(UUID.randomUUID().toString()).caseCount(intCount.incrementAndGet());
+        return new Patient().id(UUID.randomUUID().toString()).accountId(UUID.randomUUID().toString()).caseCount(intCount.incrementAndGet());
     }
 }

@@ -1031,6 +1031,43 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
+     * <b>Every seeded patient carries an {@code accountId}, and every one of them is a fixture
+     * identifier that resolves nowhere — both halves are the assertion.</b>
+     *
+     * <p>Presence on <em>every</em> patient rather than a count, because "15 of 15 carry it" goes on
+     * passing when a sixteenth arrives without one — the census trap this repo keeps re-learning, and
+     * backlog item 115's own wording for this guard. Both profiles are swept, not just {@code test}:
+     * {@code dev} seeds no patients today, and the sweep is what keeps that true the day it starts to.
+     * The field is {@code @NotNull} and {@code ValidatingMongoEventListener} enforces it on every
+     * mapped save, so a seeded patient without one is not a rendering gap — it is a seed that fails to
+     * load at startup, on every stack at once.
+     *
+     * <p>The {@code fixture-account-} shape is pinned deliberately, and the pin is a claim about what
+     * these values are <em>not</em>. hc-patient's gateway mints its account {@code User.id}s at seed
+     * time — no pinned-id user seeding exists there — so no value this file could hold resolves on any
+     * stack, including {@code a15}'s, whose link names an address ({@code kojo@jac.net}) hc-patient's
+     * quality fixture really holds but whose account id still cannot be referenced. A seeded value
+     * shaped like a real ObjectId would imply an end-to-end join the estate cannot seed; the prefix
+     * keeps the claim honest, exactly as {@code Profile.accountId}'s javadoc does for the nine
+     * clinician logins.
+     */
+    @Test
+    void everySeededPatientCarriesAFixtureAccountId() throws Exception {
+        Map<String, DevelopmentDataInitializer.ProfileData> data = readSeedData();
+
+        for (Map.Entry<String, DevelopmentDataInitializer.ProfileData> profile : data.entrySet()) {
+            assertThat(profile.getValue().getPatients())
+                .as("every %s patient carries the identity link — asserted per row, never counted", profile.getKey())
+                .allSatisfy(patient ->
+                    assertThat(patient.getAccountId())
+                        .as("accountId on %s is present and declares itself a fixture", patient.getId())
+                        .isNotBlank()
+                        .startsWith("fixture-account-")
+                );
+        }
+    }
+
+    /**
      * <b>One nameless patient's link carries an address hc-patient's own fixture really seeds, and
      * that foreign-looking address is the fixture rather than a typo.</b>
      *

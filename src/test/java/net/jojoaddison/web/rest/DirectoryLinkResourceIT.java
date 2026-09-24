@@ -501,6 +501,27 @@ class DirectoryLinkResourceIT {
     }
 
     /**
+     * <b>A link that never learned its {@code account_id} is a record the reconciliation cannot
+     * lawfully rebuild</b> — {@code Patient.accountId} is required and never fabricated (item 115),
+     * so the run reports the row at WARN and creates nothing, rather than defaulting a join key or
+     * dying on a validation error. The link stays as it was: the first frame that carries the id
+     * teaches it, and the next run rebuilds the record.
+     */
+    @Test
+    void reconcileDoesNotRebuildARecordWhoseLinkNeverLearnedItsAccountId() throws Exception {
+        DirectoryLink unlearned = link(EMAIL, "an-id-that-no-longer-exists");
+        unlearned.setAccountId(null);
+        directoryLinkRepository.save(unlearned);
+
+        mvc.perform(post("/api/directory-links/reconcile"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.examined").value(1))
+            .andExpect(jsonPath("$.created").value(0));
+
+        assertThat(patientRepository.count()).as("never defaulted: no record without its identity link").isZero();
+    }
+
+    /**
      * <b>The reconciliation reads the status the consumer reached; it does not re-derive one.</b>
      *
      * <p>It used to derive "activated" as any state other than the literal {@code AccountCreated}, so
@@ -589,6 +610,7 @@ class DirectoryLinkResourceIT {
     void reconcileDoesNotTouchAnExistingRecord() throws Exception {
         Patient patient = patientRepository.save(
             new Patient()
+                .accountId("6ab555b90202b7c99d2be2d6")
                 .status(AccountStatus.SUSPENDED)
                 .joinedOn(LocalDate.of(2026, 1, 1))
                 .caseCount(4)
@@ -670,6 +692,10 @@ class DirectoryLinkResourceIT {
         link.setState("AccountActivated");
         link.setActivated(true);
         link.setSubjectKind(DirectorySubjectKind.PATIENT);
+        // The post-refactor state: every frame since hc-patient's item 72 carries subject.accountId,
+        // so a link this fixture models has learned it — and reconcile cannot lawfully rebuild a
+        // record without it (item 115); the link that never learned one has its own test above.
+        link.setAccountId("6ab555b90202b7c99d2be2d6");
         link.setLocalId(localId);
         link.setFirstSeenAt(Instant.parse("2026-08-20T10:00:00Z"));
         link.setLastEventAt(Instant.parse("2026-08-20T10:00:00Z"));

@@ -68,8 +68,18 @@ class AccountMixIT {
      */
     @Test
     void breaksTheNetworkDownByAccountType() throws Exception {
-        patientRepository.save(new Patient().joinedOn(LocalDate.of(2026, 1, 5)).status(AccountStatus.ACTIVE));
-        patientRepository.save(new Patient().joinedOn(LocalDate.of(2026, 2, 5)).status(AccountStatus.ACTIVE));
+        patientRepository.save(
+            new Patient()
+                .accountId("acct-mix")
+                .joinedOn(LocalDate.of(2026, 1, 5))
+                .status(AccountStatus.ACTIVE)
+        );
+        patientRepository.save(
+            new Patient()
+                .accountId("acct-mix")
+                .joinedOn(LocalDate.of(2026, 2, 5))
+                .status(AccountStatus.ACTIVE)
+        );
         professionalRepository.save(professional());
         vendorRepository.save(vendor("Ridge Diagnostics"));
         vendorRepository.save(vendor("Volta Nutrition"));
@@ -96,9 +106,15 @@ class AccountMixIT {
      */
     @Test
     void addsUpToTheTilesAboveIt() throws Exception {
-        patientRepository.save(new Patient().joinedOn(LocalDate.of(2026, 1, 5)).status(AccountStatus.ACTIVE));
         patientRepository.save(
             new Patient()
+                .accountId("acct-mix")
+                .joinedOn(LocalDate.of(2026, 1, 5))
+                .status(AccountStatus.ACTIVE)
+        );
+        patientRepository.save(
+            new Patient()
+                .accountId("acct-mix")
                 .joinedOn(LocalDate.of(2026, 3, 5))
                 .status(AccountStatus.ACTIVE)
                 .isArchived(true)

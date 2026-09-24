@@ -146,6 +146,7 @@ public class PatientResource {
         Optional<Patient> result = patientRepository
             .findById(patient.getId())
             .map(existingPatient -> {
+                updateIfPresent(existingPatient::setAccountId, patient.getAccountId());
                 updateIfPresent(existingPatient::setStatus, patient.getStatus());
                 updateIfPresent(existingPatient::setJoinedOn, patient.getJoinedOn());
                 updateIfPresent(existingPatient::setLastActiveOn, patient.getLastActiveOn());

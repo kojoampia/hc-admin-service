@@ -813,6 +813,10 @@ public class DirectoryProjectionService {
                 createAndClaim(
                     DirectorySource.HC_PATIENT,
                     link.getExternalKey(),
+                    // The link's copy of the account id, exactly as the consumer would have read it
+                    // off a frame — a link that never learned one is a record this run cannot
+                    // lawfully rebuild, and createAndClaim reports it rather than defaulting it.
+                    link.getAccountId(),
                     Boolean.TRUE.equals(link.getActivated()),
                     link.getFirstSeenAt() == null ? Instant.now() : link.getFirstSeenAt(),
                     link.getLocalId()
@@ -1072,7 +1076,14 @@ public class DirectoryProjectionService {
         // An event that says nothing about activation is not an event saying the account is inactive:
         // a new Patient created from one starts PENDING, which is what it started as before this
         // field became a Boolean and is the honest reading of "nobody has said".
-        return createAndClaim(event.source(), event.subjectKey(), Boolean.TRUE.equals(event.activated()), event.occurredAt(), knownLocalId);
+        return createAndClaim(
+            event.source(),
+            event.subjectKey(),
+            event.accountId(),
+            Boolean.TRUE.equals(event.activated()),
+            event.occurredAt(),
+            knownLocalId
+        );
     }
 
     /**
@@ -1097,22 +1108,54 @@ public class DirectoryProjectionService {
      * That window is one Mongo round trip wide and the alternative is a replica set, which is a
      * deployment decision rather than a code one — backlog item 28.
      *
-     * <p>Two required fields on the record and nothing else. {@code caseCount} is seeded at zero
+     * <p>Three required fields on the record and nothing else. {@code caseCount} is seeded at zero
      * because the console renders it as a number and an absent one reads as unknown rather than as
      * none; everything else is left null for an administrator to fill in, including the
      * {@code Profile} — which cannot be created at all, since it requires a name, a date of birth, a
      * phone number and a document number, and the patient stream carries none of them by design.
      *
+     * <p><b>No {@code accountId}, no record — reported, never defaulted, and never fatal</b> (item
+     * 115). {@code Patient.accountId} is {@code @NotNull} and {@code ValidatingMongoEventListener}
+     * enforces it on this very {@code save}, so without the guard an accountId-less frame would not
+     * create a nameless record, it would throw — five retries, a dead-letter, and the frame's other
+     * facts lost with it, for an absence hc-patient's own api documents as legitimate (their
+     * {@code OnboardingService.resolveAccountId} names three ways, and every frame retained from
+     * before their item 72 refactor is a fourth). Fabricating a value instead is item 26's defect
+     * with a new name. So the record is simply not created yet: the link keeps every fact the frame
+     * carried, and the record arrives with the first frame that does carry the id — or through
+     * {@link #reconcile()}, once a later frame has taught the link its {@code account_id}.
+     *
+     * @param accountId the subject's gateway {@code User.id} — from the frame on the live path, from
+     *                  {@code DirectoryLink#getAccountId()} on the reconciliation's. Null or blank
+     *                  means the record cannot lawfully exist yet, not that a placeholder should.
      * @param staleLocalId the {@code local_id} the caller read off the link — null when there was
      *                     none, or the id of a document that has since gone. The claim only succeeds
      *                     against that value, which is what makes it a compare-and-set rather than a
      *                     blind write.
      * @return the id of the record this call created, or null when it created none.
      */
-    private String createAndClaim(DirectorySource source, String subjectKey, boolean activated, Instant at, String staleLocalId) {
+    private String createAndClaim(
+        DirectorySource source,
+        String subjectKey,
+        String accountId,
+        boolean activated,
+        Instant at,
+        String staleLocalId
+    ) {
+        if (accountId == null || accountId.isBlank()) {
+            LOG.warn(
+                "No patient record was created for {}: no accountId has arrived for the subject, and " +
+                    "Patient.accountId is required and never fabricated (item 115). The link keeps what the " +
+                    "stream has said; the record is created by the first frame that carries subject.accountId, " +
+                    "or by POST /api/directory-links/reconcile once the link has learned account_id.",
+                LogPseudonym.subject(subjectKey)
+            );
+            return null;
+        }
         LocalDate day = LocalDate.ofInstant(at, ZoneOffset.UTC);
         Patient patient = patientRepository.save(
             new Patient()
+                .accountId(accountId)
                 .status(activated ? AccountStatus.ACTIVE : AccountStatus.PENDING)
                 .joinedOn(day)
                 .lastActiveOn(day)
@@ -1145,6 +1188,22 @@ public class DirectoryProjectionService {
         LocalDate day = LocalDate.ofInstant(event.occurredAt(), ZoneOffset.UTC);
         boolean changed = false;
 
+        // A stored row with no accountId adopts the frame's — set once, never overwritten. This is
+        // the live-stream half of PatientAccountIdBackfillMigration: a row written before item 115
+        // (or left unresolved by the backfill) is healed by the first frame about its subject that
+        // carries the id, which is real data from the identity's owner and not a default. Rows that
+        // already hold one are left alone — the stream must not be able to re-key a record an
+        // administrator can see, and a disagreement is the migration's ERROR to report, not this
+        // method's to paper over.
+        if (
+            (patient.getAccountId() == null || patient.getAccountId().isBlank()) &&
+            event.accountId() != null &&
+            !event.accountId().isBlank()
+        ) {
+            patient.setAccountId(event.accountId());
+            changed = true;
+        }
+
         if (patient.getLastActiveOn() == null || patient.getLastActiveOn().isBefore(day)) {
             patient.setLastActiveOn(day);
             changed = true;
@@ -1158,6 +1217,22 @@ public class DirectoryProjectionService {
         }
 
         if (changed) {
+            // A row still missing its accountId cannot pass ValidatingMongoEventListener, so saving
+            // it would not record these facts — it would throw, retry five times and dead-letter a
+            // frame whose only fault is describing a record this service has not resolved yet (item
+            // 115). The facts are dropped and SAID to be, at WARN: recordEvent, two lines after this
+            // in apply(), still writes the event onto the link, so nothing about the subject's
+            // history is lost, only this row's derived
+            // fields go stale until the backfill or a frame carrying the id heals it.
+            if (patient.getAccountId() == null || patient.getAccountId().isBlank()) {
+                LOG.warn(
+                    "Not updating patient {}: the stored row has no accountId, the frame carries none, and a save " +
+                        "would fail validation rather than record anything (item 115). The link keeps the event; the " +
+                        "row is healed by the first frame carrying subject.accountId or by the account-id backfill.",
+                    patient.getId()
+                );
+                return;
+            }
             patientRepository.save(patient);
         }
     }

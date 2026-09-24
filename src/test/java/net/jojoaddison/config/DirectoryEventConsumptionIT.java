@@ -27,6 +27,7 @@ import net.jojoaddison.service.DirectoryProjectionService;
 import net.jojoaddison.service.LogPseudonym;
 import net.jojoaddison.service.SiblingEventParser;
 import net.jojoaddison.service.dto.SiblingDomainEvent;
+import org.bson.Document;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +36,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.cloud.stream.binder.test.InputDestination;
 import org.springframework.cloud.stream.binder.test.TestChannelBinderConfiguration;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 
@@ -69,8 +71,23 @@ class DirectoryEventConsumptionIT {
     private static final String EMAIL = "ama.mensah@directory-consumption-it.example.com";
     private static final String ACCOUNT_ID = "acc-directory-consumption-it";
 
+    /**
+     * The gateway {@code User.id} hc-patient's post-refactor frames carry on {@code subject.accountId}
+     * — see {@link #accountCreated}; {@link #accountCreatedLegacy} is the retained-history shape
+     * without it.
+     */
+    private static final String PATIENT_USER_ID = "usr-directory-consumption-it";
+
     @Autowired
     private InputDestination input;
+
+    /**
+     * For the two merge cases that model a stored row written before item 115 — a {@code Patient}
+     * with no {@code account_id} cannot be written through the mapped type at all any more, so the
+     * fixture is a raw document, exactly as the migration's own IT builds them.
+     */
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @Autowired
     private PatientRepository patientRepository;
@@ -110,6 +127,9 @@ class DirectoryEventConsumptionIT {
         Patient patient = patientRepository.findAll().get(0);
         assertThat(patient.getStatus()).as("an account that has not been activated is not yet ACTIVE").isEqualTo(AccountStatus.PENDING);
         assertThat(patient.getJoinedOn()).isEqualTo(LocalDate.of(2026, 9, 1));
+        assertThat(patient.getAccountId())
+            .as("the record carries the frame's subject.accountId from birth — the identity link item 115 keys on")
+            .isEqualTo(PATIENT_USER_ID);
 
         DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
         assertThat(link.getLogin()).isEqualTo("amensah");
@@ -247,6 +267,115 @@ class DirectoryEventConsumptionIT {
         assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getAccountId())
             .as("erasure drops the account id with the login and the external id")
             .isNull();
+    }
+
+    /**
+     * <b>A retained pre-refactor frame opens the link and cannot open the record — reported, never
+     * dead-lettered.</b>
+     *
+     * <p>The consumer groups read from the earliest offset, so every backfill replays frames from
+     * before hc-patient's item 72 refactor, which carry no {@code subject.accountId} — and
+     * {@code Patient.accountId} is {@code @NotNull} and never fabricated (item 115). Without the
+     * guard in {@code DirectoryProjectionService.createAndClaim} such a frame would not create a
+     * lesser record, it would throw out of the mapped save, retry five times and dead-letter — for
+     * an absence its own producer documents as legitimate. So: every fact the frame carried lands on
+     * the link, no record exists, and a WARN says which and why — the state
+     * {@code POST /api/directory-links/reconcile} resolves once a later frame has taught the link
+     * its {@code account_id}.
+     */
+    @Test
+    void aRetainedPreRefactorFrameOpensTheLinkAndReportsTheRecordItCannotCreate() {
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            sendPatient(accountCreatedLegacy("2026-09-01T08:00:00Z", false));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getLogin()).as("the link keeps everything the frame carried").isEqualTo("amensah");
+        assertThat(link.getLocalId()).as("no record exists for it to name").isNull();
+        assertThat(patientRepository.count()).as("never a record without its identity link, and never a fabricated one").isZero();
+        assertThat(appender.list)
+            .as("stored-without-a-record is announced, so an operator can tell it from a frame that never arrived")
+            .anySatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage()).contains("accountId").contains("reconcile");
+                assertThat(event.getFormattedMessage()).as("the subject is a digest, never the address").doesNotContain(EMAIL);
+            });
+    }
+
+    /**
+     * <b>A stored row from before item 115 adopts the first {@code accountId} the stream shows
+     * it</b> — the live-stream half of {@code PatientAccountIdBackfillMigration}, and real data from
+     * the identity's owner rather than a default. The fixture is a raw document because the mapped
+     * type can no longer express the state this heals.
+     */
+    @Test
+    void aRowFromBeforeTheFieldExistedAdoptsTheAccountIdTheStreamShowsIt() {
+        mongoTemplate
+            .getCollection("patient")
+            .insertOne(new Document("_id", "pre-115-a").append("status", "PENDING").append("joined_on", "2026-08-01"));
+        DirectoryLink claimed = new DirectoryLink();
+        claimed.setSource(DirectorySource.HC_PATIENT);
+        claimed.setExternalKey(EMAIL);
+        claimed.setSubjectKind(DirectorySubjectKind.PATIENT);
+        claimed.setLocalId("pre-115-a");
+        directoryLinkRepository.save(claimed);
+
+        sendPatient(accountCreated("2026-09-02T09:00:00Z", true));
+
+        Patient healed = patientRepository.findById("pre-115-a").orElseThrow();
+        assertThat(healed.getAccountId()).as("adopted from the frame — set once, never invented").isEqualTo(PATIENT_USER_ID);
+        assertThat(healed.getStatus()).as("and the frame's other facts land in the same, now-valid save").isEqualTo(AccountStatus.ACTIVE);
+    }
+
+    /**
+     * <b>The same stored row, updated by a frame that carries no {@code accountId}: the row's
+     * derived fields go stale, said at WARN, and nothing dead-letters.</b> The save would fail
+     * validation rather than record anything, so it is skipped — the link still records the event,
+     * which is what keeps the subject's history whole while the row waits for the backfill or a
+     * frame carrying the id.
+     */
+    @Test
+    void aFrameWithoutTheAccountIdCannotUpdateSuchARowAndSaysSoInsteadOfDeadLettering() {
+        mongoTemplate
+            .getCollection("patient")
+            .insertOne(new Document("_id", "pre-115-b").append("status", "PENDING").append("joined_on", "2026-08-01"));
+        DirectoryLink claimed = new DirectoryLink();
+        claimed.setSource(DirectorySource.HC_PATIENT);
+        claimed.setExternalKey(EMAIL);
+        claimed.setSubjectKind(DirectorySubjectKind.PATIENT);
+        claimed.setLocalId("pre-115-b");
+        directoryLinkRepository.save(claimed);
+
+        Logger logger = (Logger) LoggerFactory.getLogger("net.jojoaddison");
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            sendPatient(accountActivated("2026-09-02T09:00:00Z"));
+        } finally {
+            logger.detachAppender(appender);
+            appender.stop();
+        }
+
+        Document stored = mongoTemplate.findById("pre-115-b", Document.class, "patient");
+        assertThat(stored.containsKey("account_id")).as("nothing was defaulted onto the row").isFalse();
+        assertThat(stored.getString("status")).as("the promotion was dropped rather than half-saved").isEqualTo("PENDING");
+        assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getActivated())
+            .as("the link still recorded the event, so the subject's history is whole")
+            .isTrue();
+        assertThat(appender.list)
+            .as("the dropped update is reported, naming the row")
+            .anySatisfy(event -> {
+                assertThat(event.getLevel()).isEqualTo(Level.WARN);
+                assertThat(event.getFormattedMessage()).contains("pre-115-b").contains("accountId");
+            });
     }
 
     /**
@@ -752,7 +881,10 @@ class DirectoryEventConsumptionIT {
     @Test
     void anAngelWhoLaterOnboardsBecomesAPatient() {
         sendPatient(careAngelNominated("2026-09-01T08:00:00Z"));
-        sendPatient(onboardingStarted("2026-09-05T10:00:00Z", "p-9999"));
+        // The refactored frame, because a promotion is a creation and a creation needs the
+        // accountId — an angel whose onboarding replays from the pre-refactor history stays a link
+        // until a frame carrying the id arrives, like every other retained-history subject.
+        sendPatient(onboardingStartedRefactored("2026-09-05T10:00:00Z", "usr-9999"));
 
         assertThat(patientRepository.count()).isEqualTo(1);
         DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
@@ -1274,7 +1406,34 @@ class DirectoryEventConsumptionIT {
 
     // --- the wire formats, copied from the two publishers -----------------------------------------
 
+    /**
+     * The gateway frame as it ships since hc-patient's item 72 refactor ({@code b6894dc},
+     * 2026-09-24): {@code subject.accountId} — the gateway {@code User.id} — on every frame, the
+     * {@code patientId} key gone. Verified by the architect at their {@code origin/main} in the item
+     * 115 brief; this file cannot reach the sibling to re-verify.
+     */
     private static String accountCreated(String occurredAt, boolean activated) {
+        return (
+            "{\"eventId\":\"evt-created\",\"type\":\"AccountCreated\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"patientGateway\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":\"amensah\",\"accountId\":\"" +
+            PATIENT_USER_ID +
+            "\"},\"data\":{\"authorities\":\"ROLE_USER\",\"langKey\":\"en\",\"activated\":" +
+            activated +
+            "}}"
+        );
+    }
+
+    /**
+     * The same frame as every deploy before that refactor published it — no {@code accountId}
+     * anywhere, {@code patientId} present and null. <b>Kept beside the current shape on purpose</b>:
+     * the consumer groups read from the earliest offset, so the retained history replays this on
+     * every backfill, indefinitely, and what it does now (a link, no record — see the test that
+     * sends it) is behaviour with its own pin.
+     */
+    private static String accountCreatedLegacy(String occurredAt, boolean activated) {
         return (
             "{\"eventId\":\"evt-created\",\"type\":\"AccountCreated\",\"version\":1,\"occurredAt\":\"" +
             occurredAt +

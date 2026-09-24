@@ -258,7 +258,7 @@ class SparklinesIT {
     }
 
     private static Patient patient(LocalDate joinedOn) {
-        return new Patient().joinedOn(joinedOn).status(AccountStatus.ACTIVE);
+        return new Patient().accountId("acct-spark").joinedOn(joinedOn).status(AccountStatus.ACTIVE);
     }
 
     private static Professional professional(LocalDate joinedOn) {

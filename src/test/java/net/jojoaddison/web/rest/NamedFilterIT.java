@@ -188,8 +188,18 @@ class NamedFilterIT {
 
     @Test
     void shouldFilterPatientsByStatus() throws Exception {
-        patientRepository.save(new Patient().status(AccountStatus.ACTIVE).joinedOn(LocalDate.of(2026, 1, 1)));
-        patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 1, 1)));
+        patientRepository.save(
+            new Patient()
+                .accountId("acct-filter")
+                .status(AccountStatus.ACTIVE)
+                .joinedOn(LocalDate.of(2026, 1, 1))
+        );
+        patientRepository.save(
+            new Patient()
+                .accountId("acct-filter")
+                .status(AccountStatus.PENDING)
+                .joinedOn(LocalDate.of(2026, 1, 1))
+        );
 
         restMockMvc
             .perform(get("/api/patients?status.equals=PENDING"))

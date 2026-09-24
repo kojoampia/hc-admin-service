@@ -133,7 +133,12 @@ class PatientNamingTiersIT {
     @BeforeEach
     void seedOneRecordThatOnlyOneTierCanResolve() {
         patientRepository.deleteAll();
-        Patient learned = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 1)));
+        Patient learned = patientRepository.save(
+            new Patient()
+                .accountId("acct-naming")
+                .status(AccountStatus.PENDING)
+                .joinedOn(LocalDate.of(2026, 3, 1))
+        );
         recordId = learned.getId();
         directoryLinkRepository.save(link(recordId));
 
