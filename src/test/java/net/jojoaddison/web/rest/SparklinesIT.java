@@ -257,8 +257,15 @@ class SparklinesIT {
             .andExpect(jsonPath("$.deltas.tasks").value(0));
     }
 
+    // Derived, not a constant: Patient.accountId is a join key, and a fixture that gives every row
+    // the same one models a state the estate does not have. Nothing here has a uniqueness
+    // constraint today — Vendor.account_id does, and item 108 routes patients on :accountId — so
+    // this costs nothing now and stops a shared literal being the reason a later change looks fine.
     private static Patient patient(LocalDate joinedOn) {
-        return new Patient().accountId("acct-spark").joinedOn(joinedOn).status(AccountStatus.ACTIVE);
+        return new Patient()
+            .accountId("acct-spark-" + joinedOn)
+            .joinedOn(joinedOn)
+            .status(AccountStatus.ACTIVE);
     }
 
     private static Professional professional(LocalDate joinedOn) {

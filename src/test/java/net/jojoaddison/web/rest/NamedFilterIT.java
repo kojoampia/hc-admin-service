@@ -190,13 +190,13 @@ class NamedFilterIT {
     void shouldFilterPatientsByStatus() throws Exception {
         patientRepository.save(
             new Patient()
-                .accountId("acct-filter")
+                .accountId("acct-filter-active")
                 .status(AccountStatus.ACTIVE)
                 .joinedOn(LocalDate.of(2026, 1, 1))
         );
         patientRepository.save(
             new Patient()
-                .accountId("acct-filter")
+                .accountId("acct-filter-pending")
                 .status(AccountStatus.PENDING)
                 .joinedOn(LocalDate.of(2026, 1, 1))
         );

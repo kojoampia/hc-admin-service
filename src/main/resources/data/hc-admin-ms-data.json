@@ -1336,7 +1336,7 @@
       },
       {
         "id": "a15",
-        "accountId": "fixture-account-a15",
+        "accountId": "user-demo-kojo",
         "isArchived": false,
         "status": "ACTIVE",
         "joinedOn": "2026-09-08",
@@ -1348,6 +1348,7 @@
       {
         "id": "dl-a13",
         "source": "HC_PATIENT",
+        "accountId": "fixture-account-a13",
         "externalKey": "naa.adjeley@mail.gh",
         "externalId": "hcp-8814",
         "login": "nadjeley",
@@ -1368,6 +1369,7 @@
       {
         "id": "dl-a15",
         "source": "HC_PATIENT",
+        "accountId": "user-demo-kojo",
         "externalKey": "kojo@jac.net",
         "externalId": "patient-kojo",
         "login": "kojo",
@@ -1384,6 +1386,7 @@
       {
         "id": "dl-plan-a6",
         "source": "HC_PATIENT",
+        "accountId": "fixture-account-a6",
         "externalKey": "k.darkwa@mail.gh",
         "externalId": "hcp-6120",
         "login": "kdarkwa",
@@ -1404,6 +1407,7 @@
       {
         "id": "dl-plan-a8",
         "source": "HC_PATIENT",
+        "accountId": "fixture-account-a8",
         "externalKey": "e.sam@mail.gh",
         "externalId": "hcp-6604",
         "login": "esam",
@@ -1424,6 +1428,7 @@
       {
         "id": "dl-plan-a10",
         "source": "HC_PATIENT",
+        "accountId": "fixture-account-a10",
         "externalKey": "k.ofosu@mail.gh",
         "externalId": "hcp-6712",
         "login": "kofosu",
@@ -1444,6 +1449,7 @@
       {
         "id": "dl-plan-a5",
         "source": "HC_PATIENT",
+        "accountId": "fixture-account-a5",
         "externalKey": "yaa.a@mail.gh",
         "externalId": "hcp-6033",
         "login": "yasantewaa",

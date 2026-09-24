@@ -69,21 +69,42 @@ class PatientAccountIdBackfillMigrationIT {
 
     /** A row as every pre-item-115 deploy wrote it: no {@code account_id} at all. */
     private void insertLegacyPatient(String id) {
-        mongoTemplate
-            .getCollection(PATIENT)
-            .insertOne(
-                new Document("_id", FIXTURE_PREFIX + id)
-                    .append("status", "ACTIVE")
-                    .append("joined_on", "2026-01-01")
-                    .append("case_count", 2)
-            );
+        insertLegacyPatient(id, ABSENT);
     }
 
+    /**
+     * The same row, with the field in one of the three states the selection calls absent.
+     *
+     * <p>{@link #ABSENT} is what a pre-item-115 deploy really wrote and is the only one reachable
+     * today. The other two are reachable by hand — an operator's {@code $set} of {@code ""}, or a
+     * {@code null} written by something that thought it was clearing the field — and they matter
+     * because the query's comment promises all three and only one of them was ever executed. A
+     * blank account id would satisfy {@code @NotNull}, so a selection that missed it would leave a
+     * row that saves and joins to nobody, which is worse than the one that refuses to save.
+     */
+    private void insertLegacyPatient(String id, Object accountIdState) {
+        Document row = new Document("_id", FIXTURE_PREFIX + id)
+            .append("status", "ACTIVE")
+            .append("joined_on", "2026-01-01")
+            .append("case_count", 2);
+        if (accountIdState != ABSENT) {
+            row.append("account_id", accountIdState);
+        }
+        mongoTemplate.getCollection(PATIENT).insertOne(row);
+    }
+
+    /** Sentinel for "do not write the key at all" — distinct from writing an explicit null. */
+    private static final Object ABSENT = new Object();
+
     private void insertLink(String id, String source, String localId, String accountId) {
+        insertLink(id, source, localId, accountId, "PATIENT");
+    }
+
+    private void insertLink(String id, String source, String localId, String accountId, String subjectKind) {
         Document link = new Document("_id", FIXTURE_PREFIX + id)
             .append("source", source)
             .append("external_key", FIXTURE_PREFIX + id + "@fixture.invalid")
-            .append("subject_kind", "PATIENT");
+            .append("subject_kind", subjectKind);
         if (localId != null) {
             link.append("local_id", FIXTURE_PREFIX + localId);
         }
@@ -117,6 +138,77 @@ class PatientAccountIdBackfillMigrationIT {
         Patient healed = patientRepository.findById(FIXTURE_PREFIX + "premise").orElseThrow();
         assertThat(healed.getAccountId()).isEqualTo("6ab555b90202b7c99d2be2d6");
         patientRepository.save(healed); // must not throw any more
+    }
+
+    /**
+     * <b>Missing, explicitly null and blank all count as absent</b> — the selection's own comment,
+     * as a test rather than as a claim.
+     *
+     * <p>Only the first was ever executed: every other case here omits the key, so two thirds of the
+     * {@code orOperator} were unexercised and a selection narrowed to {@code exists: false} would
+     * have stayed green. The blank branch is the one that matters — {@code ""} satisfies
+     * {@code @NotNull}, so a row missed here saves cleanly and joins to nobody, which is the silent
+     * half of the same defect.
+     */
+    @Test
+    void everyShapeOfAbsentIsSelected() {
+        insertLegacyPatient("absent", ABSENT);
+        insertLegacyPatient("null", null);
+        insertLegacyPatient("blank", "   ");
+        insertLegacyPatient("empty", "");
+        insertLink("l-absent", "HC_PATIENT", "absent", "acc-absent");
+        insertLink("l-null", "HC_PATIENT", "null", "acc-null");
+        insertLink("l-blank", "HC_PATIENT", "blank", "acc-blank");
+        insertLink("l-empty", "HC_PATIENT", "empty", "acc-empty");
+
+        migration().migrate();
+
+        assertThat(storedPatient("absent").getString("account_id")).isEqualTo("acc-absent");
+        assertThat(storedPatient("null").getString("account_id")).isEqualTo("acc-null");
+        assertThat(storedPatient("blank").getString("account_id")).isEqualTo("acc-blank");
+        assertThat(storedPatient("empty").getString("account_id")).isEqualTo("acc-empty");
+    }
+
+    /**
+     * <b>A care angel's link supplies nothing, and only the query says so.</b>
+     *
+     * <p>{@code source} alone does not exclude one: a nomination is published on hc-patient's stream,
+     * so its link is {@code HC_PATIENT} too, and {@code subject_kind} is the only field that tells
+     * the two apart. The selection's comment promised this exclusion from the day it was written
+     * while the clause implemented only the source half — true of today's data, where no angel link
+     * carries a {@code local_id}, and a property of the data rather than of the code. This case
+     * gives one a {@code local_id} that names a real row, which is the state that would have to
+     * exist for the promise to be tested at all.
+     */
+    @Test
+    void aCareAngelsLinkSuppliesNothingEvenWhenItNamesARow() {
+        insertLegacyPatient("angel-named");
+        insertLink("l-angel", "HC_PATIENT", "angel-named", "acc-angel", "CARE_ANGEL");
+
+        migration().migrate();
+
+        assertThat(storedPatient("angel-named").getString("account_id"))
+            .as("an angel's link is not a patient's identity, whatever local_id it happens to carry")
+            .isNull();
+    }
+
+    /**
+     * A link written before {@code subject_kind} existed still supplies its value.
+     *
+     * <p>The other half of the kind clause, and the one a naive {@code is("PATIENT")} would break:
+     * links written before 2026-09-05 carry no kind at all, and every one of them was created by the
+     * path that made any patient-stream subject a patient. They are also the oldest rows in the
+     * collection — exactly the population with no {@code account_id} — so excluding them would
+     * strand the records this unit exists for.
+     */
+    @Test
+    void aLinkWrittenBeforeSubjectKindExistedStillSuppliesIt() {
+        insertLegacyPatient("kindless");
+        insertLink("l-kindless", "HC_PATIENT", "kindless", "acc-kindless", null);
+
+        migration().migrate();
+
+        assertThat(storedPatient("kindless").getString("account_id")).isEqualTo("acc-kindless");
     }
 
     /** The stamp is targeted: the joined value lands and every other field survives byte for byte. */

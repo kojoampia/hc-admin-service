@@ -877,6 +877,67 @@ class DirectoryEventConsumptionIT {
         assertThat(patientRepository.count()).as("the backfill path must refuse exactly what the consumer refuses").isZero();
     }
 
+    /**
+     * <b>A promotion whose own frame carries no {@code accountId} is created from the link's.</b>
+     *
+     * <p>The case that makes the link a fallback rather than a nicety, and it is not hypothetical:
+     * {@code SiblingEventParser.patientDisposition} records that an angel who later registers in
+     * their own right is created by {@code OnboardingStarted} <em>alone</em>, "because hc-patient
+     * publishes no second {@code AccountCreated} for them" — and that publisher's
+     * {@code resolveAccountId} is precisely the one that may legitimately answer nothing. Without
+     * the fallback this subject is deferred and invisible until somebody presses reconcile, for an
+     * id this service has been holding since the nomination frame.
+     *
+     * <p>The nomination is the refactored shape and the onboarding is the plain one, deliberately:
+     * that is the real pairing, a {@code LINK_ONLY} frame from the gateway carrying identity and an
+     * onboarding frame from the api that may not.
+     */
+    @Test
+    void aPromotionWithNoAccountIdOnItsFrameIsCreatedFromTheLinksOwn() {
+        sendPatient(careAngelNominatedRefactored("2026-09-01T08:00:00Z", "usr-angel-promoted"));
+        assertThat(patientRepository.count()).as("a nomination is still a link and no record").isZero();
+        assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getAccountId())
+            .as("the link learned the id from the frame the record could not be created from")
+            .isEqualTo("usr-angel-promoted");
+
+        sendPatient(onboardingStarted("2026-09-05T10:00:00Z", "p-5150"));
+
+        assertThat(patientRepository.count()).as("the promotion creates, using what the link already held").isEqualTo(1);
+        assertThat(patientRepository.findAll().get(0).getAccountId())
+            .as("from the link — real data from the identity's owner, not a default")
+            .isEqualTo("usr-angel-promoted");
+    }
+
+    /**
+     * <b>The frame most likely to heal a pre-115 row in production, in the shape production sends.</b>
+     *
+     * <p>A subject created before item 115 has a row with no {@code accountId}; what arrives next for
+     * them is usually an activation, and since hc-patient's item 72 refactor every activation carries
+     * {@code subject.accountId}. The adoption test above uses {@code AccountCreated}, which a subject
+     * who already exists will never see again — so this is the same rule on the frame that will
+     * actually carry it, and it was the one post-refactor shape this file did not have.
+     */
+    @Test
+    void aPostRefactorActivationHealsARowFromBeforeTheFieldExisted() {
+        mongoTemplate
+            .getCollection("patient")
+            .insertOne(new Document("_id", "pre-115-c").append("status", "PENDING").append("joined_on", "2026-08-01"));
+        DirectoryLink claimed = new DirectoryLink();
+        claimed.setSource(DirectorySource.HC_PATIENT);
+        claimed.setExternalKey(EMAIL);
+        claimed.setSubjectKind(DirectorySubjectKind.PATIENT);
+        claimed.setLocalId("pre-115-c");
+        directoryLinkRepository.save(claimed);
+
+        sendPatient(accountActivatedRefactored("2026-09-02T09:00:00Z", PATIENT_USER_ID));
+
+        Patient healed = patientRepository.findById("pre-115-c").orElseThrow();
+        assertThat(healed.getAccountId()).as("adopted from the activation, set once and never invented").isEqualTo(PATIENT_USER_ID);
+        assertThat(healed.getStatus())
+            .as("and the activation's own fact lands in the same, now-valid save")
+            .isEqualTo(AccountStatus.ACTIVE);
+    }
+
     /** An angel who later registers or onboards in their own right is a patient, and becomes one. */
     @Test
     void anAngelWhoLaterOnboardsBecomesAPatient() {
@@ -1543,6 +1604,51 @@ class DirectoryEventConsumptionIT {
     }
 
     /** hc-patient's {@code CareAngelResource.nominate}, first frame — keyed on the ANGEL's address. */
+    /**
+     * {@code AccountActivated} as hc-patient publishes it since their item 72 refactor — every frame
+     * carries {@code subject.accountId}, not just the creating ones.
+     *
+     * <p>Its pre-refactor twin above is retained deliberately (item 131), and keeping both is the
+     * point: for months every {@code AccountActivated} in this file carried no id, so the frame
+     * <em>most likely to heal a pre-115 row in production</em> — an activation is what arrives next
+     * for a subject created before the refactor — was the one shape no test had.
+     */
+    private static String accountActivatedRefactored(String occurredAt, String accountId) {
+        return (
+            "{\"eventId\":\"evt-activated-refactored\",\"type\":\"AccountActivated\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"patientGateway\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":\"amensah\",\"accountId\":\"" +
+            accountId +
+            "\"},\"data\":{\"activatedAt\":\"" +
+            occurredAt +
+            "\"}}"
+        );
+    }
+
+    /**
+     * The nomination as it is published now — {@code subject.accountId} on a {@code LINK_ONLY} frame.
+     *
+     * <p>An angel's account is a real gateway account, so their frames carry its id like anybody
+     * else's; what makes the frame {@code LINK_ONLY} is the {@code careAngelNomination} reason, not
+     * an absence of identity. That is exactly why the link can hold an {@code account_id} for a
+     * subject this service keeps no record of — and why it is available later, when a promotion's
+     * own publisher has none.
+     */
+    private static String careAngelNominatedRefactored(String occurredAt, String accountId) {
+        return (
+            "{\"eventId\":\"evt-angel-refactored\",\"type\":\"AccountCreated\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"patientGateway\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":\"aangel\",\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"authorities\":\"ROLE_USER,ROLE_ANGEL\",\"activated\":true,\"reason\":\"careAngelNomination\"}}"
+        );
+    }
+
     private static String careAngelNominated(String occurredAt) {
         return (
             "{\"eventId\":\"evt-angel\",\"type\":\"AccountCreated\",\"version\":1,\"occurredAt\":\"" +

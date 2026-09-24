@@ -9,6 +9,7 @@ import com.jayway.jsonpath.JsonPath;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.domain.Patient;
@@ -227,9 +228,12 @@ class RoundCustomerResourceIT {
         return found.isEmpty() ? null : found.get(0);
     }
 
+    /** One per fixture row: {@code accountId} is a join key and a shared literal models nobody. */
+    private static final AtomicInteger PATIENT_SEQUENCE = new AtomicInteger();
+
     private static Patient patient() {
         return new Patient()
-            .accountId("acct-round")
+            .accountId("acct-round-" + PATIENT_SEQUENCE.incrementAndGet())
             .status(AccountStatus.ACTIVE)
             .joinedOn(LocalDate.of(2026, 3, 1));
     }

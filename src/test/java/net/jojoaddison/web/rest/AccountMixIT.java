@@ -70,13 +70,13 @@ class AccountMixIT {
     void breaksTheNetworkDownByAccountType() throws Exception {
         patientRepository.save(
             new Patient()
-                .accountId("acct-mix")
+                .accountId("acct-mix-1")
                 .joinedOn(LocalDate.of(2026, 1, 5))
                 .status(AccountStatus.ACTIVE)
         );
         patientRepository.save(
             new Patient()
-                .accountId("acct-mix")
+                .accountId("acct-mix-2")
                 .joinedOn(LocalDate.of(2026, 2, 5))
                 .status(AccountStatus.ACTIVE)
         );
@@ -108,13 +108,13 @@ class AccountMixIT {
     void addsUpToTheTilesAboveIt() throws Exception {
         patientRepository.save(
             new Patient()
-                .accountId("acct-mix")
+                .accountId("acct-mix-3")
                 .joinedOn(LocalDate.of(2026, 1, 5))
                 .status(AccountStatus.ACTIVE)
         );
         patientRepository.save(
             new Patient()
-                .accountId("acct-mix")
+                .accountId("acct-mix-4")
                 .joinedOn(LocalDate.of(2026, 3, 5))
                 .status(AccountStatus.ACTIVE)
                 .isArchived(true)

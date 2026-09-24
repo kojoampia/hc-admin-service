@@ -80,6 +80,8 @@ public class PatientAccountIdBackfillMigration {
     private static final String DIRECTORY_LINK = "directory_link";
     private static final String ACCOUNT_ID = "account_id";
     private static final String LOCAL_ID = "local_id";
+    private static final String SUBJECT_KIND = "subject_kind";
+    private static final String PATIENT_KIND = "PATIENT";
 
     /** How many unresolved row ids one ERROR line names before summarising — a bound, not a filter. */
     static final int REPORTED_IDS_CAP = 20;
@@ -109,10 +111,35 @@ public class PatientAccountIdBackfillMigration {
         Map<String, String> accountIdByLocalId = new HashMap<>();
         mongoTemplate
             .find(
-                // Source-scoped: only an HC_PATIENT link's local_id names a patient row — a
-                // professional's or a care angel's keeps no local record by design, and this join
-                // must not widen the day one of them starts to.
-                new Query(Criteria.where("source").is("HC_PATIENT").and(LOCAL_ID).ne(null).and(ACCOUNT_ID).ne(null)),
+                // Source-scoped AND kind-scoped: only an HC_PATIENT link of kind PATIENT names a
+                // patient row. A professional's is excluded by source; a care angel's is NOT — a
+                // nomination is published on the patient stream, so its link is HC_PATIENT too and
+                // only its subject_kind tells it apart. This clause used to be source alone under a
+                // comment promising both, which held only because no angel link has ever carried a
+                // local_id; the promise is now the query rather than a property of today's data.
+                //
+                // A null subject_kind reads as PATIENT, for DirectoryProjectionService
+                // .keepsAPatientRecord's reason: links written before 2026-09-05 carry no kind and
+                // every one of them was created by the path that made any patient-stream subject a
+                // patient. Defaulting the other way would strand exactly the oldest rows this
+                // backfill exists for.
+                //
+                // ⚠ Deliberately NOT erased_at-scoped, which is where this stops copying
+                // keepsAPatientRecord and the difference is the point. That guard stops the
+                // reconciliation REBUILDING a record for a subject whose far side is gone. This
+                // unit rebuilds nothing: the row already exists, and DirectoryLink.erasedAt's own
+                // javadoc says the Patient is deliberately kept as "an administrator's record with
+                // an operational history of its own". Excluding it would leave a live record
+                // permanently unsaveable and ERROR-reported on every start — which is the state
+                // this unit exists to end, applied to the one population that cannot escape it.
+                new Query(
+                    new Criteria().andOperator(
+                        Criteria.where("source").is("HC_PATIENT"),
+                        Criteria.where(LOCAL_ID).ne(null),
+                        Criteria.where(ACCOUNT_ID).ne(null),
+                        new Criteria().orOperator(Criteria.where(SUBJECT_KIND).is(null), Criteria.where(SUBJECT_KIND).is(PATIENT_KIND))
+                    )
+                ),
                 Document.class,
                 DIRECTORY_LINK
             )

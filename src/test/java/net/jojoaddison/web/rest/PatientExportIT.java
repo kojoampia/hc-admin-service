@@ -378,7 +378,11 @@ class PatientExportIT {
     private Patient patient(AccountStatus status, boolean archived, Profile profile) {
         Profile saved = profileRepository.save(profileWithSavedAddress(profile));
         return new Patient()
-            .accountId("acct-export")
+            // Derived from the saved profile's own id rather than a shared literal: accountId is a
+            // join key and every row here is a different person. Nothing enforces uniqueness on it
+            // today (Vendor.account_id does, and item 108 routes patients on :accountId), which is
+            // exactly why the fixture should not be the thing that assumes it never will.
+            .accountId("acct-export-" + saved.getId())
             .status(status)
             .joinedOn(LocalDate.of(2026, 1, 1))
             .isArchived(archived)

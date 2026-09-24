@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import net.jojoaddison.IntegrationTest;
 import net.jojoaddison.domain.Patient;
 import net.jojoaddison.domain.PlanFeature;
@@ -266,9 +267,12 @@ class ServicePlanSummaryIT {
         return new PlanFeature().label(label).position(position).plan(plan);
     }
 
+    /** One per fixture row: {@code accountId} is a join key and a shared literal models nobody. */
+    private static final AtomicInteger PATIENT_SEQUENCE = new AtomicInteger();
+
     private static Patient patient(ServicePlan plan, boolean archived) {
         return new Patient()
-            .accountId("acct-plan")
+            .accountId("acct-plan-" + PATIENT_SEQUENCE.incrementAndGet())
             .status(AccountStatus.ACTIVE)
             .joinedOn(LocalDate.of(2026, 1, 1))
             .plan(plan)
