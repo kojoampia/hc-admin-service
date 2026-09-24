@@ -534,7 +534,11 @@ public class DirectoryProjectionService {
      * <p><b>Identity fields on insert, and deliberately none of phase 1's content.</b> The subject
      * kind is {@code PROFESSIONAL} because a profile status on hc-professional's entity topic is by
      * definition about a clinician; the {@code external_id} is the {@code accountId}, which is what
-     * that field holds for this source. What is <em>not</em> written is a login, an email or an
+     * that field holds for this source, and so is {@code account_id} — the estate-named copy item
+     * 130 added, promised by {@code DirectoryLink#accountId} for <em>every</em> professional row,
+     * which a phase-2-first insert has to honour itself: for the profile-only state phase 1 never
+     * arrives to fill it in, and a reader joining on {@code account_id} would silently miss every
+     * such clinician. What is <em>not</em> written is a login, an email or an
      * activation state — phase 2 carries none of them, and defaulting any of them would put a name or
      * a status on a row that nobody has told this service anything about.
      */
@@ -546,6 +550,7 @@ public class DirectoryProjectionService {
             .setOnInsert("source", DirectorySource.HC_PROFESSIONAL)
             .setOnInsert("external_key", event.accountId())
             .setOnInsert("external_id", event.accountId())
+            .setOnInsert("account_id", event.accountId())
             .setOnInsert("subject_kind", DirectorySubjectKind.PROFESSIONAL)
             .setOnInsert("first_seen_at", event.occurredAt());
 
@@ -889,8 +894,9 @@ public class DirectoryProjectionService {
      *
      * <p><b>The exception is the erasure.</b> {@code DeletionRequestChanged/COMPLETED} says the far
      * side has already deleted the subject's profile, and it carries their address and login in order
-     * to say so. What this service can drop, it drops: the {@code login} and the {@code patientId},
-     * the latter being a handle into a record that no longer exists. What it cannot drop is the
+     * to say so. What this service can drop, it drops: the {@code login}, the {@code patientId} and
+     * — since item 130 — the {@code account_id}, the latter two being handles into records and
+     * accounts that no longer exist. What it cannot drop is the
      * address, because the address <em>is</em> {@code external_key} — the correlation key, and the
      * key the watermark hangs on. Clearing the {@code email} field while the same string sits in
      * {@code external_key} would be theatre, so it is not done, and whether hc-admin should erase its
@@ -916,10 +922,16 @@ public class DirectoryProjectionService {
         setIfPresent(update, "last_event_id", event.eventId());
         setIfPresent(update, "email", event.email());
         if (event.erased()) {
-            update.set("erased_at", event.occurredAt()).unset("login").unset("external_id");
+            // account_id goes with the login and the external_id: a handle into an account for a
+            // person the far side has erased. The email stays because it IS external_key — see the
+            // method javadoc.
+            update.set("erased_at", event.occurredAt()).unset("login").unset("external_id").unset("account_id");
         } else {
             setIfPresent(update, "login", event.login());
+            // Two identifier spaces, two fields, never merged — SiblingEventParser.parsePatientEvent
+            // and DirectoryLink#externalId both carry the argument (items 130, 115, 22).
             setIfPresent(update, "external_id", event.externalId());
+            setIfPresent(update, "account_id", event.accountId());
         }
         if (event.disposition() == Disposition.CREATE) {
             // The only promotion there is: a link first seen as a care angel becomes a patient when

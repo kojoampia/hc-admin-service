@@ -150,9 +150,52 @@ public class DirectoryLink implements Serializable {
      * that, which is a real state and not a defect. For a professional it is the {@code accountId},
      * so it equals {@code externalKey}; carrying it anyway keeps a reader from having to know which
      * source stores identity where.
+     *
+     * <p><b>Never a gateway {@code User.id} on a patient row — that is a decision, taken with item
+     * 130, not a gap.</b> hc-patient's item 72 refactored their api's event subject from
+     * {@code patientId} to {@code accountId} — a replacement rather than an addition, shipped in
+     * their {@code b6894dc} on 2026-09-24 — and the obvious tolerance — fall back to whichever id
+     * the frame carries and store it here — was weighed and
+     * refused, for three reasons that add up. This value goes <b>on the wire</b>:
+     * {@code RoundCustomerService} sends it to hc-professional as a round's {@code customerId},
+     * where a gateway id is item 22's "plausible wrong id" filed as a real clinician's day. The
+     * write is {@code setIfPresent}, so during the transition {@code AccountCreated} (account id)
+     * and {@code OnboardingStarted} (patient id) would overwrite each other across identifier
+     * spaces, per row and invisibly — item 115's finding that this column cannot serve double duty.
+     * And a column whose value is sometimes one id space and sometimes another cannot be told apart
+     * by reading the row, which is item 45's plausible-wrong-answer defect one field along. The
+     * account id lives in {@link #accountId} instead.
+     *
+     * <p>Since their refactor shipped, no patient frame carries a {@code patientId} any more, so this
+     * stays null on every patient row opened after that day — a real state, named rather than
+     * papered over. The consequence lands exactly where this value is used: a patient with no
+     * {@code external_id} is not offered for round planning, honestly and in words, and re-keying
+     * that exchange onto the account id is a cross-product decision for hc-professional's roster,
+     * not a value this column can quietly swap.
      */
     @Field("external_id")
     private String externalId;
+
+    /**
+     * The subject's gateway {@code User.id} — the estate's join key under item 107 D1, and the
+     * identifier item 115 keys local records on.
+     *
+     * <p>A <b>different identifier space</b> from {@link #externalId}, which is why it is a second
+     * column rather than a second writer of that one; the paragraph above records the decision. For
+     * a patient it arrives on every hc-patient frame since their item 72 refactor shipped
+     * (2026-09-24); absence is normal, their api documenting three ways a frame
+     * legitimately carries none. For a professional it equals {@link #externalKey}, that stream
+     * being keyed on it throughout — <b>whichever phase opens the row</b>, phase 2 inserting it as
+     * well as phase 1 writing it — and is carried here so a reader joining on the account id does
+     * not have to know which source stores identity where — the same courtesy {@link #externalId}
+     * extends one field up.
+     *
+     * <p>Dropped on erasure with the login and the {@code patientId}: a handle into an account for a
+     * person the far side has erased, and this service keeps what it cannot drop (the
+     * {@code external_key}), not what it can.
+     */
+    @Field("account_id")
+    private String accountId;
 
     /**
      * The subject's gateway login, and <b>the only thing the console ever names a clinician by</b>.
@@ -599,6 +642,14 @@ public class DirectoryLink implements Serializable {
 
     public void setExternalId(String externalId) {
         this.externalId = externalId;
+    }
+
+    public String getAccountId() {
+        return accountId;
+    }
+
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 
     public String getLogin() {
