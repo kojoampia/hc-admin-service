@@ -344,22 +344,21 @@ class DevelopmentDataInitializerTest {
             .filter(professional -> professional.getProfile() != null)
             .map(professional -> professional.getProfile().getId())
             .collect(Collectors.toSet());
-        assertThat(linkedProfileIds)
-            .doesNotContain(
-                "profile-me",
-                "profile-a1",
-                "profile-a2",
-                "profile-a3",
-                "profile-a4",
-                "profile-a5",
-                "profile-a6",
-                "profile-a7",
-                "profile-a8",
-                "profile-a9",
-                "profile-a10",
-                "profile-a11",
-                "profile-a12"
-            );
+        assertThat(linkedProfileIds).doesNotContain(
+            "profile-me",
+            "profile-a1",
+            "profile-a2",
+            "profile-a3",
+            "profile-a4",
+            "profile-a5",
+            "profile-a6",
+            "profile-a7",
+            "profile-a8",
+            "profile-a9",
+            "profile-a10",
+            "profile-a11",
+            "profile-a12"
+        );
     }
 
     /**
@@ -416,17 +415,7 @@ class DevelopmentDataInitializerTest {
         assertThat(test.getPersonProfiles())
             .filteredOn(profile -> profile.getId().startsWith("profile-p"))
             .extracting(Profile::getAccountId)
-            .containsExactlyInAnyOrder(
-                "doctor",
-                "nurse",
-                "carer",
-                "paramedic",
-                "nosae",
-                "asarpong",
-                "kntim",
-                "afrimpong",
-                "makoto"
-            );
+            .containsExactlyInAnyOrder("doctor", "nurse", "carer", "paramedic", "nosae", "asarpong", "kntim", "afrimpong", "makoto");
     }
 
     /**
