@@ -112,8 +112,18 @@ public class Vendor implements Serializable {
     private Boolean isArchived;
 
     /**
-     * The vendor-gateway login this record belongs to — hc-vendor's counterpart to
+     * The vendor-gateway account this record belongs to — hc-vendor's counterpart to
      * {@code Profile.account_id}.
+     *
+     * <p><b>Decided value space: the account's {@code User.id}</b> (backlog item 123, applying the
+     * estate rule {@code account.id = profile.accountId}). ⚠ <b>What every row holds today is
+     * still the gateway login</b>, and that is transitional rather than contradicted: hc-vendor is
+     * PostgreSQL and its vendor accounts get <em>sequence-generated</em> {@code Long} ids from
+     * {@code SeedAccountsInitializer} at startup, so no fixture anywhere holds an id this seed
+     * could commit — the ids differ per environment and are stable in none. Until hc-vendor
+     * exposes a deterministic id (their item), the seed keeps the login and
+     * {@code theCallersOwnLogin()} below keeps working; when the value moves, that resolver and
+     * hc-vendor's {@code VendorScopeResolver} move with it or vendor scoping fails silently.
      *
      * <p>hc-vendor is a PostgreSQL subsystem and this service is MongoDB, so a vendor's directory
      * record here and its purchase orders there can never be joined in a query. This string is the

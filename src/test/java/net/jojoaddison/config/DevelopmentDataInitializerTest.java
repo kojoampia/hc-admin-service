@@ -259,8 +259,10 @@ class DevelopmentDataInitializerTest {
      *
      * <p>The first four are hc-professional's seeded clinical logins, each matched to a professional
      * of the corresponding role. They belong to that stack's gateway rather than this one's, which
-     * is the point: {@code account_id} holds a platform login, and the three stacks share one
-     * identity space through a common signing key.
+     * is the point — and since item 123 they are the <b>untranslated</b> half of the field: the
+     * decided value is the account's {@code User.id}, these nine rows still hold logins because
+     * their gateway mints ids at creation and no fixture holds one, and
+     * {@link #shouldLinkTheAdministratorProfileToTheGatewayAccountId} pins the partition.
      *
      * <p><b>The remaining five were placeholders until 2026-08-22 and now name their holders</b> —
      * first initial then surname, so Nii Osae is {@code nosae}. hc-professional's quality fixture
@@ -272,10 +274,12 @@ class DevelopmentDataInitializerTest {
      * as "no professional record" rather than as a broken link.
      *
      * <p>The placeholders existed to keep "this account has no professional record" producible, and
-     * it still is: {@code profile-me} — {@code admin}, a login on all three gateways — is a profile
-     * with no professional attached, and the twelve {@code cred-aN} office profiles have none
-     * either. The last assertion holds that line explicitly, so linking the last unlinked profile
-     * cannot happen unnoticed.
+     * it still is: {@code profile-me} — the administrator, whose {@code accountId} is
+     * hc-admin-gateway's {@code User.id} since item 123 — is a profile with no professional
+     * attached, and the twelve office profiles (real accounts {@code …a14}–{@code …a25} on the same
+     * gateway since the same item, no longer {@code cred-aN} placeholders) have none either. The
+     * last assertion names all thirteen by profile id — the real property, not a prefix — so
+     * linking one of them to a professional cannot happen unnoticed.
      */
     @Test
     void shouldLinkSomeProfessionalsToRealClinicalLogins() throws Exception {
@@ -291,12 +295,15 @@ class DevelopmentDataInitializerTest {
             .filter(profile -> profile.getAccountId() != null)
             .collect(Collectors.toMap(Profile::getId, Profile::getAccountId));
 
+        // No prefix filter. This used to drop accountIds starting "cred-", which stopped meaning
+        // anything the day item 123 turned the placeholders into real accounts — and it never
+        // asserted the property it stood for. The property is asserted below, by profile id: the
+        // office profiles and profile-me have no professional attached.
         Map<String, ProfessionalRole> loginToRole = test
             .getProfessionals()
             .stream()
             .filter(professional -> professional.getProfile() != null)
             .filter(professional -> accountIdByProfileId.containsKey(professional.getProfile().getId()))
-            .filter(professional -> !accountIdByProfileId.get(professional.getProfile().getId()).startsWith("cred-"))
             .collect(Collectors.toMap(professional -> accountIdByProfileId.get(professional.getProfile().getId()), Professional::getRole));
 
         // Role-matched, not merely linked: a `nurse` login pointing at a DOCTOR would be valued at
@@ -326,52 +333,100 @@ class DevelopmentDataInitializerTest {
         assertThat(loginToRole).hasSameSizeAs(withAProfile);
 
         // And the state the placeholders used to hold open is still reachable: profiles that belong
-        // to no professional at all. `admin` is the one that matters, because it is a login on all
-        // three gateways — signing in as it and asking for /professionals/me/earnings is how "this
-        // account has no professional record" gets produced now.
+        // to no professional at all. Named by profile id rather than by any property of the
+        // accountId — since item 123 the office rows hold real gateway User.ids, so a prefix or a
+        // shape says nothing about linkage. `profile-me` is the one that matters most: signing in
+        // as the administrator and asking for /professionals/me/earnings is how "this account has
+        // no professional record" gets produced now.
         java.util.Set<String> linkedProfileIds = test
             .getProfessionals()
             .stream()
             .filter(professional -> professional.getProfile() != null)
             .map(professional -> professional.getProfile().getId())
             .collect(Collectors.toSet());
-        assertThat(test.getPersonProfiles())
-            .filteredOn(profile -> profile.getAccountId() != null && !linkedProfileIds.contains(profile.getId()))
-            .extracting(Profile::getAccountId)
-            .contains("admin");
+        assertThat(linkedProfileIds)
+            .doesNotContain(
+                "profile-me",
+                "profile-a1",
+                "profile-a2",
+                "profile-a3",
+                "profile-a4",
+                "profile-a5",
+                "profile-a6",
+                "profile-a7",
+                "profile-a8",
+                "profile-a9",
+                "profile-a10",
+                "profile-a11",
+                "profile-a12"
+            );
     }
 
     /**
-     * <b>The signed-in administrator has to have a profile, reachable by the login they sign in
-     * with.</b>
+     * <b>The signed-in administrator has to have a profile, reachable by the account they sign in
+     * with — and since item 123 "the account" means its {@code User.id}, not its login.</b>
      *
      * <p>{@code profile-me} — Efua Mensah, the persona the demo greets by name — is in this fixture
      * for exactly one screen: {@code /account}, which asks {@code GET
-     * /api/profiles/by-account/{login}} for the caller's own record. It was linked to
-     * {@code cred-me}, an id carried over from the in-browser mock's Credential collection and
-     * matching no login on any gateway, so the screen 404ed and offered to create a profile that was
-     * already sitting three collections away.
+     * /api/profiles/by-account/{accountKey}} for the caller's own record. It was linked to
+     * {@code cred-me}, then to the login {@code admin}, and now to
+     * {@code a0eebc99-…-a11} — the id the gateway's {@code hc-admin-gw-data.json} commits for that
+     * account, the same cross-service contract {@code managedBy} has always used.
      *
-     * <p>The second assertion is the one that matters and it is deliberately about shape rather than
-     * about a value. {@code account_id} holds a <b>login</b>; a UUID there is the gateway user id,
-     * which is the specific wrong identifier the console sent for eight days. Both are opaque
-     * strings, the lookup is an equality match, and the answer to either is the same 404 — so no
-     * assertion about a working link can catch the wrong kind of link, only an assertion about the
-     * kind.
+     * <p>The second and third assertions partition the field by value space, and the partition is
+     * the point. Until every row is translated, {@code account_id} legitimately holds two kinds of
+     * value: the thirteen rows whose accounts are hc-admin-gateway's hold committed {@code User.id}s
+     * (asserted as exact values — the contract, not a shape), and the nine clinician rows still
+     * hold hc-professional logins, because that gateway mints its ids at creation time and no
+     * fixture anywhere holds one this seed could reference. Their translation belongs to
+     * hc-professional's quality loader ({@code account_uid}). A tenth login appearing, or a UUID
+     * appearing outside the thirteen, is a row somebody linked without deciding which space it
+     * lives in — the exact ambiguity item 123 exists to remove.
      */
     @Test
-    void shouldLinkTheAdministratorProfileToTheLoginTheySignInWith() throws Exception {
+    void shouldLinkTheAdministratorProfileToTheGatewayAccountId() throws Exception {
         DevelopmentDataInitializer.ProfileData test = readSeedData().get("test");
 
         assertThat(test.getPersonProfiles())
-            .filteredOn(profile -> "admin".equals(profile.getAccountId()))
+            .filteredOn(profile -> "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11".equals(profile.getAccountId()))
             .singleElement()
             .satisfies(profile -> assertThat(profile.getFirstName()).isEqualTo("Efua"));
 
+        // The thirteen hc-admin-gateway rows, as exact (profileId, accountId) pairs.
         assertThat(test.getPersonProfiles())
+            .filteredOn(profile -> profile.getId().equals("profile-me") || profile.getId().startsWith("profile-a"))
+            .extracting(Profile::getId, Profile::getAccountId)
+            .containsExactlyInAnyOrder(
+                tuple("profile-me", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11"),
+                tuple("profile-a1", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14"),
+                tuple("profile-a2", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a15"),
+                tuple("profile-a3", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a16"),
+                tuple("profile-a4", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a17"),
+                tuple("profile-a5", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a18"),
+                tuple("profile-a6", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a19"),
+                tuple("profile-a7", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a20"),
+                tuple("profile-a8", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a21"),
+                tuple("profile-a9", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22"),
+                tuple("profile-a10", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a23"),
+                tuple("profile-a11", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a24"),
+                tuple("profile-a12", "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a25")
+            );
+
+        // The nine untranslated clinician rows, still logins on purpose — see the javadoc.
+        assertThat(test.getPersonProfiles())
+            .filteredOn(profile -> profile.getId().startsWith("profile-p"))
             .extracting(Profile::getAccountId)
-            .filteredOn(java.util.Objects::nonNull)
-            .noneMatch(accountId -> accountId.matches("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
+            .containsExactlyInAnyOrder(
+                "doctor",
+                "nurse",
+                "carer",
+                "paramedic",
+                "nosae",
+                "asarpong",
+                "kntim",
+                "afrimpong",
+                "makoto"
+            );
     }
 
     /**

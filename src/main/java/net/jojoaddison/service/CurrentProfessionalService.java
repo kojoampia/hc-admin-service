@@ -18,14 +18,19 @@ import org.springframework.stereotype.Service;
  * data behind these endpoints is what people are paid. The only input here is the authenticated
  * subject.
  *
- * <p><b>The link is {@code Profile.account_id}, which carries the gateway login.</b> This service
- * runs {@code skipUserManagement: true} and has no route to any gateway's user collection, so the
- * login in the token is the whole of the identity available to it — see {@link
- * ProfileRepository#findByAccount}. That the login is what {@code account_id} holds is a
- * cross-stack convention rather than a constraint this service can enforce: hc-professional's
- * {@code OnboardingService} sets it from the JWT subject for the same reason, because the token
- * exposes no user id. If a {@code uid} claim is ever added, both sides move together or the link
- * breaks in a way that presents as "this clinician has no roster" rather than as an error.
+ * <p><b>The link is {@code Profile.account_id}, and for the clinician rows this resolver serves it
+ * still carries the gateway login.</b> This service runs {@code skipUserManagement: true} and has
+ * no route to any gateway's user collection, so the token is the whole of the identity available
+ * to it — see {@link ProfileRepository#findByAccount}. Item 123 decided the field's value is the
+ * account's {@code User.id} and translated every row whose id is committed anywhere (hc-admin's
+ * own accounts — none of which has a professional attached, so nothing this resolver answers
+ * changed); the nine clinician rows await hc-professional's loader, whose {@code account_uid}
+ * owns the login → id resolution, and until they move this resolver keeps reading the login. ⚠
+ * <b>When they move, this must switch to the token's {@code uid} claim in the same change</b> —
+ * hc-professional's gateway has stamped {@code uid} since 2026-09-07, and their own
+ * {@code SecurityUtils.getCurrentAccountId} (their item 50) is the worked example, including the
+ * "no fallback to the login" rule — or the link breaks in a way that presents as "this clinician
+ * has no roster" rather than as an error.
  *
  * <p><b>The second hop goes {@code Professional -> Profile}, not the reverse.</b> {@code Profile}
  * declares a {@code professional} back-reference and reading it is one line shorter, but nothing

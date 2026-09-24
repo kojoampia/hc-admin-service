@@ -16,11 +16,26 @@ import org.springframework.data.mongodb.core.mapping.Field;
  * The shared person record behind both patients and professionals.
  *
  * `accountId` is the identity link to the gateway's Account. It is a plain
- * String, not a relationship: Account lives in hc-admin-gateway's own
- * database and this service cannot join across that boundary — the gateway
- * mints the id and puts it on the JWT so the api can stamp the right one.
- * A Profile with no accountId is a person no login can reach, so it is
- * required.
+ * String, not a relationship: Account lives in a gateway's own database and
+ * this service cannot join across that boundary. A Profile with no accountId
+ * is a person no login can reach, so it is required.
+ *
+ * <p><b>The value is the account's {@code User.id}, never the login</b> — the estate decision of
+ * 2026-09-17 ({@code account.id = profile.accountId}), applied here by backlog item 123. The two
+ * are both opaque strings and a join on the wrong one matches nothing silently, which is why this
+ * paragraph names the value space instead of trusting the field name. The account may live on any
+ * of the estate's gateways: the administrator's and the twelve office profiles' accounts are
+ * hc-admin-gateway's (ids committed in that repo's {@code hc-admin-gw-data.json} — a cross-service
+ * contract), a clinician's is hc-professional-gateway's.
+ *
+ * <p>⚠ <b>Transitional, deliberate, and reported rather than papered over:</b> the nine seeded
+ * clinician rows ({@code profile-p1}–{@code p9}) still carry hc-professional <em>logins</em>,
+ * because that gateway mints its account ids at creation time ({@code UUID.randomUUID()} in their
+ * {@code InitialSetupMigration}, and their quality loader for the named five) — no fixture on any
+ * stack holds an id this seed could reference. Their translation belongs to hc-professional's
+ * quality loader ({@code link_hc_admin}, which already overwrites these rows on every quality
+ * roll and owns the login → {@code User.id} resolution via its {@code account_uid} helper).
+ * {@code DevelopmentDataInitializerTest} pins which rows hold which value space.
  */
 @Document(collection = "profile")
 @SuppressWarnings("common-java:DuplicatedBlocks")
