@@ -118,9 +118,12 @@ class AdminEntityEventIT {
             .isEqualTo("ServicePlan");
         assertThat(frame.get("subject").get("entityId").asString()).isEqualTo(id);
         assertThat(frame.get("data").get("action").asString()).isEqualTo(AdminEntityEvent.SAVED);
-        assertThat(frame.get("data").get("actorAccountId").isNull())
-            .as("see this method's javadoc — @WithMockUser carries no uid claim")
-            .isTrue();
+        // The key set, not the value: Jackson's isNull() on a missing node cannot tell an absent key
+        // from a present-with-null one, and that distinction is the whole of item 129. The decided
+        // shape is ABSENT — asserted by listing the keys `data` does carry.
+        assertThat(keysOf(frame.get("data")))
+            .as("see this method's javadoc — @WithMockUser carries no uid claim, so the actor key is omitted (item 129)")
+            .containsExactlyInAnyOrder("action");
     }
 
     /**
@@ -151,8 +154,11 @@ class AdminEntityEventIT {
      *
      * <p>This is the rule most easily lost later, so it is asserted twice and from two directions: the
      * saved plan's name and tier code appear nowhere in the bytes, and the field set is exactly the
-     * seven envelope keys with exactly two under each of {@code subject} and {@code data}. The second
-     * is the one that survives somebody adding a field — a test that names what it does not want passes
+     * seven envelope keys with two under {@code subject} and — this write being actorless, see
+     * {@link #aCreatedEntityIsAnnouncedOnTheChannel} — only {@code action} under {@code data}, because
+     * item 129 has an actorless frame omit {@code actorAccountId} rather than carry it as null. The
+     * populated-actor key set is pinned in {@code EntityChangeAnnouncerTest}. The second assertion is
+     * the one that survives somebody adding a field — a test that names what it does not want passes
      * for everything nobody thought of.
      */
     @Test
@@ -170,7 +176,9 @@ class AdminEntityEventIT {
         JsonNode frame = om.readTree(payload);
         assertThat(keysOf(frame)).containsExactlyInAnyOrder("eventId", "type", "version", "occurredAt", "source", "subject", "data");
         assertThat(keysOf(frame.get("subject"))).containsExactlyInAnyOrder("entityType", "entityId");
-        assertThat(keysOf(frame.get("data"))).containsExactlyInAnyOrder("action", "actorAccountId");
+        assertThat(keysOf(frame.get("data")))
+            .as("no actor behind this write, so the key is absent — not null — per item 129")
+            .containsExactlyInAnyOrder("action");
     }
 
     /**

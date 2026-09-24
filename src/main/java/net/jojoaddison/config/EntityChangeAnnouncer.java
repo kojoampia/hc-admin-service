@@ -63,7 +63,9 @@ import org.springframework.stereotype.Component;
  *       hc-patient's {@code CREATED}/{@code UPDATED} split. See {@link AdminEntityEvent}.</li>
  *   <li><b>{@code data.actorAccountId} is absent for a write with no authenticated caller</b> — the
  *       seeder and the inbound directory consumers are both such writers. It is never replaced by a
- *       placeholder; {@link AdminEntityEvent} argues why.</li>
+ *       placeholder; {@link AdminEntityEvent} argues why. Absent as in <b>omitted from the frame</b>,
+ *       not present-with-null — the estate rule since item 129 (2026-09-24), implemented by the
+ *       {@code @JsonInclude} on {@link AdminEntityEvent.ChangeData}.</li>
  *   <li><b>The {@code dev} and {@code test} seed announces every row it writes.</b>
  *       {@code DevelopmentDataInitializer} calls {@code saveAll} on every start, so a stack running
  *       those profiles republishes its whole fixture on each boot. That is the honest reading of "every

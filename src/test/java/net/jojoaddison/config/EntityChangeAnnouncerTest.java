@@ -73,7 +73,8 @@ class EntityChangeAnnouncerTest {
     }
 
     /**
-     * A save announces the entity, the action, the instant and the actor — and the binding it goes to.
+     * A save announces the entity, the action and the instant — and, this write being actorless, no
+     * actor key at all (item 129). The binding it goes to is asserted alongside.
      *
      * <p>The binding is a string, so a rename in {@code application.yml} is not a compile error: it is
      * a frame published to a binding nothing declares, which gets a dynamic destination named after
@@ -81,7 +82,7 @@ class EntityChangeAnnouncerTest {
      * repository, and it is why the name is asserted rather than assumed.
      */
     @Test
-    void announcesASaveWithTheEntityTheActionTheInstantAndTheActor() {
+    void announcesASaveWithTheEntityTheActionAndTheInstant() {
         announcer.onAfterSave(saveOf(plan("sp-1"), "service_plan"));
 
         JsonNode frame = frameSentToTheChannel();
@@ -94,9 +95,12 @@ class EntityChangeAnnouncerTest {
             .isEqualTo("ServicePlan");
         assertThat(frame.get("subject").get("entityId").asText()).isEqualTo("sp-1");
         assertThat(frame.get("data").get("action").asText()).isEqualTo("SAVED");
-        assertThat(frame.get("data").get("actorAccountId").isNull())
-            .as("no authenticated caller, so the actor is absent rather than a `system` placeholder")
-            .isTrue();
+        // Key set, not value: get("actorAccountId").isNull() cannot tell an absent key from a
+        // present-with-null one — item 129's whole distinction. No authenticated caller here, so
+        // the key is omitted, not carried as null and not a `system` placeholder.
+        assertThat(keysOf(frame.get("data")))
+            .as("no authenticated caller, so the actor key is absent — item 129")
+            .containsExactlyInAnyOrder("action");
 
         assertThat(frame.get("occurredAt").asText())
             .as("an ISO-8601 instant, not a number — see AdminEntityEvent.getOccurredAt; this reproduces on the shipped mapper")
@@ -192,7 +196,10 @@ class EntityChangeAnnouncerTest {
             .as("the seven-component envelope hc-patient's and hc-vendor's producers already carry")
             .containsExactlyInAnyOrder("eventId", "type", "version", "occurredAt", "source", "subject", "data");
         assertThat(keysOf(frame.get("subject"))).containsExactlyInAnyOrder("entityType", "entityId");
-        assertThat(keysOf(frame.get("data"))).containsExactlyInAnyOrder("action", "actorAccountId");
+        // This save is actorless (the context is cleared around every test), so `data` carries only
+        // `action` — item 129. The populated-actor set is pinned in
+        // namesTheCallersAccountIdAndNeverTheirLogin.
+        assertThat(keysOf(frame.get("data"))).containsExactlyInAnyOrder("action");
     }
 
     /**
@@ -273,6 +280,9 @@ class EntityChangeAnnouncerTest {
 
         JsonNode data = frameSentToTheChannel().get("data");
         assertThat(data.get("actorAccountId").asText()).isEqualTo("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12");
+        assertThat(keysOf(data))
+            .as("with an actor the key is present — the other half of item 129's shape")
+            .containsExactlyInAnyOrder("action", "actorAccountId");
         assertThat(keysOf(data)).as("the login must not appear under any key").doesNotContain("actor", "login");
     }
 
@@ -292,7 +302,9 @@ class EntityChangeAnnouncerTest {
         announcer.onAfterSave(saveOf(plan("sp-1"), "service_plan"));
 
         String payload = payloadSentToTheChannel();
-        assertThat(readTree(payload).get("data").get("actorAccountId").isNull()).isTrue();
+        assertThat(keysOf(readTree(payload).get("data")))
+            .as("no uid claim, so the actor key is absent — not null — per item 129")
+            .containsExactlyInAnyOrder("action");
         assertThat(payload).as("the subject claim is a login and must not be substituted for the account id").doesNotContain("operator");
     }
 
