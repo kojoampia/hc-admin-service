@@ -344,8 +344,9 @@ class SiblingEventParserTest {
      * {@code OnboardingStarted} is the one event that binds an email to a patient id, and the parser
      * has to pick it up from {@code subject.patientId} — hc-patient's envelope says in its own
      * javadoc that this is the only place the mapping is published. <b>Until their item 72 refactor
-     * ships</b>, that is: the test below this one is the same event afterwards, and both shapes are
-     * read for as long as retained frames carry either.
+     * shipped (2026-09-24)</b>, that is: the test below this one is the same event as every producer
+     * now sends it, and both shapes are read for as long as retained frames carry either — this
+     * group reads from the earliest offset, so the old shape outlives its producer.
      */
     @Test
     void picksUpThePatientIdWhereOnboardingPublishesIt() {
@@ -357,13 +358,14 @@ class SiblingEventParserTest {
     }
 
     /**
-     * <b>The same event after hc-patient's item 72 refactor: {@code subject.accountId} replaces
-     * {@code subject.patientId}.</b> A refactor rather than an addition — a fourth subject component
-     * was considered on their side and rejected — so once it ships no api frame carries a
-     * {@code patientId} again, and a parser reading only the old key would keep creating rows while
-     * silently losing the identifier off every one of them: their own coordination note observes that
-     * nothing goes red, because creation is driven by the gateway's {@code AccountCreated} either
-     * way. Their gateway's frames already have this subject shape today. Backlog item 130.
+     * <b>The same event since hc-patient's item 72 refactor shipped ({@code b6894dc}, 2026-09-24):
+     * {@code subject.accountId} replaces {@code subject.patientId}.</b> A refactor rather than an
+     * addition — a fourth subject component was considered on their side and rejected — so no
+     * current frame carries a {@code patientId}, and a parser reading only the old key keeps
+     * creating rows while silently losing the identifier off every one of them: their own
+     * coordination note observes that nothing goes red, because creation is driven by the gateway's
+     * {@code AccountCreated} either way. Their gateway's javadoc also demands this exact reading —
+     * the {@code accountId} by name, never "whichever of the two is present". Backlog item 130.
      *
      * <p><b>The two ids land in two fields because they are two identifier spaces.</b>
      * {@code accountId} is the gateway {@code User.id} — the estate's join key under item 107 D1 —
@@ -900,10 +902,10 @@ class SiblingEventParserTest {
     // --- the wire formats, copied from the two publishers -----------------------------------------
     //
     // The gateway frames' subject is {email, login, accountId} — their gateway's Subject record
-    // refactored patientId away already (checked at their origin/main, 2026-09-24), ahead of the
-    // api's identical refactor (their item 72). The value is null here because these fixtures
-    // assert nothing about it; what the rename pins is that a subject.patientId on a gateway frame
-    // is a shape their code no longer has.
+    // refactored patientId away first, and their api followed the same day (item 72, b6894dc,
+    // 2026-09-24), so no producer of theirs declares patientId any more. The value is null here
+    // because these fixtures assert nothing about it; what the rename pins is that a
+    // subject.patientId on a gateway frame is a shape their code no longer has.
 
     private static String accountCreated(String email, String occurredAt, boolean activated) {
         return (
@@ -1017,12 +1019,12 @@ class SiblingEventParserTest {
     }
 
     /**
-     * The same event once hc-patient's item 72 refactor ships: their api's {@code Subject} record
-     * becomes {@code (email, login, accountId)}, matching the gateway's — read at their doc PR #126,
-     * merged, with the code change still outstanding on their {@code origin/main} 2026-09-24. This
-     * fixture is written from that decision rather than from a shipped producer, which is exactly the
-     * practice the phase-2 defect above warns about — so re-read their {@code PatientEvent.Subject}
-     * when their refactor lands, and this fixture is the place a divergence would surface.
+     * The same event since hc-patient's item 72 refactor shipped: their api's {@code Subject} record
+     * is {@code (email, login, accountId)}, matching the gateway's. <b>Verified against the shipped
+     * producer, field for field</b> — their {@code b6894dc} of 2026-09-24, checked in the item 130
+     * review after this fixture was first written from the merged decision alone, which is the
+     * practice the phase-2 defect above warns about. The seven-component envelope, the
+     * {@code hcPatientService} source and the subject shape all match their code as it ships.
      */
     private static String onboardingStartedRefactored(String email, String accountId) {
         return (

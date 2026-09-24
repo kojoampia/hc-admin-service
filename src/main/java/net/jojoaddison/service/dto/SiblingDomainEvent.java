@@ -12,9 +12,9 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  * <p>hc-patient and hc-professional do not share an envelope and there is no reason they should —
  * neither owns the other's schema. hc-patient sends {@code {eventId, type, version, occurredAt,
  * source, subject:{email, login, …}, data}} — where the third subject component is {@code accountId}
- * from their gateway already and {@code patientId} from their api until their item 72 refactor ships,
- * a replacement rather than an addition, so both are read for as long as retained frames carry
- * either; hc-professional sends {@code {eventId,
+ * on every frame since their item 72 refactor shipped (their {@code b6894dc}, 2026-09-24) and was
+ * {@code patientId} from their api before it, a replacement rather than an addition, so both are
+ * read for as long as retained frames carry either; hc-professional sends {@code {eventId,
  * eventType, occurredAt, source, actor, payload:{…}}}, with the subject inside the payload and the
  * lifecycle state in a {@code state} field rather than in the type. Reading both shapes in the
  * write path would put two vocabularies into the merge rule, which is the one piece of this that has
@@ -47,8 +47,8 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  *                  one field would make the two indistinguishable per event, which is item 115's
  *                  finding about the column downstream of this. For a professional it equals
  *                  {@link #subjectKey}, that stream being keyed on it throughout; for a patient it
- *                  arrives on hc-patient's gateway frames today and on every frame once their item 72
- *                  refactor ships, and its absence is normal rather than an error — their
+ *                  arrives on every hc-patient frame since their item 72 refactor shipped
+ *                  (2026-09-24), and its absence is normal rather than an error — their
  *                  {@code OnboardingService.resolveAccountId} documents three ways an api frame can
  *                  legitimately carry none.
  * @param externalId the sibling's own id for the subject, when the event carries one. <b>Never the

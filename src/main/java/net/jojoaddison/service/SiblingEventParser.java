@@ -355,22 +355,24 @@ public class SiblingEventParser {
             !careAngel &&
             (PATIENT_ACCOUNT_ACTIVATED.equals(type) || (PATIENT_ACCOUNT_CREATED.equals(type) && data.path("activated").asBoolean(false)));
 
-        // The subject's third component is mid-refactor on their side (their item 72): the gateway
-        // already publishes `accountId` — the gateway User.id, the estate's join key under item 107
-        // D1 — and the api still publishes `patientId`, its own record id, until their refactor
-        // ships. THE TWO ARE DIFFERENT IDENTIFIER SPACES and are read into different fields, never
-        // merged: external_id goes on the wire to hc-professional as a round's customerId, where a
-        // gateway id names nobody (item 22), and one column holding both is item 115's double-duty
-        // finding. Neither key is required — an api frame legitimately carries no accountId (their
+        // The subject's third component changed under their item 72: every hc-patient frame now
+        // publishes `accountId` — the gateway User.id, the estate's join key under item 107 D1 —
+        // and their api published `patientId`, its own record id, until their refactor shipped
+        // (their b6894dc, 2026-09-24). THE TWO ARE DIFFERENT IDENTIFIER SPACES and are read into
+        // different fields, never merged: external_id goes on the wire to hc-professional as a
+        // round's customerId, where a gateway id names nobody (item 22), and one column holding
+        // both is item 115's double-duty finding. Their gateway's own javadoc demands the same
+        // reading — the accountId by name, never "whichever of the two is present". Neither key is
+        // required — an api frame legitimately carries no accountId (their
         // OnboardingService.resolveAccountId names three ways), and only OnboardingStarted ever
         // carried the patientId — so absence here is normal, never warned, never dead-lettered.
         //
-        // THE `patientId` READ BELOW IS TRANSITIONAL, kept exactly until BOTH hold: (a) hc-patient's
-        // api Subject record no longer declares it — check their api's PatientEvent.Subject, which
-        // still read (email, login, patientId) at their origin/main on 2026-09-24 — and (b) the
-        // retained history of `patient-events` no longer holds frames that do, because this group
-        // reads from the earliest offset and a fresh group replays every retained frame. Trimmed
-        // like the professional accountId and never lowercased; see trimmed().
+        // THE `patientId` READ BELOW IS TRANSITIONAL, kept exactly until BOTH hold: (a) their api
+        // Subject record no longer declares it — MET, as of b6894dc, so no producer sends it any
+        // more — and (b) the retained history of `patient-events` no longer holds frames that do,
+        // which is the condition still standing: this group reads from the earliest offset, so a
+        // fresh group replays every retained frame, patientId-carrying ones included. Trimmed like
+        // the professional accountId and never lowercased; see trimmed().
         String accountId = trimmed(text(subject, "accountId"));
 
         return Optional.of(
@@ -989,7 +991,10 @@ public class SiblingEventParser {
      * link. An {@code accountId} is a UUID minted by a gateway, and the two phases of the professional
      * contract have to key on it <em>identically</em>; folding case here would make this side tolerant
      * of a producer that had started sending it differently, which is precisely the divergence that
-     * must be visible rather than absorbed. Trimming is applied to both phases and to nothing else.
+     * must be visible rather than absorbed. Trimming is applied to the identifiers read verbatim off
+     * a payload — the professional {@code accountId} in both phases, the patient {@code accountId}
+     * since item 130, and phase 2's {@code lastModifiedBy} — and to nothing else. (This sentence read
+     * "both phases and nothing else" until the item 130 review, by which point it was false twice.)
      */
     private String trimmed(String raw) {
         if (raw == null) {

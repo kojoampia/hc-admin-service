@@ -223,7 +223,7 @@ class DirectoryEventConsumptionIT {
     }
 
     /**
-     * The same binding after hc-patient's item 72 refactor, end to end: the frame's
+     * The same binding since hc-patient's item 72 refactor shipped, end to end: the frame's
      * {@code subject.accountId} lands on {@code account_id}, and <b>not</b> on {@code external_id} —
      * the two are different identifier spaces, and {@code external_id} goes on the wire to
      * hc-professional as a round's {@code customerId}, where a gateway id names nobody. Backlog
@@ -390,6 +390,13 @@ class DirectoryEventConsumptionIT {
         assertThat(alone.getActivated()).as("nor is activation guessed from a profile existing").isNull();
         assertThat(alone.getProfileComplete()).as("reported as incomplete — which is a fact, unlike the nulls above").isFalse();
         assertThat(alone.getLastEventAt()).as("no phase 1 has been seen, and the row says so by omission").isNull();
+        assertThat(alone.getAccountId())
+            .as(
+                "the estate-named copy of the key is on the row from the first phase-2 frame — DirectoryLink#accountId " +
+                    "promises it for every professional row, and a reader joining on account_id would otherwise silently " +
+                    "miss every profile-first clinician, permanently for the dl-prof-profile-only state (item 130 review)"
+            )
+            .isEqualTo(ACCOUNT_ID);
 
         sendProfessional(accountCreatedOnProfessional(true));
 
@@ -1357,10 +1364,10 @@ class DirectoryEventConsumptionIT {
     }
 
     /**
-     * The same event once hc-patient's item 72 refactor ships: {@code subject.accountId} — the
-     * gateway {@code User.id} — replaces {@code subject.patientId} outright. Written from their
-     * merged decision rather than a shipped producer; re-read their {@code PatientEvent.Subject}
-     * when the refactor lands. Backlog item 130.
+     * The same event since hc-patient's item 72 refactor shipped ({@code b6894dc}, 2026-09-24):
+     * {@code subject.accountId} — the gateway {@code User.id} — replaces {@code subject.patientId}
+     * outright. Verified against the shipped producer field for field in the item 130 review,
+     * having first been written from the merged decision alone. Backlog item 130.
      */
     private static String onboardingStartedRefactored(String occurredAt, String accountId) {
         return (
