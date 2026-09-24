@@ -26,13 +26,15 @@ import org.springframework.test.web.servlet.MockMvc;
  *
  * <p>Two behaviours are worth pinning, and neither is about the happy path.
  *
- * <p><b>The fixture below is a login, and that is deliberate.</b> It read
- * {@code 6a6bf0c12c8c301d3aa8cb2e} — an id-shaped string — which passes just as well, because the
- * lookup is an equality match and does not care what kind of identifier it is given. That is
- * precisely why it could not catch the console addressing this route with the gateway user id: no
- * test here disagreed with it, and the endpoint's answer to a wrong key is the same 404 it gives an
- * account that simply has no profile. A fixture that names the contract is the only guard this file
- * can offer.
+ * <p><b>The fixture below is a gateway {@code User.id}, and that is deliberate — and it is the
+ * second time this fixture has flipped to follow the contract.</b> It read
+ * {@code 6a6bf0c12c8c301d3aa8cb2e}, then the login {@code efua.mensah}, and since item 123 the
+ * contract is the account's {@code User.id} for hc-admin-owned rows, so the fixture is a UUID
+ * again — this time on purpose. The lookup is an equality match and does not care what kind of
+ * identifier it is given, which is exactly why a fixture in the wrong value space passes just as
+ * well: no test here can disagree with a caller keying on the wrong identifier, and the endpoint's
+ * answer to a wrong key is the same 404 it gives an account that simply has no profile. A fixture
+ * that names the contract is the only guard this file can offer.
  */
 @IntegrationTest
 @AutoConfigureMockMvc(addFilters = false)
@@ -40,7 +42,7 @@ import org.springframework.test.web.servlet.MockMvc;
 class ProfileByAccountIT {
 
     private static final String ENDPOINT = "/api/profiles/by-account/";
-    private static final String LOGIN = "efua.mensah";
+    private static final String ACCOUNT_ID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 
     @Autowired
     private MockMvc restMockMvc;
@@ -58,9 +60,9 @@ class ProfileByAccountIT {
      * console cannot quietly create a stub profile for an account — whoever creates one has to
      * supply a date of birth, a sex, an ID type and number, a mobile number and an email.
      */
-    private static Profile profileFor(String login, String firstName, String lastName) {
+    private static Profile profileFor(String accountId, String firstName, String lastName) {
         return new Profile()
-            .accountId(login)
+            .accountId(accountId)
             .firstName(firstName)
             .lastName(lastName)
             .dateOfBirth(LocalDate.of(1985, 4, 12))
@@ -73,14 +75,14 @@ class ProfileByAccountIT {
 
     @Test
     void findsTheProfileLinkedToAnAccount() throws Exception {
-        profileRepository.save(profileFor(LOGIN, "Ama", "Mensah"));
+        profileRepository.save(profileFor(ACCOUNT_ID, "Ama", "Mensah"));
         profileRepository.save(profileFor("someone-else", "Kofi", "Boateng"));
 
         restMockMvc
-            .perform(get(ENDPOINT + LOGIN))
+            .perform(get(ENDPOINT + ACCOUNT_ID))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.firstName").value("Ama"))
-            .andExpect(jsonPath("$.accountId").value(LOGIN));
+            .andExpect(jsonPath("$.accountId").value(ACCOUNT_ID));
     }
 
     /**
@@ -105,13 +107,13 @@ class ProfileByAccountIT {
      */
     @Test
     void isNotShadowedByTheIdRoute() throws Exception {
-        Profile stored = profileRepository.save(profileFor(LOGIN, "Ama", "Mensah"));
+        Profile stored = profileRepository.save(profileFor(ACCOUNT_ID, "Ama", "Mensah"));
 
         // The id route still works for a real id...
         restMockMvc.perform(get("/api/profiles/" + stored.getId())).andExpect(status().isOk());
         // ...and the account route is not being read as an id.
         restMockMvc
-            .perform(get(ENDPOINT + LOGIN))
+            .perform(get(ENDPOINT + ACCOUNT_ID))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.id").value(stored.getId()));
     }
