@@ -5,5 +5,5 @@
   "occurredAt": "2026-09-24T08:14:02.457Z",
   "source": "hcPatientService",
   "subject": { "entityType": "Membership", "entityId": "68a1f0d2c9e4b83a5d6f7e42" },
-  "data": { "action": "UPDATED", "actorAccountId": "7d2a9b41-6c3e-4f8a-b0d5-e19c8a7f3b64" }
+  "data": { "action": "UPDATED", "actorAccountId": null }
 }

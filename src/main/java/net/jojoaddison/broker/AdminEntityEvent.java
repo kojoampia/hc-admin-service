@@ -65,8 +65,9 @@ import java.time.Instant;
  * {@code ProfessionalEvent.Subject(email, accountId)} would not have to mean two things. So <b>all
  * four products now agree that {@code subject} is {@code (entityType, entityId)}</b>. The captured
  * frames under {@code src/test/resources/event-frames/entity-changed/} hold one copy per product,
- * each naming the producer commit it was derived from — item 124(a), and a narrowing rather than a
- * guarantee, as {@code EntityChangedEnvelopeTest}'s javadoc says in as many words.
+ * with the producer commit each was derived from recorded in the {@code README.md} beside them —
+ * item 124(a), and a narrowing rather than a guarantee, as {@code EntityChangedEnvelopeTest}'s
+ * javadoc says in as many words.
  *
  * <p><b>This class follows the same rule</b>: the subject of an entity-change frame is the entity,
  * every product's {@code Subject} is then identical to this one, and keying the partition on the

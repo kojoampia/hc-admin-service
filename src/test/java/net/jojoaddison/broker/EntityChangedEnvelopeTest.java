@@ -40,7 +40,7 @@ import tools.jackson.databind.ObjectMapper;
  * edited that diverges from it. Do not read it as a contract test. This repo has been bitten by
  * artefacts that looked like guarantees and were not (items 71 and 106).
  *
- * <h2>The two real divergences the frames make visible — recorded, deliberately not fixed</h2>
+ * <h2>The three real divergences the frames make visible — recorded, deliberately not fixed</h2>
  *
  * <p><b>(i) {@code data.action} values do not agree.</b> Verified at each product's
  * {@code origin/main} on 2026-09-24: hc-admin publishes {@code SAVED}/{@code DELETED}; hc-patient,
@@ -57,6 +57,23 @@ import tools.jackson.databind.ObjectMapper;
  * {@code hc-vendor-service} are kebab-case. {@code source} is free-form by design, so only a
  * non-blank string is asserted — but a consumer switching on it needs those four exact values, which
  * is why they are written here and in the fixture README rather than left to be rediscovered.
+ *
+ * <p><b>(iii) An actorless write is spelled two opposite ways, both argued, under one {@code type}
+ * string.</b> hc-professional <b>omits the key</b> — their {@code DomainEventPublisher} (at
+ * {@code 2cc8b3b5}, lines 494–498): <i>"OMITTED, not 'system' and not null — see the javadoc.
+ * Absence is the only unambiguous way to say that no account was behind this write."</i> hc-patient
+ * puts it <b>unconditionally, null and all</b> — their {@code EntityEventPublisher} (at
+ * {@code 216a44ca}, pinned on real broker bytes in {@code EntityEventRoundTripIT}): <i>"Put
+ * unconditionally, null and all, so the payload has one shape rather than two. A consumer that has
+ * to [distinguish] … an explicit null says which."</i> Both publishers fire on <b>every</b> write,
+ * so seeds and system jobs produce actorless frames routinely — this is not an edge. That is why
+ * {@code data} is asserted as {@code action} required plus no key outside the agreed two, and never
+ * as both keys present: a consumer built from this envelope with {@code actorAccountId} required
+ * (item 109's decision (c)) would refuse every actorless hc-professional frame while the binding
+ * binds and lag stays zero. The two fixtures carry one pole each — {@code hc-professional.json}
+ * omits the key, {@code hc-patient.json} carries the explicit {@code null}. Whether the estate
+ * standardises absent-versus-explicit-null is the architect's call, filed separately; this artefact
+ * records what the producers do.
  *
  * <h2>Why it derives its inputs instead of naming them</h2>
  *
@@ -79,14 +96,23 @@ class EntityChangedEnvelopeTest {
     private final ObjectMapper om = new ObjectMapper();
 
     /**
-     * The positive control. Without it, a renamed directory or an unmatched glob would leave
-     * {@link #everyFrameCarriesTheAgreedEnvelope()} iterating nothing and reporting green — an absence
-     * claim indistinguishable from a clean sweep. A floor rather than an exact count, so a fifth
-     * producer's frame is welcome without a test edit.
+     * The positive control, in two halves. Without the floor, a renamed directory or an unmatched
+     * glob would leave {@link #everyFrameCarriesTheAgreedEnvelope()} iterating nothing and reporting
+     * green — an absence claim indistinguishable from a clean sweep. Without the names, four copies
+     * of one product's frame under different filenames would satisfy the floor while the directory
+     * no longer holds one frame per product. A floor plus a contains rather than an exact set, so a
+     * fifth producer's frame is welcome without a test edit.
      */
     @Test
     void theFixtureDirectoryHoldsAtLeastTheFourProducts() throws IOException {
-        assertThat(frames()).as("one frame per product; see this directory's README.md for provenance").hasSizeGreaterThanOrEqualTo(4);
+        assertThat(frames()).as("at least four frames; see this directory's README.md for provenance").hasSizeGreaterThanOrEqualTo(4);
+        assertThat(
+            frames()
+                .stream()
+                .map(p -> p.getFileName().toString())
+        )
+            .as("one frame per product, by name — a bare count cannot tell four products from four copies of one")
+            .contains("hc-admin.json", "hc-patient.json", "hc-professional.json", "hc-vendor.json");
     }
 
     @TestFactory
@@ -107,13 +133,31 @@ class EntityChangedEnvelopeTest {
             .as("%s: one type string across all four products", file.getFileName())
             .isEqualTo("EntityChanged");
 
+        assertThat(frame.get("version").isIntegralNumber())
+            .as("%s: version is an integral number — the value may legitimately bump, the JSON type may not", file.getFileName())
+            .isTrue();
+
         assertThat(keysOf(frame.get("subject")))
             .as("%s: subject is the entity — the ruling that ended hc-patient's actor-as-subject reading", file.getFileName())
             .containsExactlyInAnyOrder("entityType", "entityId");
 
+        // Deliberately NOT containsExactlyInAnyOrder: hc-professional omits actorAccountId on every
+        // actorless write and hc-patient carries it as an explicit null — divergence (iii) in the
+        // class javadoc. Requiring both keys would refuse hc-professional's routine frames. Two
+        // assertions, because the two failures they catch are different defects and each message
+        // must describe the one that fired.
         assertThat(keysOf(frame.get("data")))
-            .as("%s: identifiers and metadata only — a third data key is content arriving under a metadata heading", file.getFileName())
-            .containsExactlyInAnyOrder("action", "actorAccountId");
+            .as(
+                "%s: data.action is the one required key — actorAccountId is legitimately absent on hc-professional's actorless writes (divergence (iii))",
+                file.getFileName()
+            )
+            .contains("action");
+        assertThat(keysOf(frame.get("data")))
+            .as(
+                "%s: no key outside {action, actorAccountId} — an extra data key is content arriving under a metadata heading",
+                file.getFileName()
+            )
+            .isSubsetOf("action", "actorAccountId");
 
         assertThat(frame.get("occurredAt").isTextual())
             .as(

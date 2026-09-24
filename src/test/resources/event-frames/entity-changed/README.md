@@ -19,6 +19,14 @@ Each frame is derived from the producer class at the commit named below — enve
 `entityId`, `actorAccountId`, `occurredAt`, `entityType`) are exemplar, since the frame carries
 identifiers and metadata only and no real capture would be more authoritative about the shape.
 
+Three shape facts the exemplar values deliberately preserve, because erasing them would hide real
+cross-product differences: `hc-vendor.json`'s `entityId` is **`Long`-shaped text** — their
+`VendorEvent.Subject` javadoc says _"Every entity in this subsystem has a `Long` id; it is carried
+as text"_, and `VendorEntityEventIT:163` asserts `String.valueOf(saved.getId())` — where the three
+Mongo products carry ObjectId-shaped strings; `hc-professional.json`'s `data` **omits
+`actorAccountId`**; and `hc-patient.json` carries it as an **explicit `null`**. The last two are
+divergence (iii) below, one pole each.
+
 | frame                  | producer class (at that SHA)                                   | `origin/main` SHA                          |
 | ---------------------- | -------------------------------------------------------------- | ------------------------------------------ |
 | `hc-admin.json`        | `src/main/java/net/jojoaddison/broker/AdminEntityEvent.java`   | `d0675e1b8888612c877d005fc0a4d27466767fe5` |
@@ -26,10 +34,10 @@ identifiers and metadata only and no real capture would be more authoritative ab
 | `hc-professional.json` | `src/main/java/net/jojoaddison/broker/EntityChangeEvent.java`  | `2cc8b3b5c9ff1b1f487773425f4150d2d93de5df` |
 | `hc-vendor.json`       | `src/main/java/net/jojoaddison/vendor/broker/VendorEvent.java` | `751766161f402cc75c42e2cf1c7ccae02cffe35c` |
 
-## The two real divergences these frames make visible
+## The three real divergences these frames make visible
 
 Recorded here and in the test's javadoc so the next reader does not rediscover them. **Do not fix
-either** — both are other products' code or an argued hc-admin decision.
+any of them** — each is another product's code or an argued decision.
 
 **(i) `data.action` values do not agree.** hc-admin publishes `SAVED`/`DELETED`; the other three
 publish `CREATED`/`UPDATED`/`DELETED`. hc-admin's `SAVED` is deliberate and argued at length in
@@ -42,3 +50,22 @@ non-blank string, never that the value is in a fixed set.
 needs: `hcAdminService`, `hcPatientService` (camelCase) vs `hc-professional-service`,
 `hc-vendor-service` (kebab-case). `source` is free-form by design, so the test asserts only a
 non-blank string.
+
+**(iii) An actorless write is spelled two opposite ways, both argued, under one `type` string.**
+hc-professional **omits the key** — `DomainEventPublisher:494-498` at `2cc8b3b5`:
+
+> `// OMITTED, not "system" and not null — see the javadoc. Absence is the only unambiguous way`
+> `// to say that no account was behind this write.`
+
+hc-patient puts it **unconditionally, null and all** — `EntityEventPublisher` at `216a44ca`, pinned
+on real broker bytes in `EntityEventRoundTripIT:89,95`:
+
+> `// Put unconditionally, null and all, so the payload has one shape rather than two. A consumer`
+> `// that has to [distinguish] ... an explicit null says which.`
+
+Both publishers fire on **every** write, so seeds and system jobs produce actorless frames
+routinely — this is not an edge. The test therefore requires `action` and permits no key outside
+`{action, actorAccountId}`, and never requires both keys: a consumer built with `actorAccountId`
+required (item 109 / decision (c)) would refuse every actorless hc-professional frame while the
+binding binds and lag stays zero. Whether the estate standardises absent-vs-explicit-null is the
+architect's call, filed as its own backlog item; this directory records what the producers do.

@@ -4,6 +4,6 @@
   "version": 1,
   "occurredAt": "2026-09-24T08:17:19.204Z",
   "source": "hc-vendor-service",
-  "subject": { "entityType": "Invoice", "entityId": "68a1f0d2c9e4b83a5d6f7e93" },
+  "subject": { "entityType": "Invoice", "entityId": "4217" },
   "data": { "action": "DELETED", "actorAccountId": "f61c4e83-a25b-4d07-9f3e-b8d0c7a2e514" }
 }
