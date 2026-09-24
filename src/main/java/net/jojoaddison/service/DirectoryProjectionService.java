@@ -916,10 +916,16 @@ public class DirectoryProjectionService {
         setIfPresent(update, "last_event_id", event.eventId());
         setIfPresent(update, "email", event.email());
         if (event.erased()) {
-            update.set("erased_at", event.occurredAt()).unset("login").unset("external_id");
+            // account_id goes with the login and the external_id: a handle into an account for a
+            // person the far side has erased. The email stays because it IS external_key — see the
+            // method javadoc.
+            update.set("erased_at", event.occurredAt()).unset("login").unset("external_id").unset("account_id");
         } else {
             setIfPresent(update, "login", event.login());
+            // Two identifier spaces, two fields, never merged — SiblingEventParser.parsePatientEvent
+            // and DirectoryLink#externalId both carry the argument (items 130, 115, 22).
             setIfPresent(update, "external_id", event.externalId());
+            setIfPresent(update, "account_id", event.accountId());
         }
         if (event.disposition() == Disposition.CREATE) {
             // The only promotion there is: a link first seen as a care angel becomes a patient when

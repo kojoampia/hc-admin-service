@@ -343,14 +343,75 @@ class SiblingEventParserTest {
     /**
      * {@code OnboardingStarted} is the one event that binds an email to a patient id, and the parser
      * has to pick it up from {@code subject.patientId} — hc-patient's envelope says in its own
-     * javadoc that this is the only place the mapping is published.
+     * javadoc that this is the only place the mapping is published. <b>Until their item 72 refactor
+     * ships</b>, that is: the test below this one is the same event afterwards, and both shapes are
+     * read for as long as retained frames carry either.
      */
     @Test
     void picksUpThePatientIdWhereOnboardingPublishesIt() {
         SiblingDomainEvent event = parser.parsePatientEvent(bytes(onboardingStarted(PATIENT_EMAIL, "p-1234")), null).orElseThrow();
 
         assertThat(event.externalId()).isEqualTo("p-1234");
+        assertThat(event.accountId()).as("today's api frame carries no accountId, and nothing is invented for one").isNull();
         assertThat(event.activated()).as("onboarding says nothing about whether an account can sign in").isFalse();
+    }
+
+    /**
+     * <b>The same event after hc-patient's item 72 refactor: {@code subject.accountId} replaces
+     * {@code subject.patientId}.</b> A refactor rather than an addition — a fourth subject component
+     * was considered on their side and rejected — so once it ships no api frame carries a
+     * {@code patientId} again, and a parser reading only the old key would keep creating rows while
+     * silently losing the identifier off every one of them: their own coordination note observes that
+     * nothing goes red, because creation is driven by the gateway's {@code AccountCreated} either
+     * way. Their gateway's frames already have this subject shape today. Backlog item 130.
+     *
+     * <p><b>The two ids land in two fields because they are two identifier spaces.</b>
+     * {@code accountId} is the gateway {@code User.id} — the estate's join key under item 107 D1 —
+     * and {@code patientId} is hc-patient-service's own record id, the value round planning puts on
+     * the wire as a {@code customerId}. {@code externalId} stays null here rather than borrowing the
+     * account id; {@code DirectoryLink#externalId} records what blurring them would cost.
+     */
+    @Test
+    void readsTheAccountIdWhereTheRefactoredApiPublishesIt() {
+        SiblingDomainEvent event = parser
+            .parsePatientEvent(bytes(onboardingStartedRefactored(PATIENT_EMAIL, "usr-77")), null)
+            .orElseThrow();
+
+        assertThat(event.accountId()).isEqualTo("usr-77");
+        assertThat(event.externalId()).as("no patientId arrived, and the accountId is not passed off as one").isNull();
+        assertThat(event.disposition()).as("the frame stays fully usable in either merge order").isEqualTo(Disposition.CREATE);
+    }
+
+    /**
+     * A frame carrying both ids keeps them apart. No shipped producer sends this — their refactor
+     * replaces the component rather than adding beside it — but a parser that made the two an
+     * either/or would drop one, and whichever it dropped would be missing from the one column that
+     * needs it.
+     */
+    @Test
+    void keepsTheTwoSubjectIdsApartWhenAFrameCarriesBoth() {
+        SiblingDomainEvent event = parser
+            .parsePatientEvent(bytes(onboardingStartedCarryingBothIds(PATIENT_EMAIL, "p-1234", "usr-77")), null)
+            .orElseThrow();
+
+        assertThat(event.externalId()).isEqualTo("p-1234");
+        assertThat(event.accountId()).isEqualTo("usr-77");
+    }
+
+    /**
+     * Neither id is an error. hc-patient's {@code OnboardingService.resolveAccountId} documents three
+     * pre-existing ways an api frame legitimately carries no {@code accountId} — no account in the
+     * JWT, an account that already had a profile, a lost race — and the account events have never
+     * carried a {@code patientId}. The frame parses exactly as one with a missing {@code patientId}
+     * always has: both fields null, nothing warned, nothing dead-lettered.
+     */
+    @Test
+    void aFrameWithNeitherSubjectIdStillParses() {
+        SiblingDomainEvent event = parser.parsePatientEvent(bytes(onboardingStartedWithNoSubjectId(PATIENT_EMAIL)), null).orElseThrow();
+
+        assertThat(event.externalId()).isNull();
+        assertThat(event.accountId()).isNull();
+        assertThat(event.subjectKey()).as("the email still keys the frame, so it still applies").isEqualTo(PATIENT_EMAIL);
     }
 
     /**
@@ -370,6 +431,9 @@ class SiblingEventParserTest {
         assertThat(event.source()).isEqualTo(DirectorySource.HC_PROFESSIONAL);
         assertThat(event.type()).isEqualTo("registration.created");
         assertThat(event.subjectKey()).as("this stream is keyed on accountId throughout, never on the email").isEqualTo("acc-1");
+        assertThat(event.accountId())
+            .as("the same id under the estate's name, so one downstream field serves both sources")
+            .isEqualTo("acc-1");
         assertThat(event.email()).isEqualTo("k.boateng@example.com");
         assertThat(event.login()).isEqualTo("kboateng");
         assertThat(event.state()).as("registration.created carries no state, and the type is not one").isNull();
@@ -413,6 +477,7 @@ class SiblingEventParserTest {
 
         assertThat(event.type()).isEqualTo("AccountCreated");
         assertThat(event.subjectKey()).as("the envelope's own subject, not a field inside data").isEqualTo("acc-1");
+        assertThat(event.accountId()).isEqualTo("acc-1");
         assertThat(event.login()).as("login, under the name the contract gives it — never `username`").isEqualTo("kboateng");
         assertThat(event.email()).isEqualTo("k.boateng@example.com");
         assertThat(event.activated()).as("read from the event, and this is the whole of item 47's rule about it").isTrue();
@@ -833,6 +898,12 @@ class SiblingEventParserTest {
     }
 
     // --- the wire formats, copied from the two publishers -----------------------------------------
+    //
+    // The gateway frames' subject is {email, login, accountId} — their gateway's Subject record
+    // refactored patientId away already (checked at their origin/main, 2026-09-24), ahead of the
+    // api's identical refactor (their item 72). The value is null here because these fixtures
+    // assert nothing about it; what the rename pins is that a subject.patientId on a gateway frame
+    // is a shape their code no longer has.
 
     private static String accountCreated(String email, String occurredAt, boolean activated) {
         return (
@@ -842,7 +913,7 @@ class SiblingEventParserTest {
             ",\"source\":\"patientGateway\"," +
             "\"subject\":{\"email\":\"" +
             email +
-            "\",\"login\":\"amensah\",\"patientId\":null}," +
+            "\",\"login\":\"amensah\",\"accountId\":null}," +
             "\"data\":{\"authorities\":\"ROLE_USER\",\"langKey\":\"en\",\"activated\":" +
             activated +
             "}}"
@@ -856,7 +927,7 @@ class SiblingEventParserTest {
             "\"occurredAt\":\"2026-09-01T08:00:00Z\",\"source\":\"patientGateway\"," +
             "\"subject\":{\"email\":\"" +
             email +
-            "\",\"login\":\"aangel\",\"patientId\":null}," +
+            "\",\"login\":\"aangel\",\"accountId\":null}," +
             "\"data\":{\"authorities\":\"ROLE_USER,ROLE_ANGEL\",\"activated\":true,\"reason\":\"careAngelNomination\"}}"
         );
     }
@@ -927,7 +998,7 @@ class SiblingEventParserTest {
             "\"occurredAt\":\"2026-09-01T09:00:00Z\",\"source\":\"patientGateway\"," +
             "\"subject\":{\"email\":\"" +
             email +
-            "\",\"login\":\"amensah\",\"patientId\":null}," +
+            "\",\"login\":\"amensah\",\"accountId\":null}," +
             "\"data\":{\"activatedAt\":\"2026-09-01T09:00:00Z\"}}"
         );
     }
@@ -941,6 +1012,55 @@ class SiblingEventParserTest {
             "\",\"login\":null,\"patientId\":\"" +
             patientId +
             "\"}," +
+            "\"data\":{\"startedAt\":\"2026-09-01T10:00:00Z\"}}"
+        );
+    }
+
+    /**
+     * The same event once hc-patient's item 72 refactor ships: their api's {@code Subject} record
+     * becomes {@code (email, login, accountId)}, matching the gateway's — read at their doc PR #126,
+     * merged, with the code change still outstanding on their {@code origin/main} 2026-09-24. This
+     * fixture is written from that decision rather than from a shipped producer, which is exactly the
+     * practice the phase-2 defect above warns about — so re-read their {@code PatientEvent.Subject}
+     * when their refactor lands, and this fixture is the place a divergence would surface.
+     */
+    private static String onboardingStartedRefactored(String email, String accountId) {
+        return (
+            "{\"eventId\":\"evt-3b\",\"type\":\"OnboardingStarted\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T10:00:00Z\",\"source\":\"hcPatientService\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":null,\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"startedAt\":\"2026-09-01T10:00:00Z\"}}"
+        );
+    }
+
+    /** A subject carrying both ids — no shipped producer's shape, and the parser must not choose. */
+    private static String onboardingStartedCarryingBothIds(String email, String patientId, String accountId) {
+        return (
+            "{\"eventId\":\"evt-3c\",\"type\":\"OnboardingStarted\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T10:00:00Z\",\"source\":\"hcPatientService\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":null,\"patientId\":\"" +
+            patientId +
+            "\",\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"startedAt\":\"2026-09-01T10:00:00Z\"}}"
+        );
+    }
+
+    /** A subject with no id under either name — three documented ways their api legitimately sends this. */
+    private static String onboardingStartedWithNoSubjectId(String email) {
+        return (
+            "{\"eventId\":\"evt-3d\",\"type\":\"OnboardingStarted\",\"version\":1," +
+            "\"occurredAt\":\"2026-09-01T10:00:00Z\",\"source\":\"hcPatientService\"," +
+            "\"subject\":{\"email\":\"" +
+            email +
+            "\",\"login\":null}," +
             "\"data\":{\"startedAt\":\"2026-09-01T10:00:00Z\"}}"
         );
     }

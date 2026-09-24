@@ -11,7 +11,10 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  *
  * <p>hc-patient and hc-professional do not share an envelope and there is no reason they should —
  * neither owns the other's schema. hc-patient sends {@code {eventId, type, version, occurredAt,
- * source, subject:{email, login, patientId}, data}}; hc-professional sends {@code {eventId,
+ * source, subject:{email, login, …}, data}} — where the third subject component is {@code accountId}
+ * from their gateway already and {@code patientId} from their api until their item 72 refactor ships,
+ * a replacement rather than an addition, so both are read for as long as retained frames carry
+ * either; hc-professional sends {@code {eventId,
  * eventType, occurredAt, source, actor, payload:{…}}}, with the subject inside the payload and the
  * lifecycle state in a {@code state} field rather than in the type. Reading both shapes in the
  * write path would put two vocabularies into the merge rule, which is the one piece of this that has
@@ -37,7 +40,22 @@ import net.jojoaddison.domain.enumeration.DirectorySubjectKind;
  *                   professional. An event with no subject key cannot be applied to anything.
  * @param email the subject's email address, when the event carries one.
  * @param login the subject's gateway login, when the event carries one.
- * @param externalId the sibling's own id for the subject, when the event carries one.
+ * @param accountId the subject's gateway {@code User.id}, when the event carries one — the estate's
+ *                  join key under item 107 D1, and a <b>different identifier space</b> from
+ *                  {@link #externalId}: one names an account on a gateway, the other a record in a
+ *                  sibling service's own database. They are carried apart because merging them into
+ *                  one field would make the two indistinguishable per event, which is item 115's
+ *                  finding about the column downstream of this. For a professional it equals
+ *                  {@link #subjectKey}, that stream being keyed on it throughout; for a patient it
+ *                  arrives on hc-patient's gateway frames today and on every frame once their item 72
+ *                  refactor ships, and its absence is normal rather than an error — their
+ *                  {@code OnboardingService.resolveAccountId} documents three ways an api frame can
+ *                  legitimately carry none.
+ * @param externalId the sibling's own id for the subject, when the event carries one. <b>Never the
+ *                   {@code accountId}</b> — for a patient this value goes on the wire to
+ *                   hc-professional as a round's {@code customerId}, so a gateway id here would be
+ *                   item 22's "plausible wrong id" filed as a real visit. See
+ *                   {@code DirectoryLink.externalId} for the column this feeds.
  * @param state the lifecycle state to record, already resolved from whichever field held it.
  * @param activated whether the account can sign in, <b>as this event states it</b>, or null when the
  *                  event says nothing about it. Three states rather than two, and the third is the
@@ -74,6 +92,7 @@ public record SiblingDomainEvent(
     String subjectKey,
     String email,
     String login,
+    String accountId,
     String externalId,
     String state,
     Boolean activated,

@@ -223,6 +223,33 @@ class DirectoryEventConsumptionIT {
     }
 
     /**
+     * The same binding after hc-patient's item 72 refactor, end to end: the frame's
+     * {@code subject.accountId} lands on {@code account_id}, and <b>not</b> on {@code external_id} —
+     * the two are different identifier spaces, and {@code external_id} goes on the wire to
+     * hc-professional as a round's {@code customerId}, where a gateway id names nobody. Backlog
+     * item 130; {@code DirectoryLink#externalId} records the decision in full.
+     *
+     * <p>The erasure then drops it with the login: a handle into an account for a person the far
+     * side has erased, kept for the same non-reason the {@code patientId} would have been.
+     */
+    @Test
+    void theRefactoredSubjectBindsTheAccountIdAndErasureDropsIt() {
+        sendPatient(accountCreated("2026-09-01T08:00:00Z", false));
+        sendPatient(onboardingStartedRefactored("2026-09-01T10:00:00Z", "usr-77"));
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getAccountId()).isEqualTo("usr-77");
+        assertThat(link.getExternalId()).as("no patientId arrived, and the accountId is not passed off as one").isNull();
+        assertThat(patientRepository.count()).as("the refactored frame still may not invent a second person").isEqualTo(1);
+
+        sendPatient(deletionRequestChanged("2026-09-01T12:00:00Z", "COMPLETED"));
+
+        assertThat(link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow().getAccountId())
+            .as("erasure drops the account id with the login and the external id")
+            .isNull();
+    }
+
+    /**
      * A frame this service cannot read does not stop the ones after it.
      *
      * <p>An exception out of a Spring Cloud Stream consumer is retried, and while that happens the
@@ -1323,6 +1350,26 @@ class DirectoryEventConsumptionIT {
             EMAIL +
             "\",\"login\":null,\"patientId\":\"" +
             patientId +
+            "\"},\"data\":{\"startedAt\":\"" +
+            occurredAt +
+            "\"}}"
+        );
+    }
+
+    /**
+     * The same event once hc-patient's item 72 refactor ships: {@code subject.accountId} — the
+     * gateway {@code User.id} — replaces {@code subject.patientId} outright. Written from their
+     * merged decision rather than a shipped producer; re-read their {@code PatientEvent.Subject}
+     * when the refactor lands. Backlog item 130.
+     */
+    private static String onboardingStartedRefactored(String occurredAt, String accountId) {
+        return (
+            "{\"eventId\":\"evt-onboarding-refactored\",\"type\":\"OnboardingStarted\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":null,\"accountId\":\"" +
+            accountId +
             "\"},\"data\":{\"startedAt\":\"" +
             occurredAt +
             "\"}}"
