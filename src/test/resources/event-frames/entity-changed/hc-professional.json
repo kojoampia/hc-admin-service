@@ -1,0 +1,9 @@
+{
+  "eventId": "1e7f3a58-b90c-4d21-a6e4-c85d2f0b9a73",
+  "type": "EntityChanged",
+  "version": 1,
+  "occurredAt": "2026-09-24T08:15:37.890Z",
+  "source": "hc-professional-service",
+  "subject": { "entityType": "Profile", "entityId": "68a1f0d2c9e4b83a5d6f7e77" },
+  "data": { "action": "CREATED", "actorAccountId": "3b8e5c02-d417-4a9f-8e6b-f24a1d9c0e85" }
+}
