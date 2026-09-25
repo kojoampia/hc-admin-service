@@ -5,12 +5,15 @@ import static org.mockito.Mockito.mock;
 
 import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.runner.springboot.EnableMongock;
+import io.mongock.runner.springboot.base.MongockApplicationRunner;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
 /**
@@ -116,6 +119,68 @@ class ShiftTypeMigrationProfileTest {
         assertThat(applicationYml).contains("migration-scan-package");
         assertThat(applicationYml).contains("net.jojoaddison.config.dbmigrations");
         assertThat(Path.of("src/main/java/net/jojoaddison/config/dbmigrations")).exists();
+    }
+
+    /**
+     * Mongock runs as an {@link ApplicationRunner} — after the context refreshes, and therefore
+     * after {@link DevelopmentDataInitializer} — which is what
+     * {@code PatientAccountIdBackfillMigration}'s class comment now argues from. Backlog item 138.
+     *
+     * <p>Three documents had the ordering the other way round, because a startup log prints
+     * "Mongock" twice and the lines mean different things: {@code RunnerBuilderBase} logs the
+     * runner's version when the bean is <em>built</em>, during refresh and seconds before
+     * {@code Started}, while {@code MigrateExecutorBase} logs the execution afterwards. The
+     * consequence is a documented ERROR branch no seeded stack can reach, since the seed writes an
+     * {@code account_id} onto every patient it writes before the change unit queries.
+     *
+     * <p><b>This pins the necessary conditions, and deliberately not the order itself.</b> Which of
+     * two equally-ordered runners goes first is decided inside
+     * {@code SpringApplication.callRunners}, which collects them into an {@code IdentityHashMap}
+     * and sorts {@code keySet().stream()} — an encounter order {@code IdentityHashMap} documents as
+     * unspecified. It is <b>not</b> bean-definition registration order, which is the natural guess
+     * and was true of Boot 3.x's {@code getBeansOfType}. So there is nothing here a test ought to
+     * pin: asserting the observed order would assert something Boot does not promise. What is
+     * asserted is everything that, if it changed, would make the javadoc wrong: the property that
+     * would move Mongock into refresh, both classes being {@code ApplicationRunner}s, and neither
+     * carrying an ordering.
+     *
+     * <p>The one ordering input this cannot see is {@code @Order} on Mongock's {@code @Bean} method
+     * rather than on its class, which Boot's {@code FactoryAwareOrderSourceProvider} would also
+     * consult. {@code MongockContextBase.applicationRunner} carries {@code @Bean}, {@code @Profile}
+     * and {@code @ConditionalOnExpression} and no {@code @Order} — read from the jar, not inferred,
+     * and left unasserted because reflecting on a third-party generic method signature is the more
+     * brittle of the two risks.
+     *
+     * <p>⚠ It reads the <b>YAML only</b>. Relaxed binding means a {@code MONGOCK_RUNNER_TYPE}
+     * environment variable in a compose file would override the default unseen, and those files live
+     * in other repositories.
+     */
+    @Test
+    void mongockRunsAsAnApplicationRunnerAfterTheSeedAndNothingReordersThem() throws IOException {
+        String applicationYml = Files.readString(Path.of("src/main/resources/config/application.yml"));
+        assertThat(applicationYml)
+            .as("mongock.runner-type unset — Mongock's own ApplicationRunner default is what holds")
+            .doesNotContain("runner-type");
+
+        assertThat(ApplicationRunner.class)
+            .as("Mongock's runner bean is an ApplicationRunner, so it runs after the context refreshes")
+            .isAssignableFrom(MongockApplicationRunner.class);
+        assertThat(ApplicationRunner.class).isAssignableFrom(DevelopmentDataInitializer.class);
+
+        assertThat(MongockApplicationRunner.class.getAnnotation(Order.class))
+            .as("Mongock's runner carries @Order — it is no longer merely equally-ordered with the seed")
+            .isNull();
+        assertThat(DevelopmentDataInitializer.class.getAnnotation(Order.class))
+            .as("the seed carries @Order — it is no longer merely equally-ordered with Mongock")
+            .isNull();
+        // ClassAssert has isAssignableFrom and no negation of it, so the absence is asserted on the
+        // boolean rather than dropped.
+        assertThat(Ordered.class.isAssignableFrom(MongockApplicationRunner.class))
+            .as("Mongock's runner implements Ordered — it would no longer be merely equally-ordered with the seed")
+            .isFalse();
+        assertThat(Ordered.class.isAssignableFrom(DevelopmentDataInitializer.class))
+            .as("the seed implements Ordered — it would no longer be merely equally-ordered with Mongock")
+            .isFalse();
     }
 
     private boolean registersUnder(String... profiles) {

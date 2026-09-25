@@ -51,18 +51,89 @@ import org.springframework.data.mongodb.core.query.Update;
  * silently matches nothing, item 26's defect with a new name; a fixture that models a state is fine,
  * a migration inventing an id at runtime is not.
  *
- * <h2>{@code runAlways = true}, because report-and-continue leaves work standing</h2>
+ * <h2>When this runs: as an {@code ApplicationRunner}, NOT during context refresh</h2>
  *
- * <p>A one-shot unit would log the unresolved rows once, on one deploy, and never look again — while
- * the very mechanism that resolves them keeps running: any later frame about the subject teaches the
- * link its {@code account_id} ({@code DirectoryProjectionService.recordEvent}), after which the next
- * start resolves rows this one could not. Re-running also re-reports what still stands, which is
- * what keeps a standing data problem visible instead of buried in one deploy's log. It is idempotent
- * by selection — only rows missing the value are read — so a start with nothing missing costs one
- * query and says nothing. Unlike {@code ServicePlanCodeBackfillMigration} there is no gate flag:
- * that unit's matching rule was inferred and dangerous, this one's join ({@code directory_link
- * .local_id = patient._id}, same source {@code DirectoryProjectionService.createAndClaim} claims by)
- * is the estate's own, and a wrong outcome here is an absent stamp, never a wrong one.
+ * <p>Mongock executes after the context has refreshed and after Boot has logged {@code Started
+ * HcAdminServiceApp}. Its runner bean is {@code MongockApplicationRunner}, which implements
+ * {@link org.springframework.boot.ApplicationRunner} and is created by {@code MongockContextBase
+ * .applicationRunner}, guarded by the condition {@code
+ * ConditionalOnExpression("'${mongock.runner-type:ApplicationRunner}'.toLowerCase().equals('applicationrunner')")}.
+ * {@code mongock.runner-type} is set nowhere — in none of this repository's four
+ * {@code application*.yml} files, nor in {@code src/test/resources/config/application.yml}, nor in
+ * any compose file — so Mongock's own {@code ApplicationRunner} default is what holds.
+ *
+ * <p>So on a {@code dev}/{@code test} stack this unit runs <b>after</b> {@code
+ * DevelopmentDataInitializer}, which is an {@code ApplicationRunner} too. Neither carries an {@code
+ * Order} annotation nor implements {@code Ordered} — nor does Mongock's {@code @Bean} method, which
+ * is where Boot would look next — so the seed is simply the earlier of two equally-ordered runners,
+ * not the deliberately earlier one.
+ *
+ * <p>⚠ <b>Nothing makes that tie stable, and in particular it is NOT bean-definition registration
+ * order.</b> Boot 4.1's {@code SpringApplication.callRunners} collects the runners into an
+ * {@code IdentityHashMap} and sorts {@code keySet().stream()}, so the encounter order its stable
+ * sort preserves is that map's — which {@code IdentityHashMap} documents as unspecified. Boot 3.x
+ * built the list from {@code getBeansOfType}, a {@code LinkedHashMap} in registration order, and
+ * <em>did</em> preserve it; do not carry that intuition forward. So the order stated above is
+ * <b>observed</b> — item 115's roll and the 2026-09-25 quality start — and not guaranteed. It is
+ * harmless if it ever inverts: Mongock first on an empty database finds no patients and returns at
+ * the early exit, and on a restart every seeded row already carries the field.
+ *
+ * <p>⚠ Setting {@code mongock.runner-type} to {@code
+ * InitializingBean} selects {@code MongockInitializingBeanRunner}, which executes <em>during</em>
+ * refresh and reverses this section and the next entirely. {@code ShiftTypeMigrationProfileTest
+ * .mongockRunsAsAnApplicationRunnerAfterTheSeedAndNothingReordersThem} pins that property's absence,
+ * and the four ordering facts above with it.
+ *
+ * <h2>The log invites the opposite conclusion, and three documents drew it</h2>
+ *
+ * <p>Backlog item 138. The word "Mongock" is printed twice per start and the two lines mean
+ * different things. {@code RunnerBuilderBase: Mongock runner COMMUNITY version[[]]} is logged when
+ * the {@code @Bean} is <em>built</em>, during refresh, seconds before {@code Started} — which reads
+ * exactly like "Mongock ran at refresh" and is not that. The execution is {@code MigrateExecutorBase:
+ * Mongock starting the data migration sequence}. <b>Grep a startup log for that line, never for
+ * "Mongock".</b>
+ *
+ * <h2>{@code runAlways = true} — one justification is demonstrable, one is not</h2>
+ *
+ * <p><b>Demonstrable, and observed.</b> A one-shot unit would log the unresolved rows once, on one
+ * deploy, and never look again — while the very mechanism that resolves them keeps running: any
+ * later frame about the subject teaches the link its {@code account_id} ({@code
+ * DirectoryProjectionService.recordEvent}), after which the next start resolves rows this one could
+ * not. The 2026-09-25 quality start stamped exactly one row: the only patient on that stack the seed
+ * did not write.
+ *
+ * <p><b>Not demonstrable on any stack this repository can run.</b> The other half of the argument —
+ * that re-running re-reports what still stands, keeping a standing data problem visible instead of
+ * buried in one deploy's log — needs the ERROR branch above to execute, and <b>no patient the seed
+ * writes can reach it</b>: the seed runs first (see the ordering section) and writes an
+ * {@code account_id} onto every row it writes, and after item 115 every path that creates a patient
+ * requires the field. The only rows that can reach it are pre-115 leftovers whose link cannot
+ * resolve them — and where a stack holds none, the run ends at the {@code patients.isEmpty()} early
+ * return, <em>before</em> the link read, so there is nothing to report and no report is made.
+ *
+ * <p>⚠ <b>That is a claim about rows, not about stacks — do not restate it as "the branch never
+ * executes on a seeded stack".</b> A seeded stack can hold rows the seed did not write: the quality
+ * database holds sixteen patients, fifteen seeded and one learned from a sibling event. Such a row
+ * reaches this ERROR whenever its link cannot supply the value, and today's is resolvable only
+ * because {@code directory_link.account_id} exists — a column added by item 130, so before that a
+ * start on that very stack would have executed this branch. What is true without qualification is
+ * that the branch's one live <em>home</em> is <b>production</b>, which runs {@code prod}, where
+ * {@code DevelopmentDataInitializer} ({@code @Profile({dev, test})}) does not exist and there is no
+ * seed at all.
+ *
+ * <p>⚠ <b>Do not close that gap by reordering the two runners, or by making the seed skip rows that
+ * already carry a value</b> — item 138 forbids both, the seed is {@code saveAll} by design, and this
+ * unit is correct: what is unreachable is a report, not a repair. A seeded fixture cannot reach it
+ * either, which is why none was added — {@code Patient.accountId} is {@code @NotNull} and {@code
+ * ValidatingMongoEventListener} refuses a mapped save without one, so an accountId-less seeded
+ * patient cannot be written by {@code saveAll} at all.
+ *
+ * <p>It is idempotent by selection — only rows missing the value are read — so a start with nothing
+ * missing costs one query and says nothing. Unlike {@code ServicePlanCodeBackfillMigration} there is
+ * no gate flag: that unit's matching rule was inferred and dangerous, this one's join ({@code
+ * directory_link.local_id = patient._id}, same source {@code
+ * DirectoryProjectionService.createAndClaim} claims by) is the estate's own, and a wrong outcome
+ * here is an absent stamp, never a wrong one.
  *
  * <h2>A targeted {@code $set}, on raw documents</h2>
  *
@@ -83,7 +154,15 @@ public class PatientAccountIdBackfillMigration {
     private static final String SUBJECT_KIND = "subject_kind";
     private static final String PATIENT_KIND = "PATIENT";
 
-    /** How many unresolved row ids one ERROR line names before summarising — a bound, not a filter. */
+    /**
+     * How many unresolved row ids one ERROR line names before summarising — a bound, not a filter.
+     *
+     * <p>⚠ <b>The truncating branch and its {@code " and N more"} suffix are exercised nowhere at
+     * all.</b> No test drives more than twenty unresolved rows, and no stack reaches the ERROR
+     * branch in the first place — see the ordering section of the class comment. Reaching either
+     * needs twenty-one unresolvable patients at once, which today is a production state only.
+     * Backlog item 138 weighed this and accepted it.
+     */
     static final int REPORTED_IDS_CAP = 20;
 
     private final MongoTemplate mongoTemplate;
