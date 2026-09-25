@@ -4,23 +4,33 @@ import static net.jojoaddison.domain.VendorAsserts.*;
 import static net.jojoaddison.web.rest.TestUtil.createUpdateProxyForBean;
 import static net.jojoaddison.web.rest.TestUtil.sameNumber;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import net.jojoaddison.IntegrationTest;
+import net.jojoaddison.domain.Document;
+import net.jojoaddison.domain.Facility;
 import net.jojoaddison.domain.Vendor;
 import net.jojoaddison.domain.enumeration.AccountStatus;
+import net.jojoaddison.domain.enumeration.FacilityType;
 import net.jojoaddison.repository.VendorRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -90,6 +100,9 @@ class VendorResourceIT {
 
     @Autowired
     private VendorRepository vendorRepository;
+
+    @Autowired
+    private MongoTemplate mongoTemplate;
 
     @Autowired
     private MockMvc restVendorMockMvc;
@@ -340,6 +353,90 @@ class VendorResourceIT {
         // Validate the Vendor in the database
         assertSameRepositoryCount(databaseSizeBeforeUpdate);
         assertPersistedVendorToMatchAllProperties(updatedVendor);
+    }
+
+    /**
+     * Backlog item 144 — a {@code PUT} must not destroy the fields the console's edit form cannot send.
+     *
+     * <p>The body here is built as a {@code Map} rather than by serialising a {@link Vendor}, and that
+     * is the whole point of the test. Serialising a Vendor would emit {@code accountId: null} and
+     * {@code documents: []} — which is a body that *names* the fields. The console's form does not: it
+     * enumerates fourteen controls and {@code getVendor()} is {@code form.getRawValue()}, so the three
+     * keys are simply **absent**. A test that sends the serialised entity asserts a different request
+     * from the one that caused the defect.
+     *
+     * <p>⚠ And the two failure modes are not the same shape underneath. {@code accountId} has no field
+     * initialiser, so an absent key deserialises to null. {@code documents} and {@code facilities} are
+     * declared {@code = new HashSet<>()}, so an absent key deserialises to an **empty set** and null
+     * never appears — which is why the resource restores those two unconditionally and cannot use the
+     * null guard it uses for {@code accountId}.
+     */
+    @Test
+    void putDoesNotDestroyTheFieldsTheConsoleCannotSend() throws Exception {
+        Document document = new Document().name("Insurance certificate").url("https://example.invalid/doc").uploadedAt(Instant.now());
+        mongoTemplate.save(document);
+        Facility facility = new Facility()
+            .name("Ridge counter")
+            .description("Dispensing counter")
+            .type(FacilityType.PHARMACY)
+            .addressId("addr-1")
+            .contactId("contact-1")
+            .createdDate(Instant.now());
+        mongoTemplate.save(facility);
+
+        vendor.setAccountId(DEFAULT_ACCOUNT_ID);
+        vendor.setDocuments(new HashSet<>(Set.of(document)));
+        vendor.setFacilities(new HashSet<>(Set.of(facility)));
+        insertedVendor = vendorRepository.save(vendor);
+
+        try {
+            // Exactly the fourteen keys vendor-form.service.ts puts on the wire, and nothing else.
+            Map<String, Object> consoleBody = new LinkedHashMap<>();
+            consoleBody.put("id", vendor.getId());
+            consoleBody.put("name", UPDATED_NAME);
+            consoleBody.put("category", UPDATED_CATEGORY);
+            consoleBody.put("serviceSummary", UPDATED_SERVICE_SUMMARY);
+            consoleBody.put("contactName", UPDATED_CONTACT_NAME);
+            consoleBody.put("phone", UPDATED_PHONE);
+            consoleBody.put("email", UPDATED_EMAIL);
+            consoleBody.put("city", UPDATED_CITY);
+            consoleBody.put("status", UPDATED_STATUS);
+            consoleBody.put("contractNote", UPDATED_CONTRACT_NOTE);
+            consoleBody.put("contractRenewsOn", UPDATED_CONTRACT_RENEWS_ON);
+            consoleBody.put("orderCount", UPDATED_ORDER_COUNT);
+            consoleBody.put("spendToDate", UPDATED_SPEND_TO_DATE);
+            consoleBody.put("rating", UPDATED_RATING);
+            assertThat(consoleBody).doesNotContainKeys("accountId", "documents", "facilities");
+
+            restVendorMockMvc
+                .perform(
+                    put(ENTITY_API_URL_ID, vendor.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsBytes(consoleBody))
+                )
+                .andExpect(status().isOk());
+
+            Vendor persisted = vendorRepository.findById(vendor.getId()).orElseThrow();
+
+            // The positive control. Without it a restore-everything bug would pass this test: the edit
+            // the caller DID ask for has to have landed for the survivals below to mean anything.
+            assertThat(persisted.getName()).isEqualTo(UPDATED_NAME);
+            assertThat(persisted.getCity()).isEqualTo(UPDATED_CITY);
+
+            // SOFT, so that removing the fix reports all THREE losses rather than only the first. A
+            // hard assertion on accountId stops the test there, and the two collection fields are then
+            // never checked at all — which would leave two thirds of this guard unproven while it
+            // still went red, the most comfortable kind of false confidence.
+            assertSoftly(softly -> {
+                // accountId decides which vendor a portal caller is. Before item 144 this was null.
+                softly.assertThat(persisted.getAccountId()).as("accountId").isEqualTo(DEFAULT_ACCOUNT_ID);
+                softly.assertThat(persisted.getDocuments()).as("documents").extracting(Document::getId).containsExactly(document.getId());
+                softly.assertThat(persisted.getFacilities()).as("facilities").extracting(Facility::getId).containsExactly(facility.getId());
+            });
+        } finally {
+            mongoTemplate.remove(document);
+            mongoTemplate.remove(facility);
+        }
     }
 
     @Test
