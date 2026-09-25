@@ -183,8 +183,18 @@ class PatientExportIT {
      */
     @Test
     void aPatientWithNoProfileIsNamedFromItsLinkAndNeverByItsOwnId() throws Exception {
-        Patient linked = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 1)));
-        Patient unknown = patientRepository.save(new Patient().status(AccountStatus.PENDING).joinedOn(LocalDate.of(2026, 3, 2)));
+        Patient linked = patientRepository.save(
+            new Patient()
+                .accountId("acct-linked")
+                .status(AccountStatus.PENDING)
+                .joinedOn(LocalDate.of(2026, 3, 1))
+        );
+        Patient unknown = patientRepository.save(
+            new Patient()
+                .accountId("acct-unknown")
+                .status(AccountStatus.PENDING)
+                .joinedOn(LocalDate.of(2026, 3, 2))
+        );
         directoryLinkRepository.save(link(LINKED_ID, linked.getId(), "naa.adjeley@mail.gh"));
         // A link of the same source naming nobody — the care-angel and erased rows are both this
         // shape — so the map this export builds walks one and keys on the rest.
@@ -368,6 +378,11 @@ class PatientExportIT {
     private Patient patient(AccountStatus status, boolean archived, Profile profile) {
         Profile saved = profileRepository.save(profileWithSavedAddress(profile));
         return new Patient()
+            // Derived from the saved profile's own id rather than a shared literal: accountId is a
+            // join key and every row here is a different person. Nothing enforces uniqueness on it
+            // today (Vendor.account_id does, and item 108 routes patients on :accountId), which is
+            // exactly why the fixture should not be the thing that assumes it never will.
+            .accountId("acct-export-" + saved.getId())
             .status(status)
             .joinedOn(LocalDate.of(2026, 1, 1))
             .isArchived(archived)

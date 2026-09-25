@@ -40,6 +40,9 @@ import org.springframework.test.web.servlet.MockMvc;
 @WithMockUser
 class PatientResourceIT {
 
+    private static final String DEFAULT_ACCOUNT_ID = "AAAAAAAAAA";
+    private static final String UPDATED_ACCOUNT_ID = "BBBBBBBBBB";
+
     private static final AccountStatus DEFAULT_STATUS = AccountStatus.ACTIVE;
     private static final AccountStatus UPDATED_STATUS = AccountStatus.PENDING;
 
@@ -82,6 +85,7 @@ class PatientResourceIT {
      */
     public static Patient createEntity() {
         Patient patient = new Patient()
+            .accountId(DEFAULT_ACCOUNT_ID)
             .status(DEFAULT_STATUS)
             .joinedOn(DEFAULT_JOINED_ON)
             .lastActiveOn(DEFAULT_LAST_ACTIVE_ON)
@@ -103,6 +107,7 @@ class PatientResourceIT {
      */
     public static Patient createUpdatedEntity() {
         Patient updatedPatient = new Patient()
+            .accountId(UPDATED_ACCOUNT_ID)
             .status(UPDATED_STATUS)
             .joinedOn(UPDATED_JOINED_ON)
             .lastActiveOn(UPDATED_LAST_ACTIVE_ON)
@@ -197,6 +202,21 @@ class PatientResourceIT {
     }
 
     @Test
+    void checkAccountIdIsRequired() throws Exception {
+        long databaseSizeBeforeTest = getRepositoryCount();
+        // set the field null
+        patient.setAccountId(null);
+
+        // Create the Patient, which fails.
+
+        restPatientMockMvc
+            .perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsBytes(patient)))
+            .andExpect(status().isBadRequest());
+
+        assertSameRepositoryCount(databaseSizeBeforeTest);
+    }
+
+    @Test
     void getAllPatients() throws Exception {
         // Initialize the database
         insertedPatient = patientRepository.save(patient);
@@ -207,6 +227,7 @@ class PatientResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.[*].id").value(hasItem(patient.getId())))
+            .andExpect(jsonPath("$.[*].accountId").value(hasItem(DEFAULT_ACCOUNT_ID)))
             .andExpect(jsonPath("$.[*].status").value(hasItem(DEFAULT_STATUS.toString())))
             .andExpect(jsonPath("$.[*].joinedOn").value(hasItem(DEFAULT_JOINED_ON.toString())))
             .andExpect(jsonPath("$.[*].lastActiveOn").value(hasItem(DEFAULT_LAST_ACTIVE_ON.toString())))
@@ -242,6 +263,7 @@ class PatientResourceIT {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
             .andExpect(jsonPath("$.id").value(patient.getId()))
+            .andExpect(jsonPath("$.accountId").value(DEFAULT_ACCOUNT_ID))
             .andExpect(jsonPath("$.status").value(DEFAULT_STATUS.toString()))
             .andExpect(jsonPath("$.joinedOn").value(DEFAULT_JOINED_ON.toString()))
             .andExpect(jsonPath("$.lastActiveOn").value(DEFAULT_LAST_ACTIVE_ON.toString()))
@@ -265,6 +287,7 @@ class PatientResourceIT {
         // Update the patient
         Patient updatedPatient = patientRepository.findById(patient.getId()).orElseThrow();
         updatedPatient
+            .accountId(UPDATED_ACCOUNT_ID)
             .status(UPDATED_STATUS)
             .joinedOn(UPDATED_JOINED_ON)
             .lastActiveOn(UPDATED_LAST_ACTIVE_ON)
@@ -369,6 +392,7 @@ class PatientResourceIT {
         partialUpdatedPatient.setId(patient.getId());
 
         partialUpdatedPatient
+            .accountId(UPDATED_ACCOUNT_ID)
             .status(UPDATED_STATUS)
             .joinedOn(UPDATED_JOINED_ON)
             .lastActiveOn(UPDATED_LAST_ACTIVE_ON)

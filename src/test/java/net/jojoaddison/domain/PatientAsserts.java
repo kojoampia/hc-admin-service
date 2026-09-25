@@ -47,6 +47,7 @@ public class PatientAsserts {
     public static void assertPatientUpdatableFieldsEquals(Patient expected, Patient actual) {
         assertThat(actual)
             .as("Verify Patient relevant properties")
+            .satisfies(a -> assertThat(a.getAccountId()).as("check accountId").isEqualTo(expected.getAccountId()))
             .satisfies(a -> assertThat(a.getStatus()).as("check status").isEqualTo(expected.getStatus()))
             .satisfies(a -> assertThat(a.getJoinedOn()).as("check joinedOn").isEqualTo(expected.getJoinedOn()))
             .satisfies(a -> assertThat(a.getLastActiveOn()).as("check lastActiveOn").isEqualTo(expected.getLastActiveOn()))

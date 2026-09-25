@@ -180,10 +180,18 @@ public class DirectoryProjectionService {
         /** A local record was created for a subject this service had never seen. */
         CREATED,
         /**
-         * A subject this service had never seen is now linked, and <b>deliberately has no local
-         * record</b> — a care angel, or a clinician. Distinct from {@link #IGNORED}, which wrote
-         * nothing at all: something did happen here, and the link is what stops a later event on the
-         * same subject mistaking them for a patient.
+         * A subject this service had never seen is now linked, and has no local record. Distinct
+         * from {@link #IGNORED}, which wrote nothing at all: something did happen here, and the link
+         * is what stops a later event on the same subject mistaking them for a patient.
+         *
+         * <p><b>It covers two different absences and the log distinguishes them</b> — this javadoc
+         * said only the first until item 115. <b>Declined:</b> a care angel or a clinician, a kind
+         * this service deliberately keeps no {@code Patient} for, which is a permanent and correct
+         * state. <b>Deferred:</b> a patient whose frame carried no {@code accountId} and whose link
+         * holds none either, so the required field could not be set and the record has not been
+         * created <em>yet</em> — see {@code createAndClaim}. The outcome is the same value because
+         * what was written is the same thing, a link and no row; the difference is whether anything
+         * is still owed, and {@code announce} is what says which.
          */
         LINKED,
         /** The subject was already known; the link and any shared fields were brought up to date. */
@@ -281,7 +289,11 @@ public class DirectoryProjectionService {
         }
 
         boolean hadRecord = !firstSighting && previous.getLocalId() != null;
-        String localId = ensureLocalRecord(event, firstSighting ? null : previous.getLocalId());
+        String localId = ensureLocalRecord(
+            event,
+            firstSighting ? null : previous.getLocalId(),
+            firstSighting ? null : previous.getAccountId()
+        );
 
         recordEvent(event, localId, joinsThePhases(event.source(), firstSighting ? null : previous, DirectoryLink::getProfileEventAt));
 
@@ -676,14 +688,39 @@ public class DirectoryProjectionService {
             // Deliberately says only that no record was created, and not what the console does with
             // it: that differs by kind — a clinician is counted and listed as awaiting a record, a
             // care angel is neither — and a line that generalised would be wrong for one of them.
-            case LINKED -> LOG.info(
-                "Directory linked a {} from {} ({}): {} — {}, so no local record is created for this kind",
-                subjectKindOf(event),
-                event.source(),
-                event.type(),
-                subject,
-                event.disposition()
-            );
+            //
+            // Two absences, two sentences (item 115). The single sentence this branch used to emit
+            // said "no local record is created for this kind", which for a deferred patient is wrong
+            // twice over: this service does keep records for PATIENT, and the record is owed rather
+            // than declined. An operator was getting a correct WARN from createAndClaim and a
+            // contradictory INFO from here, about the same frame, a few lines apart.
+            case LINKED -> {
+                if (defersARecord(event)) {
+                    // Says what happened and not why. Two paths end here — no accountId (item 115's
+                    // deferral, which logs its own WARN naming the remedy) and the compare-and-set
+                    // loser (which logs its own DEBUG) — and this branch cannot tell them apart.
+                    // Naming the first would be false for the second, which is the defect this
+                    // branch exists to fix, so it points at the line that does know instead. See
+                    // defersARecord's javadoc for why the structural fix was not taken here.
+                    LOG.info(
+                        "Directory linked a {} from {} ({}): {} — a record was attempted and not created; the " +
+                            "preceding WARN or DEBUG for this subject says which reason applies (item 115)",
+                        subjectKindOf(event),
+                        event.source(),
+                        event.type(),
+                        subject
+                    );
+                } else {
+                    LOG.info(
+                        "Directory linked a {} from {} ({}): {} — {}, so no local record is created for this kind",
+                        subjectKindOf(event),
+                        event.source(),
+                        event.type(),
+                        subject,
+                        event.disposition()
+                    );
+                }
+            }
             // UPDATED, and today nothing else — STALE and IGNORED return before this method is
             // called and log at the point they decide, which is where the reason is known. A new
             // Outcome that also returns early lands nowhere: see the javadoc's second bullet.
@@ -762,6 +799,36 @@ public class DirectoryProjectionService {
     }
 
     /**
+     * Whether a {@link Outcome#LINKED} still owes a record, rather than declining one by kind.
+     *
+     * <p>Read off the two facts that decided it and not off a flag: this service keeps a
+     * {@code Patient} only for {@link DirectorySource#HC_PATIENT}, and only a {@link
+     * Disposition#CREATE} event ever attempts one — {@code LINK_ONLY} is the angel-and-clinician
+     * answer, and an {@code UPDATE_ONLY} for an unknown subject returns {@link Outcome#IGNORED}
+     * before {@code announce} is reached. So a {@code LINKED} that got this far on a patient-stream
+     * {@code CREATE} attempted a record and did not end with one.
+     *
+     * <p>⚠ <b>It cannot say WHY, and an earlier version of this javadoc claimed it could</b> — it
+     * said the accountId guard is "the only thing that refuses" a record. It is not.
+     * {@code createAndClaim} returns null in <b>two</b> places: the accountId guard, and the
+     * compare-and-set loser, where a second writer claimed the link first and the record this call
+     * made is deleted again. That path is also a first sighting with no local id, so it reaches
+     * {@link Outcome#LINKED} and lands here — with an {@code accountId} that was present all along.
+     * The caller's own {@code DEBUG} names that reason correctly; this method has no way to tell the
+     * two apart, so the line it drives must not assert either one.
+     *
+     * <p><b>The better fix is structural and is deliberately not taken here:</b>
+     * {@code createAndClaim} should hand its reason back — an enum or an {@code Optional} carrying
+     * why — rather than {@code announce} re-deriving it from the outcome. Re-derivation is exactly
+     * the defect this method was added to fix, one layer up, and doing it properly changes that
+     * method's signature and every caller. It is a wider change than a merge-time correction should
+     * carry; what is fixed now is the false sentence, not the shape that invited it.
+     */
+    private boolean defersARecord(SiblingDomainEvent event) {
+        return event.source() == DirectorySource.HC_PATIENT && event.disposition() == Disposition.CREATE;
+    }
+
+    /**
      * Re-derives every local record its link says should exist.
      *
      * <p><b>This is the backfill, and it is a second half rather than the whole of one.</b> The
@@ -813,6 +880,10 @@ public class DirectoryProjectionService {
                 createAndClaim(
                     DirectorySource.HC_PATIENT,
                     link.getExternalKey(),
+                    // The link's copy of the account id, exactly as the consumer would have read it
+                    // off a frame — a link that never learned one is a record this run cannot
+                    // lawfully rebuild, and createAndClaim reports it rather than defaulting it.
+                    link.getAccountId(),
                     Boolean.TRUE.equals(link.getActivated()),
                     link.getFirstSeenAt() == null ? Instant.now() : link.getFirstSeenAt(),
                     link.getLocalId()
@@ -1049,9 +1120,21 @@ public class DirectoryProjectionService {
     /**
      * The local row for this subject, created or brought up to date under the merge rule.
      *
+     * @param knownAccountId the {@code account_id} the link already holds, or null when the link is
+     *                       new or never learned one. It is a <b>fallback</b> for a frame that
+     *                       carries none, never an override: the frame is the identity owner's
+     *                       current word and the link is what an earlier frame said. The case it
+     *                       exists for is real and is otherwise unreachable without an operator
+     *                       pressing reconcile — a care angel who later registers as a patient in
+     *                       their own right is created by {@code OnboardingStarted} alone, because
+     *                       hc-patient publishes no second {@code AccountCreated} for an account
+     *                       that already exists ({@code SiblingEventParser.patientDisposition}), and
+     *                       that is precisely the publisher whose {@code resolveAccountId} may
+     *                       legitimately answer nothing — while the angel's own link has held an
+     *                       {@code account_id} since the nomination frame.
      * @return the local document id, or null when this source keeps no local row.
      */
-    private String ensureLocalRecord(SiblingDomainEvent event, String knownLocalId) {
+    private String ensureLocalRecord(SiblingDomainEvent event, String knownLocalId, String knownAccountId) {
         if (event.source() != DirectorySource.HC_PATIENT) {
             return null;
         }
@@ -1072,7 +1155,17 @@ public class DirectoryProjectionService {
         // An event that says nothing about activation is not an event saying the account is inactive:
         // a new Patient created from one starts PENDING, which is what it started as before this
         // field became a Boolean and is the honest reading of "nobody has said".
-        return createAndClaim(event.source(), event.subjectKey(), Boolean.TRUE.equals(event.activated()), event.occurredAt(), knownLocalId);
+        return createAndClaim(
+            event.source(),
+            event.subjectKey(),
+            // The frame first, the link second. Both are hc-patient's own word about the same
+            // subject; the frame is the newer of the two and the link is the only one that survives
+            // a publisher that legitimately sends none — see this method's @param.
+            event.accountId() != null && !event.accountId().isBlank() ? event.accountId() : knownAccountId,
+            Boolean.TRUE.equals(event.activated()),
+            event.occurredAt(),
+            knownLocalId
+        );
     }
 
     /**
@@ -1097,22 +1190,74 @@ public class DirectoryProjectionService {
      * That window is one Mongo round trip wide and the alternative is a replica set, which is a
      * deployment decision rather than a code one — backlog item 28.
      *
-     * <p>Two required fields on the record and nothing else. {@code caseCount} is seeded at zero
+     * <p>Three required fields on the record and nothing else. {@code caseCount} is seeded at zero
      * because the console renders it as a number and an absent one reads as unknown rather than as
      * none; everything else is left null for an administrator to fill in, including the
      * {@code Profile} — which cannot be created at all, since it requires a name, a date of birth, a
      * phone number and a document number, and the patient stream carries none of them by design.
      *
+     * <p><b>No {@code accountId}, no record — reported, never defaulted, and never fatal</b> (item
+     * 115). {@code Patient.accountId} is {@code @NotNull} and {@code ValidatingMongoEventListener}
+     * enforces it on this very {@code save}, so without the guard an accountId-less frame would not
+     * create a nameless record, it would throw — five retries, a dead-letter, and the frame's other
+     * facts lost with it, for an absence hc-patient's own api documents as legitimate (their
+     * {@code OnboardingService.resolveAccountId} names three ways, and every frame retained from
+     * before their item 72 refactor is a fourth). Fabricating a value instead is item 26's defect
+     * with a new name. So the record is simply not created yet: the link keeps every fact the frame
+     * carried, and the record arrives with the first frame that does carry the id — or through
+     * {@link #reconcile()}, once a later frame has taught the link its {@code account_id}.
+     *
+     * <p><b>Deferring rather than dead-lettering is a decision, taken by the architect on
+     * 2026-09-25 after the alternatives were costed, and not a shortcut.</b> Dead-lettering instead
+     * was measured: {@code POST /api/directory-links/reconcile} answers 500, the link is never
+     * written at all, and a replay of retained history onto an empty database becomes a dead-letter
+     * storm. Fabricating a value is item 26's defect with a new name. Making the field nullable
+     * removes the {@code @NotNull} this item exists to add. All three are worse than a record that
+     * arrives late.
+     *
+     * <p><b>Who it bites, and what it costs them.</b> The population is narrow: a replay of history
+     * published before hc-patient's item 72 refactor ({@code b6894dc}) onto an empty database, and —
+     * only where the link has not learned one either — a care-angel promotion, whose publisher's
+     * {@code resolveAccountId} may legitimately answer nothing. The cost is the part to be honest
+     * about: <b>such a subject is on no screen and in no figure.</b> There is no
+     * {@code patientsAwaitingRecord} tile beside the professionals' one, and the console's
+     * {@code unlinked=true} filter is read only by the professional list — so this reintroduces, for
+     * patients, exactly what item 46 found for clinicians: a subject stored and invisible. That
+     * surface is <b>filed as its own backlog item</b> rather than accepted in silence; it is not
+     * built here because a tile is a console change and this item is a field. Until it exists, the
+     * {@code WARN} below is the whole of the visibility, which is why it names the remedy.
+     *
+     * @param accountId the subject's gateway {@code User.id} — from the frame on the live path, from
+     *                  {@code DirectoryLink#getAccountId()} on the reconciliation's. Null or blank
+     *                  means the record cannot lawfully exist yet, not that a placeholder should.
      * @param staleLocalId the {@code local_id} the caller read off the link — null when there was
      *                     none, or the id of a document that has since gone. The claim only succeeds
      *                     against that value, which is what makes it a compare-and-set rather than a
      *                     blind write.
      * @return the id of the record this call created, or null when it created none.
      */
-    private String createAndClaim(DirectorySource source, String subjectKey, boolean activated, Instant at, String staleLocalId) {
+    private String createAndClaim(
+        DirectorySource source,
+        String subjectKey,
+        String accountId,
+        boolean activated,
+        Instant at,
+        String staleLocalId
+    ) {
+        if (accountId == null || accountId.isBlank()) {
+            LOG.warn(
+                "No patient record was created for {}: no accountId has arrived for the subject, and " +
+                    "Patient.accountId is required and never fabricated (item 115). The link keeps what the " +
+                    "stream has said; the record is created by the first frame that carries subject.accountId, " +
+                    "or by POST /api/directory-links/reconcile once the link has learned account_id.",
+                LogPseudonym.subject(subjectKey)
+            );
+            return null;
+        }
         LocalDate day = LocalDate.ofInstant(at, ZoneOffset.UTC);
         Patient patient = patientRepository.save(
             new Patient()
+                .accountId(accountId)
                 .status(activated ? AccountStatus.ACTIVE : AccountStatus.PENDING)
                 .joinedOn(day)
                 .lastActiveOn(day)
@@ -1145,6 +1290,22 @@ public class DirectoryProjectionService {
         LocalDate day = LocalDate.ofInstant(event.occurredAt(), ZoneOffset.UTC);
         boolean changed = false;
 
+        // A stored row with no accountId adopts the frame's — set once, never overwritten. This is
+        // the live-stream half of PatientAccountIdBackfillMigration: a row written before item 115
+        // (or left unresolved by the backfill) is healed by the first frame about its subject that
+        // carries the id, which is real data from the identity's owner and not a default. Rows that
+        // already hold one are left alone — the stream must not be able to re-key a record an
+        // administrator can see, and a disagreement is the migration's ERROR to report, not this
+        // method's to paper over.
+        if (
+            (patient.getAccountId() == null || patient.getAccountId().isBlank()) &&
+            event.accountId() != null &&
+            !event.accountId().isBlank()
+        ) {
+            patient.setAccountId(event.accountId());
+            changed = true;
+        }
+
         if (patient.getLastActiveOn() == null || patient.getLastActiveOn().isBefore(day)) {
             patient.setLastActiveOn(day);
             changed = true;
@@ -1158,6 +1319,22 @@ public class DirectoryProjectionService {
         }
 
         if (changed) {
+            // A row still missing its accountId cannot pass ValidatingMongoEventListener, so saving
+            // it would not record these facts — it would throw, retry five times and dead-letter a
+            // frame whose only fault is describing a record this service has not resolved yet (item
+            // 115). The facts are dropped and SAID to be, at WARN: recordEvent, two lines after this
+            // in apply(), still writes the event onto the link, so nothing about the subject's
+            // history is lost, only this row's derived
+            // fields go stale until the backfill or a frame carrying the id heals it.
+            if (patient.getAccountId() == null || patient.getAccountId().isBlank()) {
+                LOG.warn(
+                    "Not updating patient {}: the stored row has no accountId, the frame carries none, and a save " +
+                        "would fail validation rather than record anything (item 115). The link keeps the event; the " +
+                        "row is healed by the first frame carrying subject.accountId or by the account-id backfill.",
+                    patient.getId()
+                );
+                return;
+            }
             patientRepository.save(patient);
         }
     }

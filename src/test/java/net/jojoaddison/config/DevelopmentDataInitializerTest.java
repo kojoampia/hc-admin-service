@@ -1031,6 +1031,117 @@ class DevelopmentDataInitializerTest {
     }
 
     /**
+     * <b>Every seeded patient carries an {@code accountId}, and every one of them is a fixture
+     * identifier that resolves nowhere — both halves are the assertion.</b>
+     *
+     * <p>Presence on <em>every</em> patient rather than a count, because "15 of 15 carry it" goes on
+     * passing when a sixteenth arrives without one — the census trap this repo keeps re-learning, and
+     * backlog item 115's own wording for this guard. Both profiles are swept, not just {@code test}:
+     * {@code dev} seeds no patients today, and the sweep is what keeps that true the day it starts to.
+     * The field is {@code @NotNull} and {@code ValidatingMongoEventListener} enforces it on every
+     * mapped save, so a seeded patient without one is not a rendering gap — it is a seed that fails to
+     * load at startup, on every stack at once.
+     *
+     * <p><b>{@code a15} is named, with its literal, and it is the one row that is not a fixture.</b>
+     * It carries {@code user-demo-kojo}, a real {@code User._id} in hc-patient's gateway: their
+     * {@code quality/patient-demo-seed.json} pins it for {@code kojo@jac.net}, which is the address
+     * {@code dl-a15} already named. That is what makes the resolved path reachable on a stack instead
+     * of only the fallback — the same argument that put {@code a15} in this fixture at all. ⚠ <b>It
+     * resolves on hc-patient's QUALITY stack only</b>: on a plain dev stack their
+     * {@code DevSeedDataInitializer} pins {@code user-1} … {@code user-5} and {@code kojo} does not
+     * exist, so there the value names nobody. The exception is named rather than the rule loosened —
+     * relaxing the prefix check to "any non-blank string" would leave this guard asserting nothing, and
+     * the neighbouring tests in this file name {@code a13}/{@code a14}/{@code a15} for the same reason.
+     *
+     * <p>The other fourteen keep the {@code fixture-account-} shape, and the pin is a claim about what
+     * those values are <em>not</em>: their addresses exist in neither hc-patient's seed nor their
+     * database, so there is no real id to hold and a value shaped like one would imply a join the
+     * estate cannot seed. ⛔ This javadoc gave a <em>different</em> and false reason until 2026-09-25 —
+     * that hc-patient mints account ids at seed time and no pinned-id seeding exists there, so no
+     * fixture could resolve, {@code a15}'s included. Their {@code SeedData.buildUser} takes the fixed
+     * document id in its own words. The rule survived because it was right about fourteen rows for a
+     * reason that was not the stated one.
+     *
+     * <p><b>The sweep carries a positive control</b>, because {@code ProfileData}'s lists initialise
+     * empty: an {@code allSatisfy} over an empty list passes, so a rename of the {@code patients} JSON
+     * key would leave this guard green while asserting over nothing. {@code dev} legitimately seeds no
+     * patients and is swept anyway — the sweep is what keeps that true the day it stops being — so the
+     * floor is asserted on {@code test}, where the rows are.
+     */
+    @Test
+    void everySeededPatientCarriesAFixtureAccountIdExceptTheOneThatResolves() throws Exception {
+        Map<String, DevelopmentDataInitializer.ProfileData> data = readSeedData();
+
+        assertThat(data.get("test").getPatients())
+            .as("the positive control: an allSatisfy over an empty list asserts nothing, so the test rows must be there")
+            .isNotEmpty();
+
+        for (Map.Entry<String, DevelopmentDataInitializer.ProfileData> profile : data.entrySet()) {
+            assertThat(profile.getValue().getPatients())
+                .as("every %s patient carries the identity link — asserted per row, never counted", profile.getKey())
+                .allSatisfy(patient -> {
+                    assertThat(patient.getAccountId()).as("accountId on %s is present", patient.getId()).isNotBlank();
+                    if ("a15".equals(patient.getId())) {
+                        assertThat(patient.getAccountId())
+                            .as("a15 holds hc-patient's real quality User._id for kojo@jac.net — the resolved path's only seed")
+                            .isEqualTo("user-demo-kojo");
+                    } else {
+                        assertThat(patient.getAccountId())
+                            .as("accountId on %s declares itself a fixture — no account exists for that address", patient.getId())
+                            .startsWith("fixture-account-");
+                    }
+                });
+        }
+    }
+
+    /**
+     * <b>Every seeded {@code HC_PATIENT} link that names a patient row carries that row's own
+     * {@code accountId}</b> — the seed modelling the world item 115 creates, rather than the one
+     * before it.
+     *
+     * <p>Item 130 closed by handing this over in as many words: <em>"no seeded directoryLinks row
+     * carries an accountId … that is items 131 and 115's ground."</em> Leaving it so cost three things
+     * at once, all of them reachable only on a running stack and none of them by a failing test.
+     * {@code POST /api/directory-links/reconcile} could rebuild no seeded patient record, because
+     * {@code createAndClaim} refuses without an id — so a quality stack reported {@code created: 0} for
+     * an action that used to rebuild six rows. {@code PatientAccountIdBackfillMigration}'s resolving
+     * path was reachable on no stack. And {@code DirectoryProjectionService.merge}'s adoption path was
+     * reachable on no stack either. Meanwhile {@code DirectoryLinkResourceIT} built links that <em>do</em>
+     * carry one, so the suite modelled the post-item-115 world and the seed modelled the pre-115 one
+     * and nothing compared them.
+     *
+     * <p>Equality with the patient's own value is the assertion, not mere presence. The two are the
+     * same identity seen from two sides, and a seeded disagreement is the state
+     * {@code merge}'s comment calls "the migration's ERROR to report" — which the migration would in
+     * fact never report, since it only looks at rows <em>missing</em> the value. Nothing else in the
+     * estate would notice.
+     */
+    @Test
+    void everySeededPatientLinkCarriesItsPatientsAccountId() throws Exception {
+        Map<String, DevelopmentDataInitializer.ProfileData> data = readSeedData();
+        DevelopmentDataInitializer.ProfileData test = data.get("test");
+
+        Map<String, String> accountIdByPatientId = test
+            .getPatients()
+            .stream()
+            .collect(Collectors.toMap(Patient::getId, Patient::getAccountId));
+
+        List<DirectoryLink> naming = test
+            .getDirectoryLinks()
+            .stream()
+            .filter(link -> link.getSource() == DirectorySource.HC_PATIENT && link.getLocalId() != null)
+            .toList();
+
+        assertThat(naming).as("the positive control — the six linked patient rows are what this sweep is about").hasSize(6);
+
+        assertThat(naming).allSatisfy(link ->
+            assertThat(link.getAccountId())
+                .as("%s names patient %s, so it carries that patient's accountId", link.getId(), link.getLocalId())
+                .isEqualTo(accountIdByPatientId.get(link.getLocalId()))
+        );
+    }
+
+    /**
      * <b>One nameless patient's link carries an address hc-patient's own fixture really seeds, and
      * that foreign-looking address is the fixture rather than a typo.</b>
      *

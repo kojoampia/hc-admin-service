@@ -11,6 +11,13 @@
       "fieldType": "String"
     },
     {
+      "documentation": "The identity link to the subject's gateway Account — the same identifier\\nProfile.accountId carries. The value is the account's User.id, never the\\nlogin and never hc-patient's patientId; for a patient the account is\\nhc-patient-gateway's. Backlog item 115; the domain field's javadoc is the\\nmodel.",
+      "fieldName": "accountId",
+      "fieldType": "String",
+      "fieldValidateRules": ["required", "maxlength"],
+      "fieldValidateRulesMaxlength": "60"
+    },
+    {
       "fieldName": "status",
       "fieldType": "AccountStatus",
       "fieldValidateRules": ["required"],

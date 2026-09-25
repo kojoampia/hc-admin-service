@@ -27,6 +27,64 @@ public class Patient implements Serializable {
     @Id
     private String id;
 
+    /**
+     * The identity link to the subject's gateway Account — the same identifier {@link Profile#getAccountId()}
+     * carries, on the record hc-admin owns about a patient.
+     *
+     * <p>A plain String, not a relationship: the account lives in a gateway's own database — for a patient,
+     * <b>hc-patient's</b>, since patients register there and this stack's gateway never issues
+     * {@code ROLE_PATIENT} — and this service cannot join across that boundary.
+     *
+     * <p><b>The value is the account's {@code User.id}, never the login and never hc-patient's
+     * {@code patientId}</b> — the estate decision of 2026-09-17 ({@code account.id = profile.accountId}),
+     * applied to {@code Patient} by backlog item 115. The three are all opaque strings and a join on the
+     * wrong one matches nothing silently, which is why this paragraph names the value space instead of
+     * trusting the field name. It is required for the same reason {@code Profile.accountId} is: a patient
+     * with no account id is a record that cannot be joined to the identity that owns it, on any screen or
+     * any stream.
+     *
+     * <p>Where the value comes from, in order of arrival: hc-patient's publishers put
+     * {@code subject.accountId} on every frame since their item 72 refactor (their {@code b6894dc},
+     * 2026-09-24), item 130 reads it onto {@code directory_link.account_id}, and
+     * {@code DirectoryProjectionService} stamps it onto the record it creates.
+     * {@code PatientAccountIdBackfillMigration} resolves rows written before this field existed from that
+     * same link column — and <b>reports what it cannot resolve rather than defaulting it</b>, because a
+     * fabricated account id is a join key that silently matches nothing (item 26's defect with a new name).
+     *
+     * <p>⚠ <b>Fourteen of the fifteen seeded values are fixture identifiers; exactly one is real.</b>
+     * {@code a15} carries {@code user-demo-kojo}, which is a genuine {@code User._id} in hc-patient's
+     * gateway — their {@code quality/patient-demo-seed.json} pins it for {@code kojo@jac.net}, and
+     * {@code dl-a15} already named that address for the same reason: it is what makes the resolved path
+     * reachable on a stack rather than only the fallback. <b>Which stack matters and is the whole
+     * caveat</b>: that id is hc-patient's <em>quality</em> seed, loaded from their {@code hc.seed
+     * .location} document. On a plain dev stack their {@code DevSeedDataInitializer} pins
+     * {@code user-1} … {@code user-5} and {@code kojo} does not exist, so there the value names nobody —
+     * which is a fixture being honest about one environment, not a value that resolves everywhere.
+     *
+     * <p>The other fourteen are {@code fixture-account-*} because <b>no account exists for them at
+     * all</b>: their addresses ({@code naa.adjeley@}, {@code k.darkwa@}, {@code e.sam@},
+     * {@code k.ofosu@}, {@code yaa.a@}) are in neither hc-patient's seed nor their database, so there is
+     * no real id to hold. ⛔ This javadoc asserted something stronger and false until 2026-09-25 — that
+     * hc-patient mints account ids at seed time and "no pinned-id seeding exists there", so no fixture
+     * could ever resolve. Their {@code SeedData.buildUser} takes <em>the fixed document id</em> in its
+     * own words, {@code DevSeedDataInitializer} pins five deliberately, and their external seed document
+     * honours an optional {@code id}. The conclusion happened to hold for fourteen rows for a different
+     * reason, which is how it survived review. {@code DevelopmentDataInitializerTest} names {@code a15}
+     * and its literal rather than loosening the prefix rule, so neither half can drift unnoticed.
+     *
+     * <p><b>A known and accepted asymmetry, recorded here rather than fixed.</b> This field is capped at
+     * 60 characters and {@code DirectoryLink.accountId} — where the value arrives — is not, and
+     * {@code PatientAccountIdBackfillMigration} stamps through a raw {@code $set} that bypasses
+     * validation. So a gateway {@code User.id} longer than 60 characters could in principle be stamped
+     * onto a row that then cannot be saved through the mapped type. It is unreachable today (ids here
+     * are 24 or 36 characters) and the cap belongs on {@code DirectoryLink}, which is item 130's field
+     * and not this one's.
+     */
+    @NotNull
+    @Size(max = 60)
+    @Field("account_id")
+    private String accountId;
+
     @NotNull
     @Field("status")
     private AccountStatus status;
@@ -99,6 +157,19 @@ public class Patient implements Serializable {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getAccountId() {
+        return this.accountId;
+    }
+
+    public Patient accountId(String accountId) {
+        this.setAccountId(accountId);
+        return this;
+    }
+
+    public void setAccountId(String accountId) {
+        this.accountId = accountId;
     }
 
     public AccountStatus getStatus() {
@@ -317,6 +388,7 @@ public class Patient implements Serializable {
     public String toString() {
         return "Patient{" +
             "id=" + getId() +
+            ", accountId='" + getAccountId() + "'" +
             ", status='" + getStatus() + "'" +
             ", joinedOn='" + getJoinedOn() + "'" +
             ", lastActiveOn='" + getLastActiveOn() + "'" +

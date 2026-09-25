@@ -169,6 +169,7 @@ entity Angel {
 // list endpoints filter on it. Keep it whenever this file is regenerated.
 entity Patient {
   id String
+  accountId String required maxlength(60)
   status AccountStatus required
   joinedOn LocalDate required
   lastActiveOn LocalDate
@@ -176,6 +177,12 @@ entity Patient {
   isArchived Boolean
 }
 
+// accountId is not in the console's own hc-admin.jdl either (see below for
+// isArchived): it arrived server-side with backlog item 115, the same identity
+// link Profile.accountId carries — the gateway Account's User.id, for a patient
+// an hc-patient-gateway account. The field's javadoc on the domain class is the
+// model and argues its shape. Keep it whenever this file is regenerated.
+//
 // isArchived is not in the console's own hc-admin.jdl. The console's directory
 // screens archive a record rather than deleting it — see hc-admin-app — and the
 // list endpoints filter on it. Keep it whenever this file is regenerated.
