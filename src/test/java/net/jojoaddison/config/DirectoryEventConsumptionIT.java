@@ -307,6 +307,24 @@ class DirectoryEventConsumptionIT {
                 assertThat(event.getFormattedMessage()).contains("accountId").contains("reconcile");
                 assertThat(event.getFormattedMessage()).as("the subject is a digest, never the address").doesNotContain(EMAIL);
             });
+
+        // And the INFO beside it says a record was attempted and not created, WITHOUT naming a
+        // reason. Two paths reach that branch — this one and createAndClaim's compare-and-set loser,
+        // whose accountId was present all along — and announce cannot tell them apart, so a line
+        // asserting either would be false for the other. That is the defect this whole branch was
+        // added to fix, and it was reintroduced one layer down before the third review caught it.
+        assertThat(appender.list)
+            .filteredOn(event -> event.getLevel() == Level.INFO)
+            .as("the INFO reports the outcome and defers the reason to the line that knows it")
+            .anySatisfy(event -> {
+                String line = event.getFormattedMessage();
+                assertThat(line).contains("HC_PATIENT").contains("attempted and not created");
+                assertThat(line)
+                    .as("it must not claim the accountId was missing — it cannot know that here")
+                    .doesNotContain("carried no")
+                    .doesNotContain("holds none");
+                assertThat(line).doesNotContain(EMAIL);
+            });
     }
 
     /**
@@ -936,6 +954,76 @@ class DirectoryEventConsumptionIT {
         assertThat(healed.getStatus())
             .as("and the activation's own fact lands in the same, now-valid save")
             .isEqualTo(AccountStatus.ACTIVE);
+    }
+
+    /**
+     * <b>An {@code UPDATE_ONLY} frame heals a pre-115 row too</b> — {@code merge}'s adoption block is
+     * reached by every frame about a subject this service already has a record for, not only by the
+     * creating ones. Benign, and the plain demonstration that these twins have a caller.
+     */
+    @Test
+    void aPostRefactorPlanChoiceAlsoAdoptsOntoARowFromBeforeTheFieldExisted() {
+        givenARowFromBeforeTheFieldExisted("pre-115-d");
+
+        sendPatient(planChosenRefactored("2026-09-02T09:00:00Z", "PAWPAW", "usr-plan-subject"));
+
+        assertThat(patientRepository.findById("pre-115-d").orElseThrow().getAccountId())
+            .as("adopted from an UPDATE_ONLY frame — the block's caller is every frame, not just CREATE")
+            .isEqualTo("usr-plan-subject");
+    }
+
+    /**
+     * <b>⚠ Two deliberate rules in one code path, disagreeing, and this test records it rather than
+     * deciding it.</b>
+     *
+     * <p>A post-refactor {@code DeletionRequestChanged/COMPLETED} carries {@code subject.accountId}.
+     * In one frame this service therefore does both of these:
+     *
+     * <ul>
+     *   <li>{@code merge} <b>adopts</b> that id onto the retained {@code Patient} — item 115's
+     *       healing rule, which ends the unsaveable state the backfill exists to end;</li>
+     *   <li>{@code recordEvent} <b>unsets</b> the same id from the link, under its own comment that
+     *       it is "a handle into an account for a person the far side has erased".</li>
+     * </ul>
+     *
+     * <p>{@code merge} runs first ({@code ensureLocalRecord}, then {@code recordEvent}), so the value
+     * lands on the row and is then removed from the link — and nothing decided that. Neither rule is
+     * wrong on its own and this is <b>not a regression</b>: the adoption shipped in {@code 875521b},
+     * the value is opaque, and the {@code Patient} is retained by design as an administrator's
+     * record. <b>The question — should {@code merge} decline to adopt when {@code event.erased()}? —
+     * is FILED as its own backlog item on item 28's retention ground</b>, which {@code recordEvent}'s
+     * javadoc already cites by name. It is not answered here, and this test must be updated rather
+     * than deleted when it is.
+     *
+     * <p>Until then this is the contract, written down: assert all three facts, so the day somebody
+     * changes one of the two rules the disagreement is visible instead of silent.
+     */
+    @Test
+    void aPostRefactorErasureAdoptsOntoTheRowAndClearsTheLink() {
+        givenARowFromBeforeTheFieldExisted("pre-115-e");
+
+        sendPatient(deletionRequestChangedRefactored("2026-09-03T09:00:00Z", "COMPLETED", "usr-erased-subject"));
+
+        assertThat(patientRepository.findById("pre-115-e").orElseThrow().getAccountId())
+            .as("merge adopted it onto the retained record — item 115's healing rule, applied first")
+            .isEqualTo("usr-erased-subject");
+
+        DirectoryLink link = link(DirectorySource.HC_PATIENT, EMAIL).orElseThrow();
+        assertThat(link.getAccountId()).as("and recordEvent then dropped the same value from the link").isNull();
+        assertThat(link.getErasedAt()).as("the erasure marker is set, which is what makes the two rules meet").isNotNull();
+    }
+
+    /** A pre-item-115 {@code Patient} with a link claiming it — the state the mapped type cannot express. */
+    private void givenARowFromBeforeTheFieldExisted(String id) {
+        mongoTemplate
+            .getCollection("patient")
+            .insertOne(new Document("_id", id).append("status", "PENDING").append("joined_on", "2026-08-01"));
+        DirectoryLink claimed = new DirectoryLink();
+        claimed.setSource(DirectorySource.HC_PATIENT);
+        claimed.setExternalKey(EMAIL);
+        claimed.setSubjectKind(DirectorySubjectKind.PATIENT);
+        claimed.setLocalId(id);
+        directoryLinkRepository.save(claimed);
     }
 
     /** An angel who later registers or onboards in their own right is a patient, and becomes one. */
@@ -1603,7 +1691,6 @@ class DirectoryEventConsumptionIT {
         );
     }
 
-    /** hc-patient's {@code CareAngelResource.nominate}, first frame — keyed on the ANGEL's address. */
     /**
      * {@code AccountActivated} as hc-patient publishes it since their item 72 refactor — every frame
      * carries {@code subject.accountId}, not just the creating ones.
@@ -1649,6 +1736,57 @@ class DirectoryEventConsumptionIT {
         );
     }
 
+    /**
+     * {@code PlanChosen} in the shape hc-patient publishes now — {@code subject.accountId} on an
+     * {@code UPDATE_ONLY} frame.
+     *
+     * <p>⛔ This file had no post-refactor twin for any {@code UPDATE_ONLY} type, on the stated
+     * reasoning that one "would be a fixture with no caller". <b>That was false, and the caller is
+     * {@code merge}'s adoption block</b>, which every {@code UPDATE_ONLY} frame reaches for a subject
+     * this service already has a record for. The literal claim underneath it was true —
+     * {@code PlanChosen} really is {@code UPDATE_ONLY} — and the inference from it was not.
+     */
+    private static String planChosenRefactored(String occurredAt, String planCode, String accountId) {
+        return (
+            "{\"eventId\":\"evt-plan-refactored-" +
+            planCode +
+            "\",\"type\":\"PlanChosen\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":null,\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"membershipId\":\"mem-991\",\"planCode\":\"" +
+            planCode +
+            "\",\"planName\":\"" +
+            planCode +
+            " Plan\",\"status\":\"PENDING\"}}"
+        );
+    }
+
+    /**
+     * The erasure, post-refactor: {@code subject.accountId} on the one frame that also erases it.
+     *
+     * <p>This is the fixture that makes {@code aPostRefactorErasureAdoptsOntoTheRowAndClearsTheLink}
+     * possible, and it is why the twins were worth adding rather than skipping.
+     */
+    private static String deletionRequestChangedRefactored(String occurredAt, String change, String accountId) {
+        return (
+            "{\"eventId\":\"evt-deletion-refactored\",\"type\":\"DeletionRequestChanged\",\"version\":1,\"occurredAt\":\"" +
+            occurredAt +
+            "\",\"source\":\"hcPatientService\",\"subject\":{\"email\":\"" +
+            EMAIL +
+            "\",\"login\":\"amensah\",\"accountId\":\"" +
+            accountId +
+            "\"}," +
+            "\"data\":{\"requestId\":\"req-1\",\"change\":\"" +
+            change +
+            "\"}}"
+        );
+    }
+
+    /** hc-patient's {@code CareAngelResource.nominate}, first frame — keyed on the ANGEL's address. */
     private static String careAngelNominated(String occurredAt) {
         return (
             "{\"eventId\":\"evt-angel\",\"type\":\"AccountCreated\",\"version\":1,\"occurredAt\":\"" +

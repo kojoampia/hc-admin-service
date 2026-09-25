@@ -100,11 +100,23 @@ class PatientAccountIdBackfillMigrationIT {
         insertLink(id, source, localId, accountId, "PATIENT");
     }
 
-    private void insertLink(String id, String source, String localId, String accountId, String subjectKind) {
+    /**
+     * @param subjectKind the kind, or {@link #ABSENT} to omit the key entirely. The distinction is
+     *                    the same one {@link #insertLegacyPatient(String, Object)} draws for
+     *                    {@code account_id}, and it matters here for the same reason: a link written
+     *                    before 2026-09-05 has <b>no such key</b>, which is not the same document as
+     *                    one carrying an explicit null. {@code Criteria.is(null)} matches both, so
+     *                    the behaviour is the same — but a fixture that writes the null is not the
+     *                    row it claims to model, and asserting on the wrong shape is how a selection
+     *                    narrowed to {@code exists: false} would pass here and strand the real rows.
+     */
+    private void insertLink(String id, String source, String localId, String accountId, Object subjectKind) {
         Document link = new Document("_id", FIXTURE_PREFIX + id)
             .append("source", source)
-            .append("external_key", FIXTURE_PREFIX + id + "@fixture.invalid")
-            .append("subject_kind", subjectKind);
+            .append("external_key", FIXTURE_PREFIX + id + "@fixture.invalid");
+        if (subjectKind != ABSENT) {
+            link.append("subject_kind", subjectKind);
+        }
         if (localId != null) {
             link.append("local_id", FIXTURE_PREFIX + localId);
         }
@@ -200,15 +212,28 @@ class PatientAccountIdBackfillMigrationIT {
      * path that made any patient-stream subject a patient. They are also the oldest rows in the
      * collection — exactly the population with no {@code account_id} — so excluding them would
      * strand the records this unit exists for.
+     *
+     * <p><b>Both shapes of "no kind" are asserted</b>, because the real row omits the key and only
+     * an explicit null was originally written — the identical absent-versus-null distinction this
+     * file's {@link #ABSENT} sentinel exists for, one field along, missed in the same commit that
+     * introduced the sentinel. {@code Criteria.is(null)} matches both, so this pins the equivalence
+     * rather than assuming it.
      */
     @Test
     void aLinkWrittenBeforeSubjectKindExistedStillSuppliesIt() {
         insertLegacyPatient("kindless");
-        insertLink("l-kindless", "HC_PATIENT", "kindless", "acc-kindless", null);
+        insertLink("l-kindless", "HC_PATIENT", "kindless", "acc-kindless", ABSENT);
+        insertLegacyPatient("kind-null");
+        insertLink("l-kind-null", "HC_PATIENT", "kind-null", "acc-kind-null", null);
 
         migration().migrate();
 
-        assertThat(storedPatient("kindless").getString("account_id")).isEqualTo("acc-kindless");
+        assertThat(storedPatient("kindless").getString("account_id"))
+            .as("the real pre-2026-09-05 shape: the key is not there at all")
+            .isEqualTo("acc-kindless");
+        assertThat(storedPatient("kind-null").getString("account_id"))
+            .as("and an explicit null reads the same way, which is why the selection uses is(null)")
+            .isEqualTo("acc-kind-null");
     }
 
     /** The stamp is targeted: the joined value lands and every other field survives byte for byte. */
@@ -232,6 +257,17 @@ class PatientAccountIdBackfillMigrationIT {
      * every frame predates hc-patient's refactor) — beside a resolvable row, because the half-done
      * outcome is the one worth pinning: the migration must stamp what it can and say what it could
      * not, in one run, without throwing.
+     *
+     * <p>⚠ <b>There is a bound under this assertion and it is global, so read it before adding a
+     * fixture.</b> It asserts the ERROR <em>contains</em> two specific ids, and
+     * {@link PatientAccountIdBackfillMigration#REPORTED_IDS_CAP} truncates the list at 20 — so the
+     * case is correct only while the whole {@code patient} collection holds fewer than twenty
+     * accountId-less rows at this instant. That holds comfortably today: this file's own rows are
+     * removed after every case, and the mapped type cannot create such a row at all, so only raw
+     * {@code Document} inserts can add to the count. It is a property of the shared reused container
+     * rather than of this test, which is exactly why nothing states it and why it is stated here. A
+     * run that goes red on a missing id is telling you the cap was reached, not that the migration
+     * stopped reporting.
      */
     @Test
     void aRowItCannotResolveIsReportedNotDefaultedAndNotFatal() {

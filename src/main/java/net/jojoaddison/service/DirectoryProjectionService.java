@@ -696,10 +696,15 @@ public class DirectoryProjectionService {
             // contradictory INFO from here, about the same frame, a few lines apart.
             case LINKED -> {
                 if (defersARecord(event)) {
+                    // Says what happened and not why. Two paths end here — no accountId (item 115's
+                    // deferral, which logs its own WARN naming the remedy) and the compare-and-set
+                    // loser (which logs its own DEBUG) — and this branch cannot tell them apart.
+                    // Naming the first would be false for the second, which is the defect this
+                    // branch exists to fix, so it points at the line that does know instead. See
+                    // defersARecord's javadoc for why the structural fix was not taken here.
                     LOG.info(
-                        "Directory linked a {} from {} ({}): {} — no local record YET: the frame carried no " +
-                            "accountId and the link holds none, and Patient.accountId is required and never " +
-                            "fabricated (item 115). See the WARN above for the remedy.",
+                        "Directory linked a {} from {} ({}): {} — a record was attempted and not created; the " +
+                            "preceding WARN or DEBUG for this subject says which reason applies (item 115)",
                         subjectKindOf(event),
                         event.source(),
                         event.type(),
@@ -801,8 +806,23 @@ public class DirectoryProjectionService {
      * Disposition#CREATE} event ever attempts one — {@code LINK_ONLY} is the angel-and-clinician
      * answer, and an {@code UPDATE_ONLY} for an unknown subject returns {@link Outcome#IGNORED}
      * before {@code announce} is reached. So a {@code LINKED} that got this far on a patient-stream
-     * {@code CREATE} attempted a record and was refused, and {@code createAndClaim}'s accountId
-     * guard is the only thing that refuses one.
+     * {@code CREATE} attempted a record and did not end with one.
+     *
+     * <p>⚠ <b>It cannot say WHY, and an earlier version of this javadoc claimed it could</b> — it
+     * said the accountId guard is "the only thing that refuses" a record. It is not.
+     * {@code createAndClaim} returns null in <b>two</b> places: the accountId guard, and the
+     * compare-and-set loser, where a second writer claimed the link first and the record this call
+     * made is deleted again. That path is also a first sighting with no local id, so it reaches
+     * {@link Outcome#LINKED} and lands here — with an {@code accountId} that was present all along.
+     * The caller's own {@code DEBUG} names that reason correctly; this method has no way to tell the
+     * two apart, so the line it drives must not assert either one.
+     *
+     * <p><b>The better fix is structural and is deliberately not taken here:</b>
+     * {@code createAndClaim} should hand its reason back — an enum or an {@code Optional} carrying
+     * why — rather than {@code announce} re-deriving it from the outcome. Re-derivation is exactly
+     * the defect this method was added to fix, one layer up, and doing it properly changes that
+     * method's signature and every caller. It is a wider change than a merge-time correction should
+     * carry; what is fixed now is the false sentence, not the shape that invited it.
      */
     private boolean defersARecord(SiblingDomainEvent event) {
         return event.source() == DirectorySource.HC_PATIENT && event.disposition() == Disposition.CREATE;
