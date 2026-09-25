@@ -106,9 +106,48 @@ public class VendorResource {
             throw new BadRequestAlertException("Invalid ID", ENTITY_NAME, "idinvalid");
         }
 
-        if (!vendorRepository.existsById(id)) {
-            throw new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound");
+        Vendor stored = vendorRepository
+            .findById(id)
+            .orElseThrow(() -> new BadRequestAlertException("Entity not found", ENTITY_NAME, "idnotfound"));
+
+        // PUT replaces the whole document, so a field the console's edit form does not carry is not
+        // "left alone" — it is written away. Three of Vendor's fields are in exactly that position,
+        // and this is the rule ProfessionalResource already applies to homeSpaceId and
+        // unavailabilityPeriods, and TeamService.restoreGeographicSpaceIds one collection over.
+        // Backlog item 144.
+        //
+        // accountId is the serious one. It holds the vendor-gateway login, it carries a unique sparse
+        // index (VendorAccountIndexes) because it decides WHICH VENDOR a portal caller is, and it is
+        // absent from the console model entirely — IVendor does not declare it — so every console edit
+        // sent a null over it. Nothing opposed that write: rejectDuplicateAccountId returns early on
+        // null, the index is sparse so a null collides with nothing, and save() wrote it. The vendor's
+        // portal identity was destroyed silently, and restoring it needs somebody who still knows the
+        // login.
+        //
+        // The cost of the rule, stated as homeSpaceId's comment states it: a null cannot CLEAR the
+        // value. A String has one absent value doing both jobs, and unlinking a vendor from its portal
+        // account is a write nothing asks for yet. When something does, it needs a shape that can say
+        // so — PATCH already distinguishes them — rather than a relaxation of this line.
+        if (vendor.getAccountId() == null) {
+            vendor.setAccountId(stored.getAccountId());
         }
+
+        // ⚠ documents and facilities CANNOT use the null guard above, and the reason is specific to
+        // this entity rather than a style choice. Both are declared `= new HashSet<>()` on Vendor, so
+        // a body that omits the key deserialises to an EMPTY SET, never null — Jackson leaves the
+        // field initialiser standing. "Absent" and "deliberately cleared" are therefore the same value
+        // on the wire, and no guard can tell them apart. (Professional.unavailabilityPeriods has no
+        // initialiser, which is why the null guard genuinely fires there. The precedent's shape does
+        // not transfer here, and reading it as though it did would leave this half still broken.)
+        //
+        // So these two are restored unconditionally, which is the shape used for verification above —
+        // a field the client may not write at all. That is correct for them: both are @DBRef sets
+        // owned from the other end, Document owns the back-reference that setDocuments rewrites, and
+        // the console writes neither. Item 144 declined a hidden control for exactly that reason —
+        // round-tripping a nested collection through a browser is a larger stale write than the one it
+        // prevents.
+        vendor.setDocuments(stored.getDocuments());
+        vendor.setFacilities(stored.getFacilities());
 
         normaliseAccountId(vendor);
         rejectDuplicateAccountId(vendor.getAccountId(), id);
