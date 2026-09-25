@@ -7,6 +7,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import net.jojoaddison.broker.AdminChannel;
 import net.jojoaddison.broker.AdminEntityEvent;
 import net.jojoaddison.broker.OutboundEventPublisher;
 import net.jojoaddison.security.SecurityUtils;
@@ -212,7 +213,10 @@ public class EntityChangeAnnouncer extends AbstractMongoEventListener<Object> {
      * channel has no consumer reading it in anger.
      */
     private String partitionKey(String entityType, String entityId) {
-        return entityId == null ? entityType : entityType + "/" + entityId;
+        // Delegated since item 145: this class stopped being the channel's only publisher, and three
+        // copies of "the same" key is three places for them to stop being the same — invisibly, because
+        // every producer stays healthy while ordering quietly stops holding. The reasoning moved with it.
+        return AdminChannel.partitionKey(entityType, entityId);
     }
 
     /**

@@ -7,7 +7,9 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
+import net.jojoaddison.broker.AdminChannel;
 import net.jojoaddison.broker.OutboundEventPublisher;
+import net.jojoaddison.broker.ProfessionalVerifiedEvent;
 import net.jojoaddison.broker.VerificationEvent;
 import net.jojoaddison.config.Constants;
 import net.jojoaddison.domain.Professional;
@@ -45,6 +47,11 @@ public class ProfessionalVerificationService {
 
     /** The browser fan-out, so an open console updates without a reload. Bound to `sse-topic`. */
     private static final String SSE_BINDING = "binding-out-0";
+
+    /**
+     * This product's own channel — item 145 step 1. Additive; see {@link #announceOnAdminEvent}.
+     */
+    private static final String ADMIN_EVENT_BINDING = "admin-event-out-0";
 
     private final ProfessionalVerificationRepository verificationRepository;
 
@@ -129,6 +136,58 @@ public class ProfessionalVerificationService {
         // send rather than a shared binding: the domain topic and the browser channel have different
         // audiences and one should not be able to break the other.
         eventPublisher.publish(SSE_BINDING, payload, subject);
+
+        announceOnAdminEvent(saved, subject);
+    }
+
+    /**
+     * The same decision on this product's own channel, with an envelope for the first time. Item 145.
+     *
+     * <p><b>This leg is a construction rather than a migration</b>, which is the difference from
+     * hc-patient's. {@link VerificationEvent} is a bare payload with no {@code eventId},
+     * {@code type}, {@code occurredAt} or {@code source} — it never needed them, because
+     * {@code professional-verification} has been <b>published into silence since it shipped</b> and no
+     * consumer was ever built. {@link ProfessionalVerifiedEvent} gives the decision an envelope that
+     * {@code admin.event}'s readers can dispatch on.
+     *
+     * <p><b>Additive.</b> The two sends above are untouched and the old topic keeps its exact bytes;
+     * it retires only after hc-professional's item 144 consumes this channel and its lag reaches zero.
+     *
+     * <p>⚠ <b>Nothing reads this type yet</b> — 144 is unbuilt, so the frame is unverified against any
+     * consumer. Accepted knowingly by the architect (item 145 D2) rather than discovered later.
+     *
+     * <p>⛔ <b>{@code licenceNumber} is not on this frame and must not be added.</b> Dropped by D3:
+     * hc-professional owns it, {@code admin.event} is read by three products where the old topic was
+     * read by none, and the rule that a command carries the value it decides reaches the
+     * {@code status}, not an attribute of the subject. The legacy frame above still carries it.
+     *
+     * <p><b>It cannot fail the decision</b>, for the reason the whole of {@link #announce} gives: the
+     * row is already written and the two sends already queued.
+     */
+    private void announceOnAdminEvent(ProfessionalVerification saved, String subject) {
+        try {
+            Professional professional = saved.getProfessional();
+            ProfessionalVerifiedEvent frame = new ProfessionalVerifiedEvent(
+                java.util.UUID.randomUUID().toString(),
+                Instant.now(clock).truncatedTo(ChronoUnit.MILLIS),
+                saved.getId(),
+                professional == null ? null : professional.getId(),
+                saved.getStatus() == null ? null : saved.getStatus().name(),
+                // The gateway User.id, and absent when unknown — NOT saved.getRecordedBy(), which is a
+                // login and is what the legacy frame carries. Item 43 makes a login identifying
+                // content, and this channel is read by three products.
+                SecurityUtils.getCurrentUserId().orElse(null)
+            );
+            eventPublisher.publish(
+                ADMIN_EVENT_BINDING,
+                objectMapper.writeValueAsString(frame),
+                subject + " on " + ProfessionalVerifiedEvent.SUBJECT_ENTITY_TYPE,
+                AdminChannel.partitionKey(ProfessionalVerifiedEvent.SUBJECT_ENTITY_TYPE, saved.getId()),
+                null
+            );
+        } catch (JsonProcessingException | RuntimeException e) {
+            LOG.error("Verification {} was recorded but could not be announced on {}", saved.getId(), ADMIN_EVENT_BINDING, e);
+        }
     }
 
     /**

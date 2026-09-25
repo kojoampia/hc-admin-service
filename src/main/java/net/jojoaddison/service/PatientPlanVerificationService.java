@@ -7,8 +7,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 import java.util.UUID;
+import net.jojoaddison.broker.AdminChannel;
 import net.jojoaddison.broker.OutboundEventPublisher;
 import net.jojoaddison.broker.PlanVerificationEvent;
+import net.jojoaddison.broker.PlanVerifiedEvent;
 import net.jojoaddison.config.Constants;
 import net.jojoaddison.domain.DirectoryLink;
 import net.jojoaddison.security.SecurityUtils;
@@ -61,6 +63,12 @@ public class PatientPlanVerificationService {
 
     /** The plan-verification topic hc-patient consumes. Bound to `patient-events-plan`. */
     private static final String PLAN_VERIFICATION_BINDING = "plan-verification-out-0";
+
+    /**
+     * This product's own channel — item 145 step 1. Not a replacement for the binding above; see
+     * {@link #announceOnAdminEvent}, which explains why both are live and in which order they retire.
+     */
+    private static final String ADMIN_EVENT_BINDING = "admin-event-out-0";
 
     private final OutboundEventPublisher eventPublisher;
 
@@ -146,7 +154,67 @@ public class PatientPlanVerificationService {
         // three-argument form every other publisher in this service uses. See
         // OutboundEventPublisher.publish(String, String, String, String).
         eventPublisher.publish(PLAN_VERIFICATION_BINDING, payload, "Plan verification for " + LogPseudonym.subject(subject), subject);
+
+        announceOnAdminEvent(link, event, plan, subject);
         return event;
+    }
+
+    /**
+     * The same decision, a second time, on this product's own channel. Backlog item 145 step 1.
+     *
+     * <p><b>Additive and deliberately so.</b> The send above still goes to
+     * {@code patient-events-plan}, which hc-patient's {@code patientPlanEventsConsumer} reads today.
+     * Both destinations stay live until their item 47 reads {@code admin.event} and their lag on the
+     * old topic reaches zero; only then is the old binding removed, and <b>removing it before that is
+     * an outage in their product caused by a commit in ours</b>.
+     *
+     * <p><b>It is a different shape, not the same bytes twice</b>, and that was the architect's D1 on
+     * 2026-09-25. {@link PlanVerificationEvent} is hc-patient's {@code PatientEvent} envelope, keyed on
+     * the address; {@link PlanVerifiedEvent} is this channel's envelope, whose {@code subject} is
+     * {@code (entityType, entityId)} like every other frame here. Publishing their shape on this
+     * channel would have made {@code subject} mean two things under two {@code type}s — the divergence
+     * item 110 exists to end.
+     *
+     * <p><b>Two ids, on purpose.</b> This frame gets its own {@code eventId} rather than reusing the
+     * one above. That id is hc-patient's idempotency key — it becomes the {@code _id} of their
+     * {@code PlanVerification} ledger row — and lending it to a frame on another channel would give a
+     * future consumer of <em>this</em> channel a key that is already spoken for. Two channels, two
+     * identities, and the decision they describe is joined by {@code subjectKey}.
+     *
+     * <p><b>It cannot fail the decision.</b> Serialisation is caught and logged, exactly as the SSE
+     * relay in {@code ProfessionalVerificationService.announce} is: the administrator's verification
+     * has already been accepted and the frame above already queued, so throwing here would report a
+     * failure for something that did happen. A dead broker is already not this method's problem —
+     * {@link OutboundEventPublisher} queues off the request thread.
+     */
+    private void announceOnAdminEvent(DirectoryLink link, PlanVerificationEvent published, String plan, String subject) {
+        try {
+            PlanVerifiedEvent frame = new PlanVerifiedEvent(
+                UUID.randomUUID().toString(),
+                Instant.now(clock).truncatedTo(ChronoUnit.MILLIS),
+                link.getId(),
+                plan,
+                subject
+            );
+            eventPublisher.publish(
+                ADMIN_EVENT_BINDING,
+                objectMapper.writeValueAsString(frame),
+                "Plan verification for " + LogPseudonym.subject(subject) + " on " + PlanVerifiedEvent.SUBJECT_ENTITY_TYPE,
+                AdminChannel.partitionKey(PlanVerifiedEvent.SUBJECT_ENTITY_TYPE, link.getId()),
+                // No `patientKey` header. OutboundEventPublisher:116 states the rule: a frame on this
+                // service's own channel is not about a patient, and stamping their convention on it
+                // would read as a defect to whoever found it. The subject travels in the payload.
+                null
+            );
+        } catch (JsonProcessingException | RuntimeException e) {
+            LOG.error(
+                "Plan verification {} was published to {} but could not be announced on {}",
+                published.getEventId(),
+                PLAN_VERIFICATION_BINDING,
+                ADMIN_EVENT_BINDING,
+                e
+            );
+        }
     }
 
     /**
